@@ -1,128 +1,206 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "../lib/supabase"
 
+type Order = {
+  id: number
+  customer_name: string
+  phone: string
+  city: string
+  address: string
+  product: string
+  delivery_type: string
+  quantity?: number | null
+  amount?: number | string | null
+  cash_collected?: boolean | null
+  cash_collected_at?: string | null
+  cash_collected_by?: string | null
+  status?: string
+  logistic_status?: string | null
+  payment_status?: string | null
+  driver_name?: string | null
+  assigned_driver_id?: string | null
+  is_assigned?: boolean
+  assigned_at?: string | null
+  delivery_group_id?: string | null
+}
+
+type Profile = {
+  id: string
+  email: string
+  role: string
+  full_name: string
+  phone?: string | null
+}
+
+type DriverStock = {
+  id: number
+  driver_id: string
+  driver_name: string
+  product_name: string
+  quantity: number
+}
+
+type OrderHistory = {
+  id: number
+  created_at: string
+  order_id: number
+  action_type: string
+  action_by_user_id: string
+  action_by_name: string
+  action_details: string
+}
+
 export default function AdminPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  const [orders, setOrders] = useState<Order[]>([])
+  const [drivers, setDrivers] = useState<Profile[]>([])
+  const [driverStocks, setDriverStocks] = useState<DriverStock[]>([])
+  const [history, setHistory] = useState<OrderHistory[]>([])
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, string>>({})
+  const [selectedActions, setSelectedActions] = useState<Record<number, string>>({})
+
+  const [loading, setLoading] = useState(false)
+  const [stockLoading, setStockLoading] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  const [statusFilter, setStatusFilter] = useState("Tous")
+  const [search, setSearch] = useState("")
+  const [profile, setProfile] = useState<Profile | null>(null)
+
+  const [form, setForm] = useState({
+    customer_name: "",
+    phone: "",
+    city: "",
+    address: "",
+    product: "",
+    quantity: "1",
+    delivery_type: "",
+    amount: "",
+  })
+
+  const [stockForm, setStockForm] = useState({
+    driver_id: "",
+    product_name: "",
+    quantity: "1",
+  })
 
   useEffect(() => {
-    init()
+    void initPage()
   }, [])
 
-  const init = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("id", { ascending: false })
+  const normalizeDeliveryType = (value?: string | null) =>
+    (value || "").trim().toLowerCase()
 
-    setOrders(data || [])
-    setLoading(false)
-  }
+  // =========================
+  // 💰 COMMISSIONS (AJOUT PROPRE)
+  // =========================
 
-  const delivered = orders.filter(o => o.status === "Livré")
+  const deliveredOrders = orders.filter(o => o.status === "Livré")
 
-  // ======================
-  // 💰 GLOBAL PRO
-  // ======================
+  const totalCloseuse = deliveredOrders.length * 500
 
-  const totalCloseuse = delivered.reduce(
-    (sum, o) => sum + (o.closer_commission || 0),
-    0
+  const directDeliveries = deliveredOrders.filter(
+    o => normalizeDeliveryType(o.delivery_type) === "direct"
+  ).length
+
+  const gareGroups = new Set(
+    deliveredOrders
+      .filter(o => normalizeDeliveryType(o.delivery_type) === "gare")
+      .map(o => o.delivery_group_id || o.id)
   )
 
-  const totalLivreur = delivered.reduce(
-    (sum, o) => sum + (o.driver_commission || 0),
-    0
-  )
+  const totalLivreur = (directDeliveries * 2000) + (gareGroups.size * 2000)
 
-  const chiffreAffaire = delivered.reduce(
+  const chiffreAffaire = deliveredOrders.reduce(
     (sum, o) => sum + Number(o.amount || 0),
     0
   )
 
   const profit = chiffreAffaire - (totalCloseuse + totalLivreur)
 
-  // ======================
-  // 🚚 PAR LIVREUR PRO
-  // ======================
+  // =========================
 
-  const gainsParLivreur: any = {}
+  const initPage = async () => {
+    setAuthLoading(true)
 
-  delivered.forEach(o => {
-    if (!o.driver_name) return
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!gainsParLivreur[o.driver_name]) {
-      gainsParLivreur[o.driver_name] = 0
+    if (!user) {
+      router.replace("/login")
+      return
     }
 
-    gainsParLivreur[o.driver_name] += (o.driver_commission || 0)
-  })
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
 
-  const gainsLivreurFinal = Object.entries(gainsParLivreur).map(
-    ([name, gain]: any) => ({
-      name,
-      gain,
-    })
-  )
-
-  // ======================
-  // 📅 PAR JOUR
-  // ======================
-
-  const gainsParJour: any = {}
-
-  delivered.forEach(o => {
-    const date = new Date(o.created_at).toLocaleDateString()
-
-    if (!gainsParJour[date]) {
-      gainsParJour[date] = 0
+    if (!profileData) {
+      router.replace("/login")
+      return
     }
 
-    gainsParJour[date] += Number(o.amount || 0)
-  })
+    setProfile(profileData)
 
-  if (loading) return <div style={{ color: "white" }}>Chargement...</div>
+    const { data: ordersData } = await supabase
+      .from("orders")
+      .select("*")
+      .order("id", { ascending: false })
+
+    setOrders(ordersData || [])
+    setAuthLoading(false)
+  }
+
+  if (authLoading) {
+    return <div style={{ color: "white" }}>Chargement...</div>
+  }
 
   return (
-    <div style={{ padding: 20, background: "#0f172a", color: "white", minHeight: "100vh" }}>
+    <main style={{ background: "#0f172a", color: "white", minHeight: "100vh", padding: 20 }}>
+      
+      <h1>📊 ADMIN PRO</h1>
 
-      <h1>📊 ADMIN PRO DASHBOARD</h1>
+      {/* 💰 DASHBOARD */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+        gap: 12,
+        marginBottom: 20
+      }}>
+        <div style={{ background: "#16a34a", padding: 12, borderRadius: 10 }}>
+          💰 Closeuse : {totalCloseuse} FCFA
+        </div>
 
-      {/* GLOBAL */}
-      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
-        <h2>💰 Résumé global</h2>
-        <p>Closeuse : <b>{totalCloseuse} FCFA</b></p>
-        <p>Livreurs : <b>{totalLivreur} FCFA</b></p>
-        <p>Chiffre d’affaire : <b>{chiffreAffaire} FCFA</b></p>
-        <p style={{ color: "#22c55e" }}>
-          Profit : <b>{profit} FCFA</b>
-        </p>
+        <div style={{ background: "#2563eb", padding: 12, borderRadius: 10 }}>
+          🚚 Livreurs : {totalLivreur} FCFA
+        </div>
+
+        <div style={{ background: "#22c55e", padding: 12, borderRadius: 10 }}>
+          📈 CA : {chiffreAffaire} FCFA
+        </div>
+
+        <div style={{ background: "#f59e0b", padding: 12, borderRadius: 10 }}>
+          💸 Profit : {profit} FCFA
+        </div>
       </div>
 
-      {/* PAR LIVREUR */}
-      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
-        <h2>🚚 Gains par livreur</h2>
+      {/* 📦 COMMANDES */}
+      {orders.map((o) => (
+        <div key={o.id} style={{ background: "#1e293b", padding: 10, marginTop: 10 }}>
+          <p>{o.customer_name} - {o.city}</p>
+          <p>{o.product} - {o.amount} FCFA</p>
+          <p>Status : {o.status}</p>
+          <p>Type : {o.delivery_type}</p>
+        </div>
+      ))}
 
-        {gainsLivreurFinal.map((l: any, i: number) => (
-          <p key={i}>
-            {l.name} : <b>{l.gain} FCFA</b>
-          </p>
-        ))}
-      </div>
-
-      {/* PAR JOUR */}
-      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
-        <h2>📅 Chiffre par jour</h2>
-
-        {Object.entries(gainsParJour).map(([date, total]: any) => (
-          <p key={date}>
-            {date} : <b>{total} FCFA</b>
-          </p>
-        ))}
-      </div>
-
-    </div>
+    </main>
   )
 }
