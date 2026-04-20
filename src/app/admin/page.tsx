@@ -24,57 +24,53 @@ export default function AdminPage() {
   const delivered = orders.filter(o => o.status === "Livré")
 
   // ======================
-  // GLOBAL
+  // 💰 GLOBAL PRO
   // ======================
-  const totalCloseuse = delivered.length * 500
 
-  const direct = delivered.filter(o => o.delivery_type === "direct").length
-
-  const groups = new Set(
-    delivered
-      .filter(o => o.delivery_type === "gare")
-      .map(o => o.delivery_group_id)
+  const totalCloseuse = delivered.reduce(
+    (sum, o) => sum + (o.closer_commission || 0),
+    0
   )
 
-  const totalLivreur = (direct * 2000) + (groups.size * 2000)
+  const totalLivreur = delivered.reduce(
+    (sum, o) => sum + (o.driver_commission || 0),
+    0
+  )
 
   const chiffreAffaire = delivered.reduce(
     (sum, o) => sum + Number(o.amount || 0),
     0
   )
 
+  const profit = chiffreAffaire - (totalCloseuse + totalLivreur)
+
   // ======================
-  // PAR LIVREUR
+  // 🚚 PAR LIVREUR PRO
   // ======================
+
   const gainsParLivreur: any = {}
 
   delivered.forEach(o => {
     if (!o.driver_name) return
 
     if (!gainsParLivreur[o.driver_name]) {
-      gainsParLivreur[o.driver_name] = {
-        direct: 0,
-        groups: new Set()
-      }
+      gainsParLivreur[o.driver_name] = 0
     }
 
-    if (o.delivery_type === "direct") {
-      gainsParLivreur[o.driver_name].direct++
-    }
-
-    if (o.delivery_type === "gare" && o.delivery_group_id) {
-      gainsParLivreur[o.driver_name].groups.add(o.delivery_group_id)
-    }
+    gainsParLivreur[o.driver_name] += (o.driver_commission || 0)
   })
 
-  const gainsLivreurFinal = Object.entries(gainsParLivreur).map(([name, data]: any) => ({
-    name,
-    gain: (data.direct * 2000) + (data.groups.size * 2000)
-  }))
+  const gainsLivreurFinal = Object.entries(gainsParLivreur).map(
+    ([name, gain]: any) => ({
+      name,
+      gain,
+    })
+  )
 
   // ======================
-  // PAR JOUR
+  // 📅 PAR JOUR
   // ======================
+
   const gainsParJour: any = {}
 
   delivered.forEach(o => {
@@ -87,40 +83,42 @@ export default function AdminPage() {
     gainsParJour[date] += Number(o.amount || 0)
   })
 
-  if (loading) return <div>Chargement...</div>
+  if (loading) return <div style={{ color: "white" }}>Chargement...</div>
 
   return (
     <div style={{ padding: 20, background: "#0f172a", color: "white", minHeight: "100vh" }}>
 
-      <h1>📊 ADMIN FINAL DASHBOARD</h1>
+      <h1>📊 ADMIN PRO DASHBOARD</h1>
 
       {/* GLOBAL */}
-      <div style={{ marginBottom: 30 }}>
+      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
         <h2>💰 Résumé global</h2>
-        <p>Closeuse : {totalCloseuse} FCFA</p>
-        <p>Livreurs : {totalLivreur} FCFA</p>
-        <p>Chiffre d’affaire : {chiffreAffaire} FCFA</p>
-        <p>Profit : {chiffreAffaire - (totalCloseuse + totalLivreur)} FCFA</p>
+        <p>Closeuse : <b>{totalCloseuse} FCFA</b></p>
+        <p>Livreurs : <b>{totalLivreur} FCFA</b></p>
+        <p>Chiffre d’affaire : <b>{chiffreAffaire} FCFA</b></p>
+        <p style={{ color: "#22c55e" }}>
+          Profit : <b>{profit} FCFA</b>
+        </p>
       </div>
 
       {/* PAR LIVREUR */}
-      <div style={{ marginBottom: 30 }}>
+      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
         <h2>🚚 Gains par livreur</h2>
 
         {gainsLivreurFinal.map((l: any, i: number) => (
           <p key={i}>
-            {l.name} : {l.gain} FCFA
+            {l.name} : <b>{l.gain} FCFA</b>
           </p>
         ))}
       </div>
 
       {/* PAR JOUR */}
-      <div style={{ marginBottom: 30 }}>
+      <div style={{ marginBottom: 30, background: "#1e293b", padding: 20, borderRadius: 10 }}>
         <h2>📅 Chiffre par jour</h2>
 
         {Object.entries(gainsParJour).map(([date, total]: any) => (
           <p key={date}>
-            {date} : {total} FCFA
+            {date} : <b>{total} FCFA</b>
           </p>
         ))}
       </div>

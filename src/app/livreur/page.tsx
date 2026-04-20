@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../lib/supabase"
 
@@ -44,34 +44,43 @@ export default function LivreurPage() {
   }
 
   // ========================
-  // 💰 GAINS LIVREUR
+  // 💰 GAINS PRO (SUPABASE)
   // ========================
 
   const delivered = orders.filter(o => o.status === "Livré")
 
-  const direct = delivered.filter(o => o.delivery_type === "direct").length
-
-  const groups = new Set(
-    delivered
-      .filter(o => o.delivery_type === "gare")
-      .map(o => o.delivery_group_id)
+  const totalGain = delivered.reduce(
+    (sum, o) => sum + (o.driver_commission || 0),
+    0
   )
 
-  const totalGain = (direct * 2000) + (groups.size * 2000)
+  const totalOrders = orders.length
+  const pending = orders.filter(o => o.status === "En attente").length
+  const confirmed = orders.filter(o => o.status === "Confirmé").length
+  const deliveredCount = delivered.length
 
   if (loading) return <div style={{ color: "white" }}>Chargement...</div>
 
   return (
     <div style={{ padding: 20, background: "#0f172a", color: "white", minHeight: "100vh" }}>
 
-      <h1>🚚 Espace Livreur</h1>
+      <h1>🚚 Espace Livreur PRO</h1>
 
-      {/* 💰 GAINS */}
-      <div style={{ marginBottom: 20 }}>
-        <h2>Mes gains</h2>
-        <p>{totalGain} FCFA</p>
+      {/* DASHBOARD */}
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 30 }}>
+        <div>Total : {totalOrders}</div>
+        <div>En attente : {pending}</div>
+        <div>Confirmées : {confirmed}</div>
+        <div>Livrées : {deliveredCount}</div>
       </div>
 
+      {/* 💰 GAINS */}
+      <div style={{ background: "#1e293b", padding: 20, borderRadius: 10, marginBottom: 30 }}>
+        <h2>💰 Mes gains</h2>
+        <p><b>{totalGain} FCFA</b></p>
+      </div>
+
+      {/* COMMANDES */}
       <h2>Mes commandes</h2>
 
       {orders.map((o) => (
@@ -83,6 +92,10 @@ export default function LivreurPage() {
           <p><b>Status :</b> {o.status}</p>
           <p><b>Type :</b> {o.delivery_type}</p>
           <p><b>Groupe :</b> {o.delivery_group_id || "Aucun"}</p>
+
+          <p style={{ color: "#22c55e" }}>
+            💰 Gain : {o.driver_commission || 0} FCFA
+          </p>
         </div>
       ))}
 

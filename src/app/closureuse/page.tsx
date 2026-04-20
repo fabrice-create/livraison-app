@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../lib/supabase"
 
@@ -48,7 +48,6 @@ export default function ClosureusePage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  // 🔥 CREATION COMMANDE AVEC GROUPEMENT
   const handleSubmit = async (e: any) => {
     e.preventDefault()
 
@@ -63,10 +62,8 @@ export default function ClosureusePage() {
         ...form,
         quantity: Number(form.quantity),
         amount: Number(form.amount),
-
         delivery_group_id: groupId,
         is_grouped: isGare,
-
         status: "En attente",
         logistic_status: "En attente",
         payment_status: "Non payé",
@@ -78,7 +75,6 @@ export default function ClosureusePage() {
     location.reload()
   }
 
-  // 🔥 ASSIGNER LIVREUR
   const assignDriver = async (orderId: number) => {
     const driverId = selectedDrivers[orderId]
     const driver = drivers.find((d) => d.id === driverId)
@@ -97,22 +93,25 @@ export default function ClosureusePage() {
   }
 
   // ======================
-  // 💰 GAINS AUTOMATIQUES
+  // 💰 GAINS PRO (SUPABASE)
   // ======================
 
   const delivered = orders.filter(o => o.status === "Livré")
 
-  const closeuseGain = delivered.length * 500
-
-  const direct = delivered.filter(o => o.delivery_type === "direct").length
-
-  const groups = new Set(
-    delivered
-      .filter(o => o.delivery_type === "gare")
-      .map(o => o.delivery_group_id)
+  const closeuseGain = delivered.reduce(
+    (sum, o) => sum + (o.closer_commission || 0),
+    0
   )
 
-  const livreurGain = (direct * 2000) + (groups.size * 2000)
+  const livreurGain = delivered.reduce(
+    (sum, o) => sum + (o.driver_commission || 0),
+    0
+  )
+
+  const totalOrders = orders.length
+  const pending = orders.filter(o => o.status === "En attente").length
+  const confirmed = orders.filter(o => o.status === "Confirmé").length
+  const deliveredCount = delivered.length
 
   if (loading) return <div>Chargement...</div>
 
@@ -121,11 +120,19 @@ export default function ClosureusePage() {
 
       <h1>💰 Espace Closeuse PRO</h1>
 
+      {/* DASHBOARD */}
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 30 }}>
+        <div>Total : {totalOrders}</div>
+        <div>En attente : {pending}</div>
+        <div>Confirmées : {confirmed}</div>
+        <div>Livrées : {deliveredCount}</div>
+      </div>
+
       {/* 💰 GAINS */}
-      <div style={{ marginBottom: 20 }}>
-        <h2>Mes gains</h2>
-        <p>Closeuse : {closeuseGain} FCFA</p>
-        <p>Livreurs : {livreurGain} FCFA</p>
+      <div style={{ background: "#1e293b", padding: 20, borderRadius: 10, marginBottom: 30 }}>
+        <h2>💰 Mes gains</h2>
+        <p>Closeuse : <b>{closeuseGain} FCFA</b></p>
+        <p>Livreurs : <b>{livreurGain} FCFA</b></p>
       </div>
 
       {/* MENU */}
@@ -165,6 +172,9 @@ export default function ClosureusePage() {
               <p>{o.product} - {o.amount} FCFA</p>
               <p>Status : {o.status}</p>
               <p>Type : {o.delivery_type}</p>
+
+              <p>💰 Closeuse : {o.closer_commission || 0}</p>
+              <p>🚚 Livreur : {o.driver_commission || 0}</p>
 
               <select
                 value={selectedDrivers[o.id] || ""}
