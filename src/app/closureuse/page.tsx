@@ -1,3 +1,19 @@
+const deliveredOrders = orders.filter(o => o.status === "Livré")
+
+const closeuseGain = deliveredOrders.length * 500
+
+const directCount = deliveredOrders.filter(
+  o => (o.delivery_type || "").toLowerCase() === "direct"
+).length
+
+const gareGroups = new Set(
+  deliveredOrders
+    .filter(o => (o.delivery_type || "").toLowerCase() === "gare")
+    .map(o => o.delivery_group_id || o.id)
+)
+
+const livreurGain = (directCount * 2000) + (gareGroups.size * 2000)
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -201,3 +217,17 @@ export default function ClosureusePage() {
     </main>
   )
 }
+<div style={{
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 12,
+  marginBottom: 20
+}}>
+  <div style={{ background: "#16a34a", padding: 16, borderRadius: 12 }}>
+    💰 Mes gains : <b>{closeuseGain} FCFA</b>
+  </div>
+
+  <div style={{ background: "#2563eb", padding: 16, borderRadius: 12 }}>
+    🚚 Gains livreurs : <b>{livreurGain} FCFA</b>
+  </div>
+</div>
