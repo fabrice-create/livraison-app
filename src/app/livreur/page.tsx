@@ -51,6 +51,7 @@ export default function LivreurPage() {
   const [selectedActions, setSelectedActions] = useState<Record<number, string>>({})
   const [confirmAction, setConfirmAction] = useState<{ order: Order; action: string } | null>(null)
   const [periodFilter, setPeriodFilter] = useState("mois")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => { void initPage() }, [])
 
@@ -58,38 +59,26 @@ export default function LivreurPage() {
     if (v === null || v === undefined || v === "") return "-"
     return `${Number(v).toLocaleString()} FCFA`
   }
-
   const fmtDate = (d?: string | null) => {
     if (!d) return "-"
     return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
   }
-
-  const normalizeRole = (r?: string | null) => String(r || "").trim().toLowerCase()
-  const normDT = (v?: string | null) => {
-    const c = (v || "").trim().toLowerCase()
-    if (c === "direct") return "direct"
-    if (c === "gare") return "gare"
-    return c
-  }
-  const prettyDT = (v?: string | null) => {
-    const n = normDT(v)
-    if (n === "direct") return "Direct"
-    if (n === "gare") return "Gare"
-    return v || "-"
-  }
+  const normDT = (v?: string | null) => { const c = (v || "").trim().toLowerCase(); if (c === "direct") return "direct"; if (c === "gare") return "gare"; return c }
+  const prettyDT = (v?: string | null) => { const n = normDT(v); if (n === "direct") return "Direct"; if (n === "gare") return "Gare"; return v || "-" }
   const isDirect = (v?: string | null) => normDT(v) === "direct"
   const isGare = (v?: string | null) => normDT(v) === "gare"
   const isLocked = (o: Order) => o.status === "Livré" && o.payment_status === "Payé"
+  const normalizeRole = (r?: string | null) => String(r || "").trim().toLowerCase()
 
   const statusStyle = (s?: string | null) => {
     switch (s) {
-      case "Livré": return { bg: "#052e16", color: "#4ade80" }
-      case "Confirmé": return { bg: "#1e3a5f", color: "#60a5fa" }
-      case "Annulé": return { bg: "#450a0a", color: "#f87171" }
-      case "Payé": return { bg: "#052e16", color: "#4ade80" }
-      case "Envoyé à la gare": return { bg: "#2e1065", color: "#c084fc" }
-      case "Non payé": return { bg: "#450a0a", color: "#f87171" }
-      default: return { bg: "#431407", color: "#fb923c" }
+      case "Livré": return { bg: "#052e16", color: "#4ade80", label: "Livré" }
+      case "Confirmé": return { bg: "#1e3a5f", color: "#60a5fa", label: "Confirmé" }
+      case "Annulé": return { bg: "#450a0a", color: "#f87171", label: "Annulé" }
+      case "Payé": return { bg: "#052e16", color: "#4ade80", label: "Payé" }
+      case "Envoyé à la gare": return { bg: "#2e1065", color: "#c084fc", label: "Gare" }
+      case "Non payé": return { bg: "#450a0a", color: "#f87171", label: "Non payé" }
+      default: return { bg: "#431407", color: "#fb923c", label: s || "En attente" }
     }
   }
 
@@ -118,22 +107,14 @@ export default function LivreurPage() {
     setLoading(false)
   }
 
-  const filterByPeriod = (orders: Order[], field: "delivered_at" | "created_at") => {
+  const filterByPeriod = (list: Order[]) => {
     const now = new Date()
-    return orders.filter((o) => {
-      const d = o[field]
-      if (!d) return false
+    return list.filter((o) => {
+      const d = o.delivered_at; if (!d) return false
       const date = new Date(d)
-      if (periodFilter === "today") {
-        return date.toDateString() === now.toDateString()
-      }
-      if (periodFilter === "semaine") {
-        const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-        return diff <= 7
-      }
-      if (periodFilter === "mois") {
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      }
+      if (periodFilter === "today") return date.toDateString() === now.toDateString()
+      if (periodFilter === "semaine") return (now.getTime() - date.getTime()) / 86400000 <= 7
+      if (periodFilter === "mois") return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
       return true
     })
   }
@@ -154,10 +135,13 @@ export default function LivreurPage() {
 
   const commissionStats = useMemo(() => {
     const livrees = orders.filter((o) => o.status === "Livré" && o.driver_commission && o.driver_commission > 0)
-    const filtered = filterByPeriod(livrees, "delivered_at")
-    const total = filtered.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
-    const allTime = livrees.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
-    return { total, count: filtered.length, allTime, allCount: livrees.length }
+    const filtered = filterByPeriod(livrees)
+    return {
+      total: filtered.reduce((s, o) => s + Number(o.driver_commission || 0), 0),
+      count: filtered.length,
+      allTime: livrees.reduce((s, o) => s + Number(o.driver_commission || 0), 0),
+      allCount: livrees.length,
+    }
   }, [orders, periodFilter])
 
   const consumeStock = async (order: Order) => {
@@ -166,11 +150,11 @@ export default function LivreurPage() {
     const qty = Number(order.quantity || 1)
     if (!driverId || !productName || qty <= 0) { alert("Commande incomplète."); return false }
     const item = stocks.find((i) => i.driver_id === driverId && i.product_name.trim().toLowerCase() === productName.toLowerCase())
-    if (!item) { alert("Aucun stock trouvé pour ce produit."); return false }
+    if (!item) { alert("Aucun stock trouvé."); return false }
     if (Number(item.quantity) < qty) { alert("Stock insuffisant."); return false }
     const newQty = Number(item.quantity) - qty
     const { error } = await supabase.from("driver_stock").update({ quantity: newQty }).eq("id", item.id)
-    if (error) { alert("Erreur stock : " + error.message); return false }
+    if (error) { alert("Erreur : " + error.message); return false }
     setStocks((prev) => prev.map((i) => i.id === item.id ? { ...i, quantity: newQty } : i))
     return true
   }
@@ -185,8 +169,8 @@ export default function LivreurPage() {
     return true
   }
 
-  const updatePayment = async (orderId: number, paymentStatus: string, collected: boolean) => {
-    const payload = { payment_status: paymentStatus, cash_collected: collected, cash_collected_at: collected ? new Date().toISOString() : null, cash_collected_by: collected ? profile?.full_name || null : null }
+  const updatePayment = async (orderId: number, ps: string, collected: boolean) => {
+    const payload = { payment_status: ps, cash_collected: collected, cash_collected_at: collected ? new Date().toISOString() : null, cash_collected_by: collected ? profile?.full_name || null : null }
     const { error } = await supabase.from("orders").update(payload).eq("id", orderId)
     if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...payload } : o))
@@ -218,27 +202,21 @@ export default function LivreurPage() {
     if (isLocked(order)) return []
     const actions = [{ value: "", label: "Choisir une action" }, { value: "confirmer", label: "✅ Confirmer" }, { value: "annuler", label: "❌ Annuler" }]
     if (isDirect(order.delivery_type)) actions.push({ value: "livre_paye", label: "🎯 Livré + Payé" })
-    if (isGare(order.delivery_type)) {
-      actions.push({ value: "gare", label: "🚌 Envoyé à la gare" })
-      actions.push({ value: "paye", label: "💰 Marquer Payé" })
-    }
+    if (isGare(order.delivery_type)) { actions.push({ value: "gare", label: "🚌 Gare" }); actions.push({ value: "paye", label: "💰 Marquer Payé" }) }
     return actions
   }
 
   const requestAction = (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (action === "livre_paye" || action === "annuler") {
-      setConfirmAction({ order, action })
-    } else {
-      void executeAction(order, action)
-    }
+    if (action === "livre_paye" || action === "annuler") setConfirmAction({ order, action })
+    else void executeAction(order, action)
   }
 
   const executeAction = async (order: Order, action: string) => {
     setConfirmAction(null)
     if (action === "confirmer") { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
-    if (action === "livre_paye") { const ok = await markDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅ — Commission 2 000 FCFA enregistrée !") }
+    if (action === "livre_paye") { const ok = await markDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅\nCommission 2 000 FCFA enregistrée !") }
     if (action === "gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
     if (action === "paye") { const ok = await updatePayment(order.id, "Payé", true); if (ok) alert("Payée ✅") }
     if (action === "annuler") { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
@@ -247,352 +225,347 @@ export default function LivreurPage() {
 
   const logout = async () => { await supabase.auth.signOut(); router.replace("/login") }
 
-  const periodLabels: Record<string, string> = { today: "Aujourd'hui", semaine: "Cette semaine", mois: "Ce mois" }
+  const periodLabels: Record<string, string> = { today: "Aujourd'hui", semaine: "Semaine", mois: "Ce mois" }
+
+  const navItems = [
+    { id: "dashboard", icon: "📊", label: "Dashboard" },
+    { id: "commissions", icon: "💰", label: "Commissions" },
+    { id: "commandes", icon: "📦", label: "Commandes", badge: activeOrders.length },
+    { id: "stock", icon: "🗄️", label: "Stock" },
+  ]
+
+  const renderOrderCard = (order: Order, isHistory = false) => {
+    const ss = statusStyle(order.status)
+    const ls = statusStyle(order.logistic_status)
+    const ps = statusStyle(order.payment_status)
+    const locked = isLocked(order)
+    return (
+      <div key={order.id} style={{
+        background: "#111118", border: `1px solid ${locked ? "#052e16" : "#1e1e2e"}`,
+        borderRadius: 16, padding: 18, opacity: isHistory ? 0.85 : 1
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 10 }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 3 }}>{order.customer_name}</p>
+            <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {order.city} &nbsp;·&nbsp; {order.phone}</p>
+          </div>
+          <span style={{ background: locked ? "#052e16" : ss.bg, color: locked ? "#4ade80" : ss.color, padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+            {locked ? "🔒 Finalisée" : (order.status || "En attente")}
+          </span>
+        </div>
+        <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 14, marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 10, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
+          <div style={{ display: "flex", gap: 10, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(order.amount)}</span></div>
+          <div style={{ display: "flex", gap: 10, fontSize: 14, color: "#e5e7eb" }}><span>🚚</span><span>{prettyDT(order.delivery_type)}</span></div>
+          <div style={{ display: "flex", gap: 10, fontSize: 14, color: "#e5e7eb" }}><span>🏠</span><span>{order.address}</span></div>
+          <div style={{ display: "flex", gap: 10, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(order.created_at)}</span></div>
+          {order.delivered_at && <div style={{ display: "flex", gap: 10, fontSize: 12, color: "#4ade80" }}><span>✅</span><span>Livrée : {fmtDate(order.delivered_at)}</span></div>}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          <span style={{ background: ls.bg, color: ls.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{order.logistic_status || "En attente"}</span>
+          <span style={{ background: ps.bg, color: ps.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{order.payment_status || "Non payé"}</span>
+          {order.driver_commission ? <span style={{ background: "#052e16", color: "#4ade80", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>💰 {fmt(order.driver_commission)}</span> : null}
+        </div>
+        {!locked && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <select value={selectedActions[order.id] || ""} onChange={(e) => setSelectedActions((p) => ({ ...p, [order.id]: e.target.value }))}
+              style={{ flex: 1, minWidth: 140, padding: "11px 12px", background: "#0a0a0f", border: "1px solid #2a2a3e", borderRadius: 12, color: "white", fontSize: 14, outline: "none" }}>
+              {getActions(order).map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+            <button onClick={() => requestAction(order)}
+              style={{ padding: "11px 20px", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap" }}>
+              Appliquer
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#0a0a0f", color: "white" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: 44, height: 44, border: "3px solid #f59e0b", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <div style={{ width: 44, height: 44, border: "3px solid #f59e0b", borderTopColor: "transparent", borderRadius: "50%", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <p style={{ color: "#6b7280", fontSize: 14 }}>Chargement...</p>
+        <p style={{ color: "#9ca3af" }}>Chargement...</p>
       </div>
     </div>
   )
 
   return (
-    <div className="app">
-      {/* Confirmation popup */}
-      {confirmAction && (
-        <div className="overlay">
-          <div className="confirm-modal">
-            <p className="confirm-title">
-              {confirmAction.action === "livre_paye" ? "🎯 Confirmer la livraison ?" : "❌ Annuler la commande ?"}
-            </p>
-            <p className="confirm-sub">
-              {confirmAction.action === "livre_paye"
-                ? `La commande de ${confirmAction.order.customer_name} sera marquée Livré + Payé. Cette action est irréversible.`
-                : `La commande de ${confirmAction.order.customer_name} sera annulée définitivement.`}
-            </p>
-            <div className="confirm-btns">
-              <button className="confirm-cancel" onClick={() => setConfirmAction(null)}>Annuler</button>
-              <button
-                className={`confirm-ok ${confirmAction.action === "annuler" ? "red" : ""}`}
-                onClick={() => executeAction(confirmAction.order, confirmAction.action)}
-              >
-                {confirmAction.action === "livre_paye" ? "Confirmer" : "Oui, annuler"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    <>
+      <style>{`
+        .livreur-app { display: flex; min-height: 100vh; background: #0a0a0f; color: white; font-family: Inter, Arial, sans-serif; }
+        .sidebar { width: 240px; background: #111118; border-right: 1px solid #1e1e2e; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transition: transform 0.3s; }
+        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e1e2e; }
+        .sidebar-avatar { width: 44px; height: 44px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #0a0a0f; margin-bottom: 12px; }
+        .sidebar-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+        .sidebar-role { font-size: 12px; color: #9ca3af; }
+        .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+        .nav-btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: none; background: transparent; color: #9ca3af; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 500; width: 100%; text-align: left; transition: all 0.15s; position: relative; }
+        .nav-btn:hover { background: #1e1e2e; color: white; }
+        .nav-btn.active { background: linear-gradient(135deg, #f59e0b20, #d9770610); color: #f59e0b; border: 1px solid #f59e0b30; }
+        .nav-badge { position: absolute; right: 12px; background: #dc2626; color: white; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+        .sidebar-footer { padding: 16px 12px; border-top: 1px solid #1e1e2e; }
+        .logout-btn { width: 100%; padding: 11px; background: #1e1e2e; border: 1px solid #2a2a3e; border-radius: 12px; color: #9ca3af; cursor: pointer; font-size: 14px; }
+        .logout-btn:hover { background: #dc262620; color: #f87171; border-color: #dc262640; }
+        .main-content { flex: 1; margin-left: 240px; min-height: 100vh; }
+        .page-header { padding: 24px 32px; border-bottom: 1px solid #1e1e2e; background: #0a0a0f; position: sticky; top: 0; z-index: 10; }
+        .page-title { font-size: 24px; font-weight: 700; }
+        .content-area { padding: 28px 32px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 16px; padding: 20px; }
+        .stat-card.accent { background: #1a1200; border-color: #f59e0b30; }
+        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+        .mobile-header { display: none; padding: 16px; background: #111118; border-bottom: 1px solid #1e1e2e; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+        .hamburger { background: none; border: none; color: white; font-size: 22px; cursor: pointer; }
+        .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #111118; border-top: 1px solid #1e1e2e; z-index: 50; }
+        .bottom-nav-inner { display: flex; }
+        .bottom-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 14px; background: none; border: none; cursor: pointer; color: #4b5563; font-size: 10px; font-weight: 500; position: relative; }
+        .bottom-nav-btn.active { color: #f59e0b; }
+        .bnav-badge { position: absolute; top: 6px; right: 22%; background: #dc2626; color: white; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .overlay-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+        @media (max-width: 768px) {
+          .sidebar { transform: translateX(-100%); }
+          .sidebar.open { transform: translateX(0); }
+          .overlay-bg.open { display: block; }
+          .main-content { margin-left: 0; padding-bottom: 80px; }
+          .mobile-header { display: flex; }
+          .bottom-nav { display: block; }
+          .page-header { display: none; }
+          .content-area { padding: 16px; }
+          .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+          .orders-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
 
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <div className="avatar">{profile?.full_name?.charAt(0).toUpperCase()}</div>
-          <div>
-            <p className="header-name">{profile?.full_name}</p>
-            <p className="header-role">🚚 Livreur</p>
-          </div>
-        </div>
-        <button onClick={logout} className="logout-btn">Déconnexion</button>
-      </header>
+      <div className="livreur-app">
 
-      <main className="content">
-
-        {/* DASHBOARD */}
-        {activeView === "dashboard" && (
-          <div className="view">
-            <h2 className="view-title">Tableau de bord</h2>
-            <div className="stats-grid">
-              <div className="stat-card accent">
-                <span className="stat-icon">📦</span>
-                <span className="stat-value">{stats.total}</span>
-                <span className="stat-label">Total</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">⏳</span>
-                <span className="stat-value" style={{ color: "#fb923c" }}>{stats.pending}</span>
-                <span className="stat-label">En attente</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">✅</span>
-                <span className="stat-value" style={{ color: "#60a5fa" }}>{stats.confirmed}</span>
-                <span className="stat-label">Confirmées</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">🎯</span>
-                <span className="stat-value" style={{ color: "#4ade80" }}>{stats.delivered}</span>
-                <span className="stat-label">Livrées</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">🚌</span>
-                <span className="stat-value" style={{ color: "#c084fc" }}>{stats.gare}</span>
-                <span className="stat-label">Gare</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">🗄️</span>
-                <span className="stat-value">{stats.totalStock}</span>
-                <span className="stat-label">Stock</span>
-              </div>
-            </div>
-            <div className="amount-card">
-              <div>
-                <p className="amount-label">Montant total de mes commandes</p>
-                <p className="amount-value">{fmt(stats.totalAmount)}</p>
-              </div>
-              <span style={{ fontSize: 32 }}>💵</span>
-            </div>
-            {activeOrders.length > 0 && (
-              <div className="alert-card">
-                <span style={{ fontSize: 20 }}>⚡</span>
-                <div>
-                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 2px" }}>{activeOrders.length} commande(s) en cours</p>
-                  <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Appuie sur "Commandes" pour les traiter</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* COMMISSIONS */}
-        {activeView === "commissions" && (
-          <div className="view">
-            <h2 className="view-title">Mes commissions</h2>
-
-            <div className="period-tabs">
-              {Object.entries(periodLabels).map(([key, label]) => (
-                <button key={key} className={`period-tab ${periodFilter === key ? "active" : ""}`} onClick={() => setPeriodFilter(key)}>
-                  {label}
+        {/* Confirmation popup */}
+        {confirmAction && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
+            <div style={{ background: "#111118", border: "1px solid #2a2a3e", borderRadius: 20, padding: 28, maxWidth: 360, width: "100%" }}>
+              <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{confirmAction.action === "livre_paye" ? "🎯 Confirmer la livraison ?" : "❌ Annuler la commande ?"}</p>
+              <p style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.6, marginBottom: 24 }}>
+                {confirmAction.action === "livre_paye" ? `La commande de ${confirmAction.order.customer_name} sera marquée Livré + Payé. Cette action est irréversible.` : `La commande de ${confirmAction.order.customer_name} sera annulée définitivement.`}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <button onClick={() => setConfirmAction(null)} style={{ padding: 13, background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 12, color: "#9ca3af", cursor: "pointer", fontSize: 14 }}>Retour</button>
+                <button onClick={() => executeAction(confirmAction.order, confirmAction.action)}
+                  style={{ padding: 13, background: confirmAction.action === "annuler" ? "#dc2626" : "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: confirmAction.action === "annuler" ? "white" : "#0a0a0f", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
+                  {confirmAction.action === "livre_paye" ? "Confirmer" : "Oui, annuler"}
                 </button>
-              ))}
-            </div>
-
-            <div className="comm-cards">
-              <div className="comm-card green">
-                <p className="comm-label">Gagné — {periodLabels[periodFilter]}</p>
-                <p className="comm-big">{fmt(commissionStats.total)}</p>
-                <p className="comm-sub">{commissionStats.count} livraison(s)</p>
-              </div>
-              <div className="comm-card dark">
-                <p className="comm-label">Total depuis le début</p>
-                <p className="comm-big">{fmt(commissionStats.allTime)}</p>
-                <p className="comm-sub">{commissionStats.allCount} livraison(s) au total</p>
               </div>
             </div>
-
-            <div className="info-box">
-              <span>💡</span>
-              <p>2 000 FCFA par commande <b>Livré + Payé</b>. La commission est automatiquement enregistrée et ne peut pas être modifiée.</p>
-            </div>
-
-            {historyOrders.length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <p style={{ fontSize: 14, color: "#9ca3af", marginBottom: 12 }}>Dernières livraisons</p>
-                {historyOrders.slice(0, 5).map((o) => (
-                  <div key={o.id} className="history-item">
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 2px" }}>{o.customer_name}</p>
-                      <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{fmtDate(o.delivered_at)}</p>
-                    </div>
-                    <span style={{ color: "#4ade80", fontWeight: 700, fontSize: 15 }}>{fmt(o.driver_commission)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
-        {/* COMMANDES ACTIVES */}
-        {activeView === "commandes" && (
-          <div className="view">
-            <h2 className="view-title">
-              En cours
-              <span className="count-badge">{activeOrders.length}</span>
-            </h2>
-            {activeOrders.length === 0 ? (
-              <div className="empty-state">
-                <p style={{ fontSize: 48 }}>🎉</p>
-                <p>Toutes les commandes sont traitées !</p>
-              </div>
-            ) : (
-              <div className="orders-list">
-                {activeOrders.map((order) => {
-                  const ss = statusStyle(order.status)
-                  const ls = statusStyle(order.logistic_status)
-                  const ps = statusStyle(order.payment_status)
-                  return (
-                    <div key={order.id} className="order-card">
-                      <div className="order-header">
-                        <div>
-                          <p className="order-name">{order.customer_name}</p>
-                          <p className="order-city">📍 {order.city} · {order.phone}</p>
-                        </div>
-                        <span className="status-pill" style={{ background: ss.bg, color: ss.color }}>{order.status || "En attente"}</span>
-                      </div>
-                      <div className="order-details">
-                        <div className="detail-row"><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
-                        <div className="detail-row"><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 600 }}>{fmt(order.amount)}</span></div>
-                        <div className="detail-row"><span>🚚</span><span>{prettyDT(order.delivery_type)}</span></div>
-                        <div className="detail-row"><span>🏠</span><span>{order.address}</span></div>
-                        <div className="detail-row"><span>📅</span><span style={{ color: "#6b7280", fontSize: 12 }}>{fmtDate(order.created_at)}</span></div>
-                      </div>
-                      <div className="status-row">
-                        <span className="mini-badge" style={{ background: ls.bg, color: ls.color }}>{order.logistic_status || "En attente"}</span>
-                        <span className="mini-badge" style={{ background: ps.bg, color: ps.color }}>{order.payment_status || "Non payé"}</span>
-                      </div>
-                      <div className="action-row">
-                        <select value={selectedActions[order.id] || ""} onChange={(e) => setSelectedActions((p) => ({ ...p, [order.id]: e.target.value }))} className="action-select">
-                          {getActions(order).map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-                        </select>
-                        <button onClick={() => requestAction(order)} className="action-btn">Appliquer</button>
-                      </div>
+        {/* Sidebar overlay mobile */}
+        <div className={`overlay-bg ${sidebarOpen ? "open" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+        {/* Sidebar */}
+        <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+          <div className="sidebar-header">
+            <div className="sidebar-avatar">{profile?.full_name?.charAt(0).toUpperCase()}</div>
+            <p className="sidebar-name">{profile?.full_name}</p>
+            <p className="sidebar-role">🚚 Livreur</p>
+          </div>
+          <nav className="sidebar-nav">
+            {navItems.map((item) => (
+              <button key={item.id} className={`nav-btn ${activeView === item.id ? "active" : ""}`}
+                onClick={() => { setActiveView(item.id); setSidebarOpen(false) }}>
+                <span style={{ fontSize: 18 }}>{item.icon}</span>
+                <span>{item.label}</span>
+                {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <button onClick={logout} className="logout-btn">🚪 Déconnexion</button>
+          </div>
+        </aside>
+
+        {/* Mobile header */}
+        <div className="mobile-header">
+          <button className="hamburger" onClick={() => setSidebarOpen(true)}>☰</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, background: "linear-gradient(135deg, #f59e0b, #d97706)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#0a0a0f" }}>{profile?.full_name?.charAt(0).toUpperCase()}</div>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name}</span>
+          </div>
+          <button onClick={logout} style={{ padding: "7px 14px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 20, color: "#9ca3af", fontSize: 13, cursor: "pointer" }}>Déco</button>
+        </div>
+
+        {/* Main content */}
+        <main className="main-content">
+          <div className="page-header">
+            <p className="page-title">
+              {activeView === "dashboard" && "📊 Tableau de bord"}
+              {activeView === "commissions" && "💰 Mes commissions"}
+              {activeView === "commandes" && "📦 Mes commandes"}
+              {activeView === "stock" && "🗄️ Mon stock"}
+            </p>
+          </div>
+
+          <div className="content-area">
+
+            {/* DASHBOARD */}
+            {activeView === "dashboard" && (
+              <div>
+                <div className="stats-grid">
+                  <div className="stat-card accent">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>📦 Total commandes</p>
+                    <p style={{ fontSize: 36, fontWeight: 700 }}>{stats.total}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>⏳ En attente</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: "#fb923c" }}>{stats.pending}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>✅ Confirmées</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: "#60a5fa" }}>{stats.confirmed}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>🎯 Livrées</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: "#4ade80" }}>{stats.delivered}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>🚌 Gare</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: "#c084fc" }}>{stats.gare}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>🗄️ Stock total</p>
+                    <p style={{ fontSize: 36, fontWeight: 700 }}>{stats.totalStock}</p>
+                  </div>
+                </div>
+                <div style={{ background: "#1a1200", border: "1px solid #f59e0b30", borderRadius: 20, padding: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <p style={{ fontSize: 14, color: "#9ca3af", marginBottom: 8 }}>Montant total de mes commandes</p>
+                    <p style={{ fontSize: 32, fontWeight: 700, color: "#f59e0b" }}>{fmt(stats.totalAmount)}</p>
+                  </div>
+                  <span style={{ fontSize: 48 }}>💵</span>
+                </div>
+                {activeOrders.length > 0 && (
+                  <div style={{ marginTop: 20, background: "#1a1200", border: "1px solid #f59e0b50", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                    <span style={{ fontSize: 22 }}>⚡</span>
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{activeOrders.length} commande(s) en cours</p>
+                      <p style={{ fontSize: 13, color: "#9ca3af" }}>Va dans "Commandes" pour les traiter</p>
                     </div>
-                  )
-                })}
+                  </div>
+                )}
               </div>
             )}
 
-            {historyOrders.length > 0 && (
-              <div style={{ marginTop: 28 }}>
-                <h3 style={{ fontSize: 16, color: "#6b7280", margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                  🔒 Historique <span className="count-badge" style={{ background: "#1e1e2e", color: "#6b7280" }}>{historyOrders.length}</span>
-                </h3>
-                <div className="orders-list">
-                  {historyOrders.map((order) => (
-                    <div key={order.id} className="order-card locked">
-                      <div className="order-header">
-                        <div>
-                          <p className="order-name" style={{ color: "#9ca3af" }}>{order.customer_name}</p>
-                          <p className="order-city">📍 {order.city}</p>
+            {/* COMMISSIONS */}
+            {activeView === "commissions" && (
+              <div style={{ maxWidth: 700 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#111118", borderRadius: 14, padding: 5 }}>
+                  {Object.entries(periodLabels).map(([key, label]) => (
+                    <button key={key} onClick={() => setPeriodFilter(key)}
+                      style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: periodFilter === key ? "#f59e0b" : "transparent", color: periodFilter === key ? "#0a0a0f" : "#6b7280" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                  <div style={{ background: "linear-gradient(135deg, #052e16, #065f46)", border: "1px solid #4ade8040", borderRadius: 20, padding: 24 }}>
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 10 }}>Gagné — {periodLabels[periodFilter]}</p>
+                    <p style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>{fmt(commissionStats.total)}</p>
+                    <p style={{ fontSize: 13, color: "#6b7280" }}>{commissionStats.count} livraison(s)</p>
+                  </div>
+                  <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 20, padding: 24 }}>
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 10 }}>Total depuis le début</p>
+                    <p style={{ fontSize: 32, fontWeight: 700, marginBottom: 6 }}>{fmt(commissionStats.allTime)}</p>
+                    <p style={{ fontSize: 13, color: "#6b7280" }}>{commissionStats.allCount} livraison(s)</p>
+                  </div>
+                </div>
+                <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 14, padding: 16, display: "flex", gap: 12, fontSize: 14, color: "#9ca3af", lineHeight: 1.6 }}>
+                  <span>💡</span>
+                  <p>2 000 FCFA par commande <strong style={{ color: "white" }}>Livré + Payé</strong>. La commission est automatiquement enregistrée et ne peut pas être modifiée.</p>
+                </div>
+                {historyOrders.length > 0 && (
+                  <div style={{ marginTop: 28 }}>
+                    <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 14, fontWeight: 600 }}>DERNIÈRES LIVRAISONS</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {historyOrders.slice(0, 8).map((o) => (
+                        <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "#111118", borderRadius: 12, marginBottom: 6 }}>
+                          <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{o.customer_name}</p>
+                            <p style={{ fontSize: 12, color: "#6b7280" }}>{fmtDate(o.delivered_at)}</p>
+                          </div>
+                          <span style={{ color: "#4ade80", fontWeight: 700, fontSize: 16 }}>{fmt(o.driver_commission)}</span>
                         </div>
-                        <span className="status-pill" style={{ background: "#052e16", color: "#4ade80" }}>🔒 Finalisée</span>
-                      </div>
-                      <div className="order-details" style={{ opacity: 0.6 }}>
-                        <div className="detail-row"><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
-                        <div className="detail-row"><span>💵</span><span>{fmt(order.amount)}</span></div>
-                        <div className="detail-row"><span>📅</span><span style={{ fontSize: 12 }}>Créée : {fmtDate(order.created_at)}</span></div>
-                        <div className="detail-row"><span>✅</span><span style={{ fontSize: 12 }}>Livrée : {fmtDate(order.delivered_at)}</span></div>
-                      </div>
-                      {order.driver_commission ? (
-                        <div style={{ background: "#052e16", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
-                          💰 Commission : {fmt(order.driver_commission)}
-                        </div>
-                      ) : null}
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* COMMANDES */}
+            {activeView === "commandes" && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 700 }}>En cours</h2>
+                  <span style={{ background: "#f59e0b", color: "#0a0a0f", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{activeOrders.length}</span>
+                </div>
+                {activeOrders.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "60px 20px", color: "#6b7280" }}>
+                    <p style={{ fontSize: 48, marginBottom: 12 }}>🎉</p>
+                    <p style={{ fontSize: 16 }}>Toutes les commandes sont traitées !</p>
+                  </div>
+                ) : (
+                  <div className="orders-grid">{activeOrders.map((o) => renderOrderCard(o))}</div>
+                )}
+
+                {historyOrders.length > 0 && (
+                  <div style={{ marginTop: 40 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                      <h2 style={{ fontSize: 18, fontWeight: 700, color: "#6b7280" }}>🔒 Historique</h2>
+                      <span style={{ background: "#1e1e2e", color: "#6b7280", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{historyOrders.length}</span>
+                    </div>
+                    <div className="orders-grid">{historyOrders.map((o) => renderOrderCard(o, true))}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STOCK */}
+            {activeView === "stock" && (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+                  {stocks.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "60px 20px", color: "#6b7280", gridColumn: "1/-1" }}>
+                      <p style={{ fontSize: 48, marginBottom: 12 }}>📭</p>
+                      <p>Aucun stock disponible</p>
+                    </div>
+                  ) : stocks.map((s) => (
+                    <div key={s.id} style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 20, padding: 28, textAlign: "center" }}>
+                      <p style={{ fontSize: 40, marginBottom: 12 }}>📦</p>
+                      <p style={{ fontSize: 15, color: "#9ca3af", marginBottom: 10 }}>{s.product_name}</p>
+                      <p style={{ fontSize: 48, fontWeight: 700, color: s.quantity > 0 ? "#f59e0b" : "#f87171" }}>{s.quantity}</p>
+                      <p style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>unités restantes</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-        )}
+        </main>
 
-        {/* STOCK */}
-        {activeView === "stock" && (
-          <div className="view">
-            <h2 className="view-title">Mon stock</h2>
-            {stocks.length === 0 ? (
-              <div className="empty-state"><p style={{ fontSize: 48 }}>📭</p><p>Aucun stock disponible</p></div>
-            ) : (
-              <div className="stock-grid">
-                {stocks.map((s) => (
-                  <div key={s.id} className="stock-card">
-                    <div style={{ fontSize: 28, marginBottom: 10 }}>📦</div>
-                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 6 }}>{s.product_name}</p>
-                    <p style={{ fontSize: 36, fontWeight: 700, color: s.quantity > 0 ? "#f59e0b" : "#f87171" }}>{s.quantity}</p>
-                    <p style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>unités</p>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Bottom nav mobile */}
+        <nav className="bottom-nav">
+          <div className="bottom-nav-inner">
+            {navItems.map((item) => (
+              <button key={item.id} className={`bottom-nav-btn ${activeView === item.id ? "active" : ""}`} onClick={() => setActiveView(item.id)}>
+                <span style={{ fontSize: 20 }}>{item.icon}</span>
+                <span>{item.label}</span>
+                {item.badge ? <span className="bnav-badge">{item.badge}</span> : null}
+              </button>
+            ))}
           </div>
-        )}
-      </main>
-
-      {/* Bottom Nav */}
-      <nav className="bottom-nav">
-        {[
-          { id: "dashboard", icon: "⊞", label: "Dashboard" },
-          { id: "commissions", icon: "💰", label: "Commissions" },
-          { id: "commandes", icon: "📦", label: "Commandes" },
-          { id: "stock", icon: "🗄️", label: "Stock" },
-        ].map((item) => (
-          <button key={item.id} className={`nav-item ${activeView === item.id ? "active" : ""}`} onClick={() => setActiveView(item.id)}>
-            <span style={{ fontSize: 20 }}>{item.icon}</span>
-            <span style={{ fontSize: 10, fontWeight: 500 }}>{item.label}</span>
-            {item.id === "commandes" && activeOrders.length > 0 && (
-              <span className="nav-badge">{activeOrders.length}</span>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      <style jsx>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; width: 100%; }
-        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
-        .confirm-modal { background: #111118; border: 1px solid #2a2a3e; border-radius: 20px; padding: 24px; max-width: 340px; width: 100%; }
-        .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
-        .confirm-sub { font-size: 14px; color: #9ca3af; line-height: 1.5; margin-bottom: 20px; }
-        .confirm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .confirm-cancel { padding: 12px; background: #1e1e2e; border: 1px solid #2a2a3e; border-radius: 12px; color: #9ca3af; cursor: pointer; font-size: 14px; }
-        .confirm-ok { padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 12px; color: #0a0a0f; font-weight: 700; cursor: pointer; font-size: 14px; }
-        .confirm-ok.red { background: #dc2626; color: white; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 16px; border-bottom: 1px solid #1a1a2e; position: sticky; top: 0; background: #0a0a0f; z-index: 10; }
-        .header-left { display: flex; align-items: center; gap: 12px; }
-        .avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #0a0a0f; }
-        .header-name { font-size: 15px; font-weight: 600; }
-        .header-role { font-size: 12px; color: #6b7280; margin-top: 1px; }
-        .logout-btn { padding: 8px 14px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 20px; color: #9ca3af; font-size: 13px; cursor: pointer; }
-        .content { flex: 1; overflow-y: auto; padding-bottom: 80px; }
-        .view { padding: 20px 16px; }
-        .view-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .count-badge { background: #f59e0b; color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        .stat-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
-        .stat-card.accent { background: #1a1200; border-color: #f59e0b30; }
-        .stat-icon { font-size: 18px; }
-        .stat-value { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #6b7280; }
-        .amount-card { background: #1a1200; border: 1px solid #f59e0b30; border-radius: 20px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-        .amount-label { font-size: 13px; color: #9ca3af; margin-bottom: 6px; }
-        .amount-value { font-size: 24px; font-weight: 700; color: #f59e0b; }
-        .alert-card { background: #1a1200; border: 1px solid #f59e0b50; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-        .period-tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #111118; border-radius: 12px; padding: 4px; }
-        .period-tab { flex: 1; padding: 10px 6px; border: none; background: transparent; color: #6b7280; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
-        .period-tab.active { background: #f59e0b; color: #0a0a0f; font-weight: 700; }
-        .comm-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-        .comm-card { border-radius: 20px; padding: 22px; }
-        .comm-card.green { background: linear-gradient(135deg, #052e16, #065f46); border: 1px solid #4ade8040; }
-        .comm-card.dark { background: #111118; border: 1px solid #1e1e2e; }
-        .comm-label { font-size: 13px; color: #9ca3af; margin-bottom: 8px; }
-        .comm-big { font-size: 30px; font-weight: 700; margin-bottom: 4px; }
-        .comm-sub { font-size: 13px; color: #6b7280; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e1e2e; }
-        .info-box { display: flex; gap: 12px; background: #111118; border: 1px solid #1e1e2e; border-radius: 14px; padding: 14px; font-size: 13px; color: #9ca3af; line-height: 1.6; }
-        .orders-list { display: flex; flex-direction: column; gap: 14px; }
-        .order-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 20px; padding: 16px; }
-        .order-card.locked { opacity: 0.75; }
-        .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 10px; }
-        .order-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
-        .order-city { font-size: 13px; color: #6b7280; }
-        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-        .order-details { background: #0a0a0f; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-        .detail-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #d1d5db; }
-        .status-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-        .mini-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-        .action-row { display: flex; gap: 10px; }
-        .action-select { flex: 1; padding: 12px; background: #0a0a0f; border: 1px solid #2a2a3e; border-radius: 12px; color: white; font-size: 14px; outline: none; }
-        .action-btn { padding: 12px 18px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 12px; color: #0a0a0f; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; }
-        .stock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .stock-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 20px; padding: 20px; text-align: center; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; font-size: 16px; }
-        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: #111118; border-top: 1px solid #1e1e2e; display: flex; z-index: 100; }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; background: none; border: none; cursor: pointer; color: #4b5563; position: relative; }
-        .nav-item.active { color: #f59e0b; }
-        .nav-badge { position: absolute; top: 6px; right: 20%; background: #dc2626; color: white; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        @media (min-width: 481px) { .app { border-left: 1px solid #1e1e2e; border-right: 1px solid #1e1e2e; } }
-      `}</style>
-    </div>
+        </nav>
+      </div>
+    </>
   )
 }
