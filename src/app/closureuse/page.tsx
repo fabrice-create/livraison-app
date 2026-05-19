@@ -610,7 +610,7 @@ export default function ClosureusePage() {
 
       <style jsx>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
+        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; max-width: 600px; margin: 0 auto; }
         .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
         .confirm-modal { background: #111118; border: 1px solid #2a2a3e; border-radius: 20px; padding: 24px; max-width: 340px; width: 100%; }
         .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
@@ -675,7 +675,7 @@ export default function ClosureusePage() {
         .field { width: 100%; padding: 14px; background: #111118; border: 1px solid #2a2a3e; border-radius: 12px; color: white; font-size: 15px; outline: none; }
         .submit-btn { padding: 16px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 14px; color: #0a0a0f; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 4px; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; font-size: 16px; }
-        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #111118; border-top: 1px solid #1e1e2e; display: flex; z-index: 100; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: #111118; border-top: 1px solid #1e1e2e; display: flex; z-index: 100; }
         .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 2px; background: none; border: none; cursor: pointer; color: #4b5563; }
         .nav-item.active { color: #f59e0b; }
         @media (min-width: 481px) { .app { border-left: 1px solid #1e1e2e; border-right: 1px solid #1e1e2e; } }

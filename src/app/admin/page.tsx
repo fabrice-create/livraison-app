@@ -729,14 +729,14 @@ export default function AdminPage() {
         .view-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .count-badge { background: #f59e0b; color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
         .section-label { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
-        .today-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .today-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .today-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 16px; padding: 14px; text-align: center; }
         .today-card.green { background: #052e16; border-color: #4ade8030; }
         .today-card.amber { background: #1a1200; border-color: #f59e0b30; }
         .today-label { font-size: 11px; color: #9ca3af; margin-bottom: 6px; }
         .today-value { font-size: 30px; font-weight: 700; }
         .today-value-sm { font-size: 14px; font-weight: 700; color: #f59e0b; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
         .stat-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
         .stat-card.accent { background: #1a1200; border-color: #f59e0b30; }
         .stat-icon { font-size: 18px; }
