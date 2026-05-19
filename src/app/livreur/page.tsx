@@ -529,7 +529,7 @@ export default function LivreurPage() {
 
       <style jsx>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; max-width: 600px; margin: 0 auto; }
+        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; width: 100%; }
         .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
         .confirm-modal { background: #111118; border: 1px solid #2a2a3e; border-radius: 20px; padding: 24px; max-width: 340px; width: 100%; }
         .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
