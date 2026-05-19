@@ -20,6 +20,11 @@ type Order = {
   assigned_driver_id?: string | null
   driver_commission?: number | null
   closer_commission?: number | null
+  created_at?: string | null
+  confirmed_at?: string | null
+  delivered_at?: string | null
+  cancelled_at?: string | null
+  commission_calculated?: boolean | null
 }
 
 type DriverStock = {
@@ -38,373 +43,556 @@ type Profile = {
 
 export default function LivreurPage() {
   const router = useRouter()
-
   const [orders, setOrders] = useState<Order[]>([])
   const [stocks, setStocks] = useState<DriverStock[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeView, setActiveView] = useState("dashboard")
   const [selectedActions, setSelectedActions] = useState<Record<number, string>>({})
+  const [confirmAction, setConfirmAction] = useState<{ order: Order; action: string } | null>(null)
+  const [periodFilter, setPeriodFilter] = useState("mois")
 
   useEffect(() => { void initPage() }, [])
 
-  const normalizeRole = (role?: string | null) => String(role || "").trim().toLowerCase()
-
-  const normalizeDeliveryType = (value?: string | null) => {
-    const cleaned = (value || "").trim().toLowerCase()
-    if (cleaned === "direct") return "direct"
-    if (cleaned === "gare") return "gare"
-    return cleaned
+  const fmt = (v?: number | string | null) => {
+    if (v === null || v === undefined || v === "") return "-"
+    return `${Number(v).toLocaleString()} FCFA`
   }
 
-  const prettyDeliveryType = (value?: string | null) => {
-    const n = normalizeDeliveryType(value)
+  const fmtDate = (d?: string | null) => {
+    if (!d) return "-"
+    return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  }
+
+  const normalizeRole = (r?: string | null) => String(r || "").trim().toLowerCase()
+  const normDT = (v?: string | null) => {
+    const c = (v || "").trim().toLowerCase()
+    if (c === "direct") return "direct"
+    if (c === "gare") return "gare"
+    return c
+  }
+  const prettyDT = (v?: string | null) => {
+    const n = normDT(v)
     if (n === "direct") return "Direct"
     if (n === "gare") return "Gare"
-    return value || "-"
+    return v || "-"
   }
+  const isDirect = (v?: string | null) => normDT(v) === "direct"
+  const isGare = (v?: string | null) => normDT(v) === "gare"
+  const isLocked = (o: Order) => o.status === "Livré" && o.payment_status === "Payé"
 
-  const isDirect = (value?: string | null) => normalizeDeliveryType(value) === "direct"
-  const isGare = (value?: string | null) => normalizeDeliveryType(value) === "gare"
-
-  const formatMoney = (value?: number | string | null) => {
-    if (value === null || value === undefined || value === "") return "-"
-    return `${Number(value).toLocaleString()} FCFA`
-  }
-
-  const getBadgeColor = (status?: string | null) => {
-    switch (status) {
-      case "Livré": return "#16a34a"
-      case "Confirmé": return "#2563eb"
-      case "Annulé": return "#dc2626"
-      case "Payé": return "#16a34a"
-      case "Envoyé à la gare": return "#7c3aed"
-      default: return "#f59e0b"
+  const statusStyle = (s?: string | null) => {
+    switch (s) {
+      case "Livré": return { bg: "#052e16", color: "#4ade80" }
+      case "Confirmé": return { bg: "#1e3a5f", color: "#60a5fa" }
+      case "Annulé": return { bg: "#450a0a", color: "#f87171" }
+      case "Payé": return { bg: "#052e16", color: "#4ade80" }
+      case "Envoyé à la gare": return { bg: "#2e1065", color: "#c084fc" }
+      case "Non payé": return { bg: "#450a0a", color: "#f87171" }
+      default: return { bg: "#431407", color: "#fb923c" }
     }
   }
 
   const initPage = async () => {
     setLoading(true)
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) { router.replace("/login"); return }
-
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles").select("*").eq("id", user.id).single()
-    if (profileError || !profileData) { router.replace("/login"); return }
-
-    const currentProfile = profileData as Profile
-    const role = normalizeRole(currentProfile.role)
-
-    if (role !== "livreur") {
-      if (role === "admin") router.replace("/admin")
-      else if (role === "closureuse") router.replace("/closureuse")
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) { router.replace("/login"); return }
+    const { data: pd } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+    if (!pd) { router.replace("/login"); return }
+    const p = pd as Profile
+    if (normalizeRole(p.role) !== "livreur") {
+      if (normalizeRole(p.role) === "admin") router.replace("/admin")
+      else if (normalizeRole(p.role) === "closureuse") router.replace("/closureuse")
       else router.replace("/login")
       return
     }
-
-    setProfile(currentProfile)
-
-    const { data: ordersData } = await supabase
-      .from("orders").select("*").eq("assigned_driver_id", user.id).order("id", { ascending: false })
-
-    const { data: stockData } = await supabase
-      .from("driver_stock").select("*").eq("driver_id", user.id).order("id", { ascending: false })
-
-    const fetchedOrders = (ordersData || []) as Order[]
-    setOrders(fetchedOrders)
-    setStocks((stockData || []) as DriverStock[])
-
-    const initialActions: Record<number, string> = {}
-    fetchedOrders.forEach((order) => { initialActions[order.id] = "" })
-    setSelectedActions(initialActions)
-
+    setProfile(p)
+    const { data: od } = await supabase.from("orders").select("*").eq("assigned_driver_id", user.id).order("id", { ascending: false })
+    const { data: sd } = await supabase.from("driver_stock").select("*").eq("driver_id", user.id)
+    const fetched = (od || []) as Order[]
+    setOrders(fetched)
+    setStocks((sd || []) as DriverStock[])
+    const init: Record<number, string> = {}
+    fetched.forEach((o) => { init[o.id] = "" })
+    setSelectedActions(init)
     setLoading(false)
   }
 
+  const filterByPeriod = (orders: Order[], field: "delivered_at" | "created_at") => {
+    const now = new Date()
+    return orders.filter((o) => {
+      const d = o[field]
+      if (!d) return false
+      const date = new Date(d)
+      if (periodFilter === "today") {
+        return date.toDateString() === now.toDateString()
+      }
+      if (periodFilter === "semaine") {
+        const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+        return diff <= 7
+      }
+      if (periodFilter === "mois") {
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+      }
+      return true
+    })
+  }
+
+  const activeOrders = useMemo(() => orders.filter((o) => !isLocked(o)), [orders])
+  const historyOrders = useMemo(() => orders.filter((o) => isLocked(o)), [orders])
+
   const stats = useMemo(() => {
-    const totalOrders = orders.length
-    const pendingOrders = orders.filter((o) => (o.status || "En attente") === "En attente").length
-    const confirmedOrders = orders.filter((o) => o.status === "Confirmé").length
-    const deliveredOrders = orders.filter((o) => o.status === "Livré").length
-    const gareOrders = orders.filter((o) => o.logistic_status === "Envoyé à la gare").length
-    const totalStock = stocks.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-    const totalAmount = orders.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-    return { totalOrders, pendingOrders, confirmedOrders, deliveredOrders, gareOrders, totalStock, totalAmount }
+    const total = orders.length
+    const pending = orders.filter((o) => (o.status || "En attente") === "En attente").length
+    const confirmed = orders.filter((o) => o.status === "Confirmé").length
+    const delivered = orders.filter((o) => o.status === "Livré").length
+    const gare = orders.filter((o) => o.logistic_status === "Envoyé à la gare").length
+    const totalStock = stocks.reduce((s, i) => s + Number(i.quantity || 0), 0)
+    const totalAmount = orders.reduce((s, i) => s + Number(i.amount || 0), 0)
+    return { total, pending, confirmed, delivered, gare, totalStock, totalAmount }
   }, [orders, stocks])
 
-  const myCommission = useMemo(() => {
+  const commissionStats = useMemo(() => {
     const livrees = orders.filter((o) => o.status === "Livré" && o.driver_commission && o.driver_commission > 0)
-    const total = livrees.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
-    return { total, count: livrees.length }
-  }, [orders])
+    const filtered = filterByPeriod(livrees, "delivered_at")
+    const total = filtered.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
+    const allTime = livrees.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
+    return { total, count: filtered.length, allTime, allCount: livrees.length }
+  }, [orders, periodFilter])
 
-  const consumeOwnStock = async (order: Order) => {
+  const consumeStock = async (order: Order) => {
     const driverId = order.assigned_driver_id
     const productName = (order.product || "").trim()
-    const qtyToRemove = Number(order.quantity || 1)
-    if (!driverId || !productName || qtyToRemove <= 0) { alert("Commande incomplète."); return false }
-    const stockItem = stocks.find(
-      (item) => item.driver_id === driverId && item.product_name.trim().toLowerCase() === productName.toLowerCase()
-    )
-    if (!stockItem) { alert("Aucun stock trouvé pour ce produit."); return false }
-    if (Number(stockItem.quantity) < qtyToRemove) { alert("Stock insuffisant."); return false }
-    const newQty = Number(stockItem.quantity) - qtyToRemove
-    const { error } = await supabase.from("driver_stock").update({ quantity: newQty }).eq("id", stockItem.id)
-    if (error) { alert("Erreur décrément stock : " + error.message); return false }
-    setStocks((prev) => prev.map((item) => item.id === stockItem.id ? { ...item, quantity: newQty } : item))
+    const qty = Number(order.quantity || 1)
+    if (!driverId || !productName || qty <= 0) { alert("Commande incomplète."); return false }
+    const item = stocks.find((i) => i.driver_id === driverId && i.product_name.trim().toLowerCase() === productName.toLowerCase())
+    if (!item) { alert("Aucun stock trouvé pour ce produit."); return false }
+    if (Number(item.quantity) < qty) { alert("Stock insuffisant."); return false }
+    const newQty = Number(item.quantity) - qty
+    const { error } = await supabase.from("driver_stock").update({ quantity: newQty }).eq("id", item.id)
+    if (error) { alert("Erreur stock : " + error.message); return false }
+    setStocks((prev) => prev.map((i) => i.id === item.id ? { ...i, quantity: newQty } : i))
     return true
   }
 
-  const updateStatusOnly = async (orderId: number, newStatus: string) => {
-    const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId)
-    if (error) { alert("Erreur statut : " + error.message); return false }
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o))
+  const updateStatus = async (orderId: number, newStatus: string) => {
+    const extra: Record<string, string | null> = {}
+    if (newStatus === "Confirmé") extra.confirmed_at = new Date().toISOString()
+    if (newStatus === "Annulé") extra.cancelled_at = new Date().toISOString()
+    const { error } = await supabase.from("orders").update({ status: newStatus, ...extra }).eq("id", orderId)
+    if (error) { alert("Erreur : " + error.message); return false }
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus, ...extra } : o))
     return true
   }
 
-  const updatePaymentAndCash = async (orderId: number, newPaymentStatus: string, collected: boolean) => {
-    const payload = {
-      payment_status: newPaymentStatus,
-      cash_collected: collected,
-      cash_collected_at: collected ? new Date().toISOString() : null,
-      cash_collected_by: collected ? profile?.full_name || null : null,
-    }
+  const updatePayment = async (orderId: number, paymentStatus: string, collected: boolean) => {
+    const payload = { payment_status: paymentStatus, cash_collected: collected, cash_collected_at: collected ? new Date().toISOString() : null, cash_collected_by: collected ? profile?.full_name || null : null }
     const { error } = await supabase.from("orders").update(payload).eq("id", orderId)
-    if (error) { alert("Erreur paiement : " + error.message); return false }
+    if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...payload } : o))
     return true
   }
 
-  const markDirectDeliveredAndPaid = async (order: Order) => {
-    const stockOk = await consumeOwnStock(order)
-    if (!stockOk) return false
-
-    const payload = {
-      status: "Livré",
-      logistic_status: "Livré",
-      payment_status: "Payé",
-      cash_collected: true,
-      cash_collected_at: new Date().toISOString(),
-      cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000,
-      closer_commission: 500,
-      commission_calculated: true,
-    }
+  const markDeliveredAndPaid = async (order: Order) => {
+    const ok = await consumeStock(order)
+    if (!ok) return false
+    const now = new Date().toISOString()
+    const payload = { status: "Livré", logistic_status: "Livré", payment_status: "Payé", cash_collected: true, cash_collected_at: now, cash_collected_by: profile?.full_name || null, driver_commission: 2000, closer_commission: 500, commission_calculated: true, delivered_at: now }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
-    if (error) { alert("Erreur livraison : " + error.message); return false }
+    if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, ...payload } : o))
     return true
   }
 
   const markSentToGare = async (order: Order) => {
-    const stockOk = await consumeOwnStock(order)
-    if (!stockOk) return false
+    const ok = await consumeStock(order)
+    if (!ok) return false
     const payload = { logistic_status: "Envoyé à la gare" }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
-    if (error) { alert("Erreur gare : " + error.message); return false }
+    if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, ...payload } : o))
     return true
   }
 
-  const handleActionSelect = (orderId: number, action: string) => {
-    setSelectedActions((prev) => ({ ...prev, [orderId]: action }))
-  }
-
-  const getAvailableActions = (order: Order) => {
-    const actions = [
-      { value: "", label: "Choisir une action" },
-      { value: "confirmer", label: "Confirmer" },
-      { value: "annuler", label: "Annuler" },
-    ]
-    if (isDirect(order.delivery_type)) actions.push({ value: "livre_paye_direct", label: "Livré + Payé" })
+  const getActions = (order: Order) => {
+    if (isLocked(order)) return []
+    const actions = [{ value: "", label: "Choisir une action" }, { value: "confirmer", label: "✅ Confirmer" }, { value: "annuler", label: "❌ Annuler" }]
+    if (isDirect(order.delivery_type)) actions.push({ value: "livre_paye", label: "🎯 Livré + Payé" })
     if (isGare(order.delivery_type)) {
-      actions.push({ value: "envoye_gare", label: "Envoyé à la gare" })
-      actions.push({ value: "marquer_paye", label: "Marquer Payé" })
+      actions.push({ value: "gare", label: "🚌 Envoyé à la gare" })
+      actions.push({ value: "paye", label: "💰 Marquer Payé" })
     }
     return actions
   }
 
-  const applyOrderAction = async (order: Order) => {
+  const requestAction = (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (action === "confirmer") { const ok = await updateStatusOnly(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
-    if (action === "livre_paye_direct") { const ok = await markDirectDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅") }
-    if (action === "envoye_gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
-    if (action === "marquer_paye") { const ok = await updatePaymentAndCash(order.id, "Payé", true); if (ok) alert("Payée ✅") }
-    if (action === "annuler") { const ok = await updateStatusOnly(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
+    if (action === "livre_paye" || action === "annuler") {
+      setConfirmAction({ order, action })
+    } else {
+      void executeAction(order, action)
+    }
+  }
+
+  const executeAction = async (order: Order, action: string) => {
+    setConfirmAction(null)
+    if (action === "confirmer") { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
+    if (action === "livre_paye") { const ok = await markDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅ — Commission 2 000 FCFA enregistrée !") }
+    if (action === "gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
+    if (action === "paye") { const ok = await updatePayment(order.id, "Payé", true); if (ok) alert("Payée ✅") }
+    if (action === "annuler") { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
     setSelectedActions((prev) => ({ ...prev, [order.id]: "" }))
   }
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-    router.replace("/login")
-  }
+  const logout = async () => { await supabase.auth.signOut(); router.replace("/login") }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#0f172a", color: "white", fontFamily: "Arial, sans-serif" }}>
-        Chargement...
+  const periodLabels: Record<string, string> = { today: "Aujourd'hui", semaine: "Cette semaine", mois: "Ce mois" }
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#0a0a0f", color: "white" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 44, height: 44, border: "3px solid #f59e0b", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <p style={{ color: "#6b7280", fontSize: 14 }}>Chargement...</p>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
-    <main className="page">
-      <div className="container">
-        <div className="topBar">
-          <div>
-            <h1 className="pageTitle">🚚 Espace Livreur</h1>
-            <p className="subText">Connecté : <b>{profile?.full_name}</b></p>
-          </div>
-          <button onClick={logout} className="logoutBtn">Déconnexion</button>
-        </div>
-
-        <div className="menuBar">
-          {["dashboard", "commissions", "commandes", "stock"].map((view) => (
-            <button key={view} className={`menuBtn ${activeView === view ? "active" : ""}`} onClick={() => setActiveView(view)}>
-              {view === "dashboard" && "Tableau de bord"}
-              {view === "commissions" && "💰 Mes commissions"}
-              {view === "commandes" && "Mes commandes"}
-              {view === "stock" && "Mon stock"}
-            </button>
-          ))}
-        </div>
-
-        {activeView === "dashboard" && (
-          <section className="panel">
-            <h2 className="sectionTitle">Tableau de bord</h2>
-            <div className="statsGrid">
-              <div className="statCard"><span className="statLabel">Total commandes</span><span className="statValue">{stats.totalOrders}</span></div>
-              <div className="statCard"><span className="statLabel">En attente</span><span className="statValue">{stats.pendingOrders}</span></div>
-              <div className="statCard"><span className="statLabel">Confirmées</span><span className="statValue">{stats.confirmedOrders}</span></div>
-              <div className="statCard"><span className="statLabel">Livrées</span><span className="statValue">{stats.deliveredOrders}</span></div>
-              <div className="statCard"><span className="statLabel">Envoyées gare</span><span className="statValue">{stats.gareOrders}</span></div>
-              <div className="statCard"><span className="statLabel">Stock total</span><span className="statValue">{stats.totalStock}</span></div>
-              <div className="statCard wide"><span className="statLabel">Montant total de mes commandes</span><span className="statValue">{formatMoney(stats.totalAmount)}</span></div>
-            </div>
-          </section>
-        )}
-
-        {activeView === "commissions" && (
-          <section className="panel">
-            <h2 className="sectionTitle">💰 Mes commissions</h2>
-            <div className="commissionTotals">
-              <div className="totalCard blue">
-                <span className="totalLabel">Commandes livrées et payées</span>
-                <span className="totalValue">{myCommission.count}</span>
-              </div>
-              <div className="totalCard green">
-                <span className="totalLabel">Total gagné</span>
-                <span className="totalValue">{formatMoney(myCommission.total)}</span>
-              </div>
-            </div>
-            <p className="emptyText" style={{ marginTop: "16px" }}>
-              2 000 FCFA par commande livrée et payée. Les commissions s'accumulent automatiquement.
+    <div className="app">
+      {/* Confirmation popup */}
+      {confirmAction && (
+        <div className="overlay">
+          <div className="confirm-modal">
+            <p className="confirm-title">
+              {confirmAction.action === "livre_paye" ? "🎯 Confirmer la livraison ?" : "❌ Annuler la commande ?"}
             </p>
-          </section>
+            <p className="confirm-sub">
+              {confirmAction.action === "livre_paye"
+                ? `La commande de ${confirmAction.order.customer_name} sera marquée Livré + Payé. Cette action est irréversible.`
+                : `La commande de ${confirmAction.order.customer_name} sera annulée définitivement.`}
+            </p>
+            <div className="confirm-btns">
+              <button className="confirm-cancel" onClick={() => setConfirmAction(null)}>Annuler</button>
+              <button
+                className={`confirm-ok ${confirmAction.action === "annuler" ? "red" : ""}`}
+                onClick={() => executeAction(confirmAction.order, confirmAction.action)}
+              >
+                {confirmAction.action === "livre_paye" ? "Confirmer" : "Oui, annuler"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="header">
+        <div className="header-left">
+          <div className="avatar">{profile?.full_name?.charAt(0).toUpperCase()}</div>
+          <div>
+            <p className="header-name">{profile?.full_name}</p>
+            <p className="header-role">🚚 Livreur</p>
+          </div>
+        </div>
+        <button onClick={logout} className="logout-btn">Déconnexion</button>
+      </header>
+
+      <main className="content">
+
+        {/* DASHBOARD */}
+        {activeView === "dashboard" && (
+          <div className="view">
+            <h2 className="view-title">Tableau de bord</h2>
+            <div className="stats-grid">
+              <div className="stat-card accent">
+                <span className="stat-icon">📦</span>
+                <span className="stat-value">{stats.total}</span>
+                <span className="stat-label">Total</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">⏳</span>
+                <span className="stat-value" style={{ color: "#fb923c" }}>{stats.pending}</span>
+                <span className="stat-label">En attente</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">✅</span>
+                <span className="stat-value" style={{ color: "#60a5fa" }}>{stats.confirmed}</span>
+                <span className="stat-label">Confirmées</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">🎯</span>
+                <span className="stat-value" style={{ color: "#4ade80" }}>{stats.delivered}</span>
+                <span className="stat-label">Livrées</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">🚌</span>
+                <span className="stat-value" style={{ color: "#c084fc" }}>{stats.gare}</span>
+                <span className="stat-label">Gare</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">🗄️</span>
+                <span className="stat-value">{stats.totalStock}</span>
+                <span className="stat-label">Stock</span>
+              </div>
+            </div>
+            <div className="amount-card">
+              <div>
+                <p className="amount-label">Montant total de mes commandes</p>
+                <p className="amount-value">{fmt(stats.totalAmount)}</p>
+              </div>
+              <span style={{ fontSize: 32 }}>💵</span>
+            </div>
+            {activeOrders.length > 0 && (
+              <div className="alert-card">
+                <span style={{ fontSize: 20 }}>⚡</span>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 2px" }}>{activeOrders.length} commande(s) en cours</p>
+                  <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Appuie sur "Commandes" pour les traiter</p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
+        {/* COMMISSIONS */}
+        {activeView === "commissions" && (
+          <div className="view">
+            <h2 className="view-title">Mes commissions</h2>
+
+            <div className="period-tabs">
+              {Object.entries(periodLabels).map(([key, label]) => (
+                <button key={key} className={`period-tab ${periodFilter === key ? "active" : ""}`} onClick={() => setPeriodFilter(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="comm-cards">
+              <div className="comm-card green">
+                <p className="comm-label">Gagné — {periodLabels[periodFilter]}</p>
+                <p className="comm-big">{fmt(commissionStats.total)}</p>
+                <p className="comm-sub">{commissionStats.count} livraison(s)</p>
+              </div>
+              <div className="comm-card dark">
+                <p className="comm-label">Total depuis le début</p>
+                <p className="comm-big">{fmt(commissionStats.allTime)}</p>
+                <p className="comm-sub">{commissionStats.allCount} livraison(s) au total</p>
+              </div>
+            </div>
+
+            <div className="info-box">
+              <span>💡</span>
+              <p>2 000 FCFA par commande <b>Livré + Payé</b>. La commission est automatiquement enregistrée et ne peut pas être modifiée.</p>
+            </div>
+
+            {historyOrders.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <p style={{ fontSize: 14, color: "#9ca3af", marginBottom: 12 }}>Dernières livraisons</p>
+                {historyOrders.slice(0, 5).map((o) => (
+                  <div key={o.id} className="history-item">
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 2px" }}>{o.customer_name}</p>
+                      <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{fmtDate(o.delivered_at)}</p>
+                    </div>
+                    <span style={{ color: "#4ade80", fontWeight: 700, fontSize: 15 }}>{fmt(o.driver_commission)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* COMMANDES ACTIVES */}
         {activeView === "commandes" && (
-          <section className="panel">
-            <h2 className="sectionTitle">Mes commandes</h2>
-            {orders.length === 0 ? (
-              <p className="emptyText">Aucune commande assignée.</p>
+          <div className="view">
+            <h2 className="view-title">
+              En cours
+              <span className="count-badge">{activeOrders.length}</span>
+            </h2>
+            {activeOrders.length === 0 ? (
+              <div className="empty-state">
+                <p style={{ fontSize: 48 }}>🎉</p>
+                <p>Toutes les commandes sont traitées !</p>
+              </div>
             ) : (
-              <div className="cardsGrid">
-                {orders.map((order) => (
-                  <article key={order.id} className="card">
-                    <p><b>Client :</b> {order.customer_name}</p>
-                    <p><b>Téléphone :</b> {order.phone}</p>
-                    <p><b>Ville :</b> {order.city}</p>
-                    <p><b>Adresse :</b> {order.address}</p>
-                    <p><b>Produit :</b> {order.product}</p>
-                    <p><b>Quantité :</b> {order.quantity || 1}</p>
-                    <p><b>Montant :</b> {formatMoney(order.amount)}</p>
-                    <p><b>Livraison :</b> {prettyDeliveryType(order.delivery_type)}</p>
-                    <p><b>Ma commission :</b> {order.driver_commission ? formatMoney(order.driver_commission) : "—"}</p>
-                    <div className="badgesWrap">
-                      <span className="badge" style={{ background: getBadgeColor(order.status) }}>Global : {order.status || "En attente"}</span>
-                      <span className="badge" style={{ background: getBadgeColor(order.logistic_status) }}>Logistique : {order.logistic_status || "En attente"}</span>
-                      <span className="badge" style={{ background: getBadgeColor(order.payment_status) }}>Paiement : {order.payment_status || "Non payé"}</span>
+              <div className="orders-list">
+                {activeOrders.map((order) => {
+                  const ss = statusStyle(order.status)
+                  const ls = statusStyle(order.logistic_status)
+                  const ps = statusStyle(order.payment_status)
+                  return (
+                    <div key={order.id} className="order-card">
+                      <div className="order-header">
+                        <div>
+                          <p className="order-name">{order.customer_name}</p>
+                          <p className="order-city">📍 {order.city} · {order.phone}</p>
+                        </div>
+                        <span className="status-pill" style={{ background: ss.bg, color: ss.color }}>{order.status || "En attente"}</span>
+                      </div>
+                      <div className="order-details">
+                        <div className="detail-row"><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
+                        <div className="detail-row"><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 600 }}>{fmt(order.amount)}</span></div>
+                        <div className="detail-row"><span>🚚</span><span>{prettyDT(order.delivery_type)}</span></div>
+                        <div className="detail-row"><span>🏠</span><span>{order.address}</span></div>
+                        <div className="detail-row"><span>📅</span><span style={{ color: "#6b7280", fontSize: 12 }}>{fmtDate(order.created_at)}</span></div>
+                      </div>
+                      <div className="status-row">
+                        <span className="mini-badge" style={{ background: ls.bg, color: ls.color }}>{order.logistic_status || "En attente"}</span>
+                        <span className="mini-badge" style={{ background: ps.bg, color: ps.color }}>{order.payment_status || "Non payé"}</span>
+                      </div>
+                      <div className="action-row">
+                        <select value={selectedActions[order.id] || ""} onChange={(e) => setSelectedActions((p) => ({ ...p, [order.id]: e.target.value }))} className="action-select">
+                          {getActions(order).map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                        </select>
+                        <button onClick={() => requestAction(order)} className="action-btn">Appliquer</button>
+                      </div>
                     </div>
-                    <div className="actionRow">
-                      <select value={selectedActions[order.id] || ""} onChange={(e) => handleActionSelect(order.id, e.target.value)} className="field">
-                        {getAvailableActions(order).map((action) => (
-                          <option key={action.value} value={action.value}>{action.label}</option>
-                        ))}
-                      </select>
-                      <button type="button" onClick={() => applyOrderAction(order)} className="submitBtn">Appliquer</button>
-                    </div>
-                  </article>
-                ))}
+                  )
+                })}
               </div>
             )}
-          </section>
+
+            {historyOrders.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <h3 style={{ fontSize: 16, color: "#6b7280", margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                  🔒 Historique <span className="count-badge" style={{ background: "#1e1e2e", color: "#6b7280" }}>{historyOrders.length}</span>
+                </h3>
+                <div className="orders-list">
+                  {historyOrders.map((order) => (
+                    <div key={order.id} className="order-card locked">
+                      <div className="order-header">
+                        <div>
+                          <p className="order-name" style={{ color: "#9ca3af" }}>{order.customer_name}</p>
+                          <p className="order-city">📍 {order.city}</p>
+                        </div>
+                        <span className="status-pill" style={{ background: "#052e16", color: "#4ade80" }}>🔒 Finalisée</span>
+                      </div>
+                      <div className="order-details" style={{ opacity: 0.6 }}>
+                        <div className="detail-row"><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
+                        <div className="detail-row"><span>💵</span><span>{fmt(order.amount)}</span></div>
+                        <div className="detail-row"><span>📅</span><span style={{ fontSize: 12 }}>Créée : {fmtDate(order.created_at)}</span></div>
+                        <div className="detail-row"><span>✅</span><span style={{ fontSize: 12 }}>Livrée : {fmtDate(order.delivered_at)}</span></div>
+                      </div>
+                      {order.driver_commission ? (
+                        <div style={{ background: "#052e16", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
+                          💰 Commission : {fmt(order.driver_commission)}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
+        {/* STOCK */}
         {activeView === "stock" && (
-          <section className="panel">
-            <h2 className="sectionTitle">Mon stock</h2>
+          <div className="view">
+            <h2 className="view-title">Mon stock</h2>
             {stocks.length === 0 ? (
-              <p className="emptyText">Aucun stock disponible.</p>
+              <div className="empty-state"><p style={{ fontSize: 48 }}>📭</p><p>Aucun stock disponible</p></div>
             ) : (
-              <div className="cardsGrid">
-                {stocks.map((stock) => (
-                  <article key={stock.id} className="card">
-                    <p><b>Produit :</b> {stock.product_name}</p>
-                    <p><b>Quantité restante :</b> {stock.quantity}</p>
-                  </article>
+              <div className="stock-grid">
+                {stocks.map((s) => (
+                  <div key={s.id} className="stock-card">
+                    <div style={{ fontSize: 28, marginBottom: 10 }}>📦</div>
+                    <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 6 }}>{s.product_name}</p>
+                    <p style={{ fontSize: 36, fontWeight: 700, color: s.quantity > 0 ? "#f59e0b" : "#f87171" }}>{s.quantity}</p>
+                    <p style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>unités</p>
+                  </div>
                 ))}
               </div>
             )}
-          </section>
+          </div>
         )}
-      </div>
+      </main>
+
+      {/* Bottom Nav */}
+      <nav className="bottom-nav">
+        {[
+          { id: "dashboard", icon: "⊞", label: "Dashboard" },
+          { id: "commissions", icon: "💰", label: "Commissions" },
+          { id: "commandes", icon: "📦", label: "Commandes" },
+          { id: "stock", icon: "🗄️", label: "Stock" },
+        ].map((item) => (
+          <button key={item.id} className={`nav-item ${activeView === item.id ? "active" : ""}`} onClick={() => setActiveView(item.id)}>
+            <span style={{ fontSize: 20 }}>{item.icon}</span>
+            <span style={{ fontSize: 10, fontWeight: 500 }}>{item.label}</span>
+            {item.id === "commandes" && activeOrders.length > 0 && (
+              <span className="nav-badge">{activeOrders.length}</span>
+            )}
+          </button>
+        ))}
+      </nav>
 
       <style jsx>{`
-        .page { min-height: 100vh; background: #0f172a; color: white; padding: 28px 14px; font-family: Arial, sans-serif; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .topBar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-        .pageTitle { margin: 0 0 8px 0; font-size: 30px; line-height: 1.2; }
-        .subText { margin: 0; opacity: 0.9; }
-        .logoutBtn { padding: 12px 16px; border-radius: 12px; border: none; background: #dc2626; color: white; font-weight: bold; cursor: pointer; }
-        .menuBar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .menuBtn { padding: 12px 16px; border-radius: 12px; border: 1px solid #475569; background: #1e293b; color: white; cursor: pointer; font-weight: bold; }
-        .menuBtn.active { background: #2563eb; border-color: #2563eb; }
-        .panel { background: #1e293b; padding: 18px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-        .sectionTitle { margin-top: 0; margin-bottom: 16px; font-size: 28px; }
-        .statsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-        .statCard { background: #334155; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-        .statCard.wide { grid-column: span 2; }
-        .statLabel { opacity: 0.9; font-size: 15px; }
-        .statValue { font-size: 28px; font-weight: bold; }
-        .commissionTotals { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-        .totalCard { border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-        .totalCard.green { background: #166534; }
-        .totalCard.blue { background: #1e3a5f; }
-        .totalLabel { font-size: 14px; opacity: 0.9; }
-        .totalValue { font-size: 28px; font-weight: bold; }
-        .cardsGrid { display: grid; gap: 14px; }
-        .card { background: #334155; border-radius: 16px; padding: 16px; }
-        .card p { margin: 0 0 8px 0; line-height: 1.45; }
-        .badgesWrap { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 12px; }
-        .badge { display: inline-block; padding: 7px 12px; border-radius: 999px; color: white; font-size: 14px; font-weight: bold; }
-        .actionRow { display: grid; grid-template-columns: 1fr 140px; gap: 10px; margin-top: 10px; }
-        .field { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 16px; box-sizing: border-box; outline: none; }
-        .submitBtn { padding: 14px 16px; border-radius: 12px; border: none; background: #22c55e; color: white; font-weight: bold; cursor: pointer; }
-        .emptyText { opacity: 0.9; margin: 0; }
-        @media (max-width: 980px) { .actionRow { grid-template-columns: 1fr; } }
-        @media (max-width: 640px) {
-          .page { padding: 18px 10px; }
-          .panel { padding: 14px; }
-          .pageTitle { font-size: 24px; }
-          .sectionTitle { font-size: 22px; }
-          .menuBar { display: grid; grid-template-columns: 1fr; }
-          .menuBtn, .logoutBtn, .submitBtn { width: 100%; }
-          .statCard.wide { grid-column: span 1; }
-          .commissionTotals { grid-template-columns: 1fr; }
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .app { min-height: 100vh; background: #0a0a0f; color: white; font-family: 'Inter', Arial, sans-serif; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+        .confirm-modal { background: #111118; border: 1px solid #2a2a3e; border-radius: 20px; padding: 24px; max-width: 340px; width: 100%; }
+        .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+        .confirm-sub { font-size: 14px; color: #9ca3af; line-height: 1.5; margin-bottom: 20px; }
+        .confirm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .confirm-cancel { padding: 12px; background: #1e1e2e; border: 1px solid #2a2a3e; border-radius: 12px; color: #9ca3af; cursor: pointer; font-size: 14px; }
+        .confirm-ok { padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 12px; color: #0a0a0f; font-weight: 700; cursor: pointer; font-size: 14px; }
+        .confirm-ok.red { background: #dc2626; color: white; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 16px; border-bottom: 1px solid #1a1a2e; position: sticky; top: 0; background: #0a0a0f; z-index: 10; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #0a0a0f; }
+        .header-name { font-size: 15px; font-weight: 600; }
+        .header-role { font-size: 12px; color: #6b7280; margin-top: 1px; }
+        .logout-btn { padding: 8px 14px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 20px; color: #9ca3af; font-size: 13px; cursor: pointer; }
+        .content { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+        .view { padding: 20px 16px; }
+        .view-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .count-badge { background: #f59e0b; color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .stat-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+        .stat-card.accent { background: #1a1200; border-color: #f59e0b30; }
+        .stat-icon { font-size: 18px; }
+        .stat-value { font-size: 28px; font-weight: 700; }
+        .stat-label { font-size: 12px; color: #6b7280; }
+        .amount-card { background: #1a1200; border: 1px solid #f59e0b30; border-radius: 20px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .amount-label { font-size: 13px; color: #9ca3af; margin-bottom: 6px; }
+        .amount-value { font-size: 24px; font-weight: 700; color: #f59e0b; }
+        .alert-card { background: #1a1200; border: 1px solid #f59e0b50; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+        .period-tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #111118; border-radius: 12px; padding: 4px; }
+        .period-tab { flex: 1; padding: 10px 6px; border: none; background: transparent; color: #6b7280; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .period-tab.active { background: #f59e0b; color: #0a0a0f; font-weight: 700; }
+        .comm-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        .comm-card { border-radius: 20px; padding: 22px; }
+        .comm-card.green { background: linear-gradient(135deg, #052e16, #065f46); border: 1px solid #4ade8040; }
+        .comm-card.dark { background: #111118; border: 1px solid #1e1e2e; }
+        .comm-label { font-size: 13px; color: #9ca3af; margin-bottom: 8px; }
+        .comm-big { font-size: 30px; font-weight: 700; margin-bottom: 4px; }
+        .comm-sub { font-size: 13px; color: #6b7280; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e1e2e; }
+        .info-box { display: flex; gap: 12px; background: #111118; border: 1px solid #1e1e2e; border-radius: 14px; padding: 14px; font-size: 13px; color: #9ca3af; line-height: 1.6; }
+        .orders-list { display: flex; flex-direction: column; gap: 14px; }
+        .order-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 20px; padding: 16px; }
+        .order-card.locked { opacity: 0.75; }
+        .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 10px; }
+        .order-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+        .order-city { font-size: 13px; color: #6b7280; }
+        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+        .order-details { background: #0a0a0f; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .detail-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #d1d5db; }
+        .status-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .mini-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .action-row { display: flex; gap: 10px; }
+        .action-select { flex: 1; padding: 12px; background: #0a0a0f; border: 1px solid #2a2a3e; border-radius: 12px; color: white; font-size: 14px; outline: none; }
+        .action-btn { padding: 12px 18px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 12px; color: #0a0a0f; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; }
+        .stock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stock-card { background: #111118; border: 1px solid #1e1e2e; border-radius: 20px; padding: 20px; text-align: center; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; font-size: 16px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #111118; border-top: 1px solid #1e1e2e; display: flex; z-index: 100; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; background: none; border: none; cursor: pointer; color: #4b5563; position: relative; }
+        .nav-item.active { color: #f59e0b; }
+        .nav-badge { position: absolute; top: 6px; right: 20%; background: #dc2626; color: white; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        @media (min-width: 481px) { .app { border-left: 1px solid #1e1e2e; border-right: 1px solid #1e1e2e; } }
       `}</style>
-    </main>
+    </div>
   )
 }
