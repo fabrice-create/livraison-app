@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -93,12 +93,9 @@ export default function AdminPage() {
     quantity: "1",
   })
 
-  useEffect(() => {
-    void initPage()
-  }, [])
+  useEffect(() => { void initPage() }, [])
 
-  const normalizeRole = (role?: string | null) =>
-    (role || "").trim().toLowerCase()
+  const normalizeRole = (role?: string | null) => (role || "").trim().toLowerCase()
 
   const normalizeDeliveryType = (value?: string | null) => {
     const cleaned = (value || "").trim().toLowerCase()
@@ -114,11 +111,8 @@ export default function AdminPage() {
     return value || "-"
   }
 
-  const isDirect = (value?: string | null) =>
-    normalizeDeliveryType(value) === "direct"
-
-  const isGare = (value?: string | null) =>
-    normalizeDeliveryType(value) === "gare"
+  const isDirect = (value?: string | null) => normalizeDeliveryType(value) === "direct"
+  const isGare = (value?: string | null) => normalizeDeliveryType(value) === "gare"
 
   const formatMoney = (value?: number | string | null) => {
     if (value === null || value === undefined || value === "") return "-"
@@ -150,11 +144,8 @@ export default function AdminPage() {
     }
   }
 
-  const getCashColor = (collected?: boolean | null) =>
-    collected ? "#16a34a" : "#dc2626"
-
-  const getCashLabel = (collected?: boolean | null) =>
-    collected ? "Encaissé" : "Non encaissé"
+  const getCashColor = (collected?: boolean | null) => collected ? "#16a34a" : "#dc2626"
+  const getCashLabel = (collected?: boolean | null) => collected ? "Encaissé" : "Non encaissé"
 
   const sanitizePhoneForWhatsapp = (phone?: string | null) =>
     String(phone || "").replace(/[^\d]/g, "")
@@ -171,13 +162,11 @@ export default function AdminPage() {
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
   }
 
-  const getClientWhatsappMessage = (order: Order) => {
-    return `Bonjour ${order.customer_name},\n\nNous vous contactons concernant votre commande.\n\nProduit : ${order.product}\nQuantité : ${order.quantity || 1}\nMontant : ${formatMoney(order.amount)}\nVille : ${order.city}\nLivraison : ${prettyDeliveryType(order.delivery_type)}\n\nMerci de confirmer votre disponibilité afin que nous puissions lancer ou poursuivre la livraison.`
-  }
+  const getClientWhatsappMessage = (order: Order) =>
+    `Bonjour ${order.customer_name},\n\nNous vous contactons concernant votre commande.\n\nProduit : ${order.product}\nQuantité : ${order.quantity || 1}\nMontant : ${formatMoney(order.amount)}\nVille : ${order.city}\nLivraison : ${prettyDeliveryType(order.delivery_type)}\n\nMerci de confirmer votre disponibilité.`
 
-  const getDriverWhatsappMessage = (order: Order) => {
-    return `Bonjour,\n\nNouvelle commande assignée.\n\nClient : ${order.customer_name}\nTéléphone : ${order.phone}\nVille : ${order.city}\nAdresse : ${order.address}\nProduit : ${order.product}\nQuantité : ${order.quantity || 1}\nMontant : ${formatMoney(order.amount)}\nLivraison : ${prettyDeliveryType(order.delivery_type)}\n\nMerci de prendre cela en charge.`
-  }
+  const getDriverWhatsappMessage = (order: Order) =>
+    `Bonjour,\n\nNouvelle commande assignée.\n\nClient : ${order.customer_name}\nTéléphone : ${order.phone}\nVille : ${order.city}\nAdresse : ${order.address}\nProduit : ${order.product}\nQuantité : ${order.quantity || 1}\nMontant : ${formatMoney(order.amount)}\nLivraison : ${prettyDeliveryType(order.delivery_type)}\n\nMerci de prendre cela en charge.`
 
   const addHistory = async (orderId: number, actionType: string, details: string) => {
     if (!profile) return
@@ -189,9 +178,7 @@ export default function AdminPage() {
       action_details: details,
     }
     const { data, error } = await supabase.from("order_history").insert([payload]).select()
-    if (!error && data) {
-      setHistory((prev) => [...(data as OrderHistory[]), ...prev])
-    }
+    if (!error && data) setHistory((prev) => [...(data as OrderHistory[]), ...prev])
   }
 
   const initPage = async () => {
@@ -324,7 +311,7 @@ export default function AdminPage() {
       is_assigned: false,
       assigned_at: null,
       closer_id: profile?.id || null,
-      closer_commission: 500,
+      closer_commission: 0,
       driver_commission: 0,
       commission_calculated: false,
     }]).select()
@@ -411,12 +398,12 @@ export default function AdminPage() {
     const driverId = order.assigned_driver_id
     const productName = (order.product || "").trim()
     const qtyToRemove = Number(order.quantity || 1)
-    if (!driverId || !productName || qtyToRemove <= 0) { alert("Commande incomplète pour décrémenter le stock."); return false }
+    if (!driverId || !productName || qtyToRemove <= 0) { alert("Commande incomplète."); return false }
     const stockItem = driverStocks.find(
       (item) => item.driver_id === driverId && item.product_name.trim().toLowerCase() === productName.toLowerCase()
     )
     if (!stockItem) { alert("Aucun stock trouvé pour ce livreur et ce produit."); return false }
-    if (Number(stockItem.quantity) < qtyToRemove) { alert("Stock insuffisant chez ce livreur."); return false }
+    if (Number(stockItem.quantity) < qtyToRemove) { alert("Stock insuffisant."); return false }
     const newQty = Number(stockItem.quantity) - qtyToRemove
     const { error } = await supabase.from("driver_stock").update({ quantity: newQty }).eq("id", stockItem.id)
     if (error) { alert("Erreur décrément stock : " + error.message); return false }
@@ -427,6 +414,7 @@ export default function AdminPage() {
   const markDirectDeliveredAndPaid = async (order: Order) => {
     const stockOk = await consumeDriverStock(order)
     if (!stockOk) return false
+
     const payload = {
       status: "Livré",
       logistic_status: "Livré",
@@ -435,12 +423,13 @@ export default function AdminPage() {
       cash_collected_at: new Date().toISOString(),
       cash_collected_by: profile?.full_name || null,
       driver_commission: 2000,
+      closer_commission: 500,
       commission_calculated: true,
     }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
-    if (error) { alert("Erreur livraison directe : " + error.message); return false }
+    if (error) { alert("Erreur livraison : " + error.message); return false }
     setOrders((prev) => prev.map((item) => item.id === order.id ? { ...item, ...payload } : item))
-    await addHistory(order.id, "livraison_payee", "Commande marquée Livré + Payé — commission livreur 2000 FCFA")
+    await addHistory(order.id, "livraison_payee", "Livré + Payé — commission livreur 2000 FCFA, closureuse 500 FCFA")
     return true
   }
 
@@ -450,7 +439,7 @@ export default function AdminPage() {
     const { error } = await supabase.from("orders").update({ logistic_status: "Envoyé à la gare" }).eq("id", order.id)
     if (error) { alert("Erreur logistique : " + error.message); return false }
     setOrders((prev) => prev.map((item) => item.id === order.id ? { ...item, logistic_status: "Envoyé à la gare" } : item))
-    await addHistory(order.id, "envoye_gare", "Commande marquée Envoyé à la gare")
+    await addHistory(order.id, "envoye_gare", "Commande envoyée à la gare")
     return true
   }
 
@@ -469,7 +458,7 @@ export default function AdminPage() {
     if (!driver) { alert("Livreur introuvable."); return false }
     const payload = { driver_name: driver.full_name, assigned_driver_id: driver.id, is_assigned: true, assigned_at: new Date().toISOString() }
     const { error } = await supabase.from("orders").update(payload).eq("id", orderId)
-    if (error) { alert("Erreur assignation livreur : " + error.message); return false }
+    if (error) { alert("Erreur assignation : " + error.message); return false }
     setOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, ...payload } : order))
     await addHistory(orderId, "livreur_assigne", `Livreur assigné : ${driver.full_name}`)
     return true
@@ -478,11 +467,11 @@ export default function AdminPage() {
   const applyOrderAction = async (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (action === "confirmer") { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Commande confirmée ✅") }
-    if (action === "livre_paye_direct") { const ok = await markDirectDeliveredAndPaid(order); if (ok) alert("Commande livrée et payée ✅") }
-    if (action === "envoye_gare") { const ok = await markSentToGare(order); if (ok) alert("Commande envoyée à la gare ✅") }
-    if (action === "marquer_paye") { const ok = await updatePaymentAndCash(order.id, "Payé", true); if (ok) alert("Paiement marqué comme payé ✅") }
-    if (action === "annuler") { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Commande annulée ✅") }
+    if (action === "confirmer") { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
+    if (action === "livre_paye_direct") { const ok = await markDirectDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅") }
+    if (action === "envoye_gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
+    if (action === "marquer_paye") { const ok = await updatePaymentAndCash(order.id, "Payé", true); if (ok) alert("Payée ✅") }
+    if (action === "annuler") { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
     if (action === "assigner_livreur") { const ok = await assignDriver(order.id); if (ok) alert("Livreur assigné ✅") }
     setSelectedActions((prev) => ({ ...prev, [order.id]: "" }))
   }
@@ -560,8 +549,8 @@ export default function AdminPage() {
             ) : (
               <div className="ordersList">
                 {visibleOrders.map((order) => {
-                  const clientWhatsappUrl = buildWhatsappUrl(order.phone, getClientWhatsappMessage(order))
-                  const driverWhatsappUrl = buildWhatsappUrl(getDriverPhone(order.assigned_driver_id), getDriverWhatsappMessage(order))
+                  const clientUrl = buildWhatsappUrl(order.phone, getClientWhatsappMessage(order))
+                  const driverUrl = buildWhatsappUrl(getDriverPhone(order.assigned_driver_id), getDriverWhatsappMessage(order))
                   const driverHasPhone = !!getDriverPhone(order.assigned_driver_id)
                   return (
                     <article key={order.id} className="orderCard">
@@ -583,9 +572,9 @@ export default function AdminPage() {
                         <div className="statusBadge" style={{ background: getCashColor(order.cash_collected) }}>Argent : {getCashLabel(order.cash_collected)}</div>
                       </div>
                       <div className="whatsappRow">
-                        <a href={clientWhatsappUrl} target="_blank" rel="noreferrer" className="waBtn">WhatsApp client</a>
+                        <a href={clientUrl} target="_blank" rel="noreferrer" className="waBtn">WhatsApp client</a>
                         {driverHasPhone ? (
-                          <a href={driverWhatsappUrl} target="_blank" rel="noreferrer" className="waBtn secondary">WhatsApp livreur</a>
+                          <a href={driverUrl} target="_blank" rel="noreferrer" className="waBtn secondary">WhatsApp livreur</a>
                         ) : (
                           <button type="button" className="waBtn disabled" disabled>Pas de numéro livreur</button>
                         )}
@@ -638,7 +627,7 @@ export default function AdminPage() {
               <input name="address" placeholder="Adresse" value={form.address} onChange={handleChange} required className="field" />
               <input name="product" placeholder="Produit" value={form.product} onChange={handleChange} required className="field" />
               <input name="quantity" type="number" min="1" placeholder="Quantité" value={form.quantity} onChange={handleChange} required className="field" />
-              <input name="amount" type="number" placeholder="Montant de la commande" value={form.amount} onChange={handleChange} required className="field" />
+              <input name="amount" type="number" placeholder="Montant" value={form.amount} onChange={handleChange} required className="field" />
               <select name="delivery_type" value={form.delivery_type} onChange={handleChange} required className="field">
                 <option value="">Choisir type de livraison</option>
                 <option value="direct">Direct</option>
@@ -701,7 +690,7 @@ export default function AdminPage() {
             </div>
             <h3 className="subTitle">📦 Par livreur (2 000 FCFA / commande livrée)</h3>
             {Object.values(commissionStats.byDriver).length === 0 ? (
-              <p className="emptyText">Aucune commission livreur calculée pour l'instant.</p>
+              <p className="emptyText">Aucune commission livreur pour l'instant.</p>
             ) : (
               <div className="commissionGrid">
                 {Object.values(commissionStats.byDriver).map((item, i) => (
@@ -713,15 +702,15 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-            <h3 className="subTitle" style={{ marginTop: "28px" }}>💼 Par closureuse (500 FCFA / commande créée)</h3>
+            <h3 className="subTitle" style={{ marginTop: "28px" }}>💼 Par closureuse (500 FCFA / commande livrée et payée)</h3>
             {Object.values(commissionStats.byCloser).length === 0 ? (
-              <p className="emptyText">Aucune commission closureuse calculée pour l'instant.</p>
+              <p className="emptyText">Aucune commission closureuse pour l'instant.</p>
             ) : (
               <div className="commissionGrid">
                 {Object.values(commissionStats.byCloser).map((item, i) => (
                   <div key={i} className="commissionCard">
                     <span className="commissionName">{item.name}</span>
-                    <span className="commissionCount">{item.count} commande(s) créée(s)</span>
+                    <span className="commissionCount">{item.count} commande(s) livrée(s) et payée(s)</span>
                     <span className="commissionAmount blue">{formatMoney(item.total)}</span>
                   </div>
                 ))}
@@ -760,7 +749,7 @@ export default function AdminPage() {
         .badgesWrap { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 14px 0; }
         .statusBadge { display: inline-block; padding: 7px 13px; border-radius: 999px; color: white; font-weight: bold; font-size: 14px; }
         .whatsappRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-        .waBtn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 14px; border-radius: 12px; text-decoration: none; border: none; background: #16a34a; color: white; font-weight: bold; cursor: pointer; text-align: center; }
+        .waBtn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 14px; border-radius: 12px; text-decoration: none; border: none; background: #16a34a; color: white; font-weight: bold; cursor: pointer; }
         .waBtn.secondary { background: #0ea5e9; }
         .waBtn.disabled { background: #64748b; cursor: not-allowed; }
         .cleanActionsBox { display: grid; grid-template-columns: 1fr 1fr 150px; gap: 10px; align-items: center; margin-top: 10px; }

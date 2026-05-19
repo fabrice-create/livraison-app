@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -19,6 +19,7 @@ type Order = {
   payment_status?: string | null
   assigned_driver_id?: string | null
   driver_commission?: number | null
+  closer_commission?: number | null
 }
 
 type DriverStock = {
@@ -131,18 +132,17 @@ export default function LivreurPage() {
     return { totalOrders, pendingOrders, confirmedOrders, deliveredOrders, gareOrders, totalStock, totalAmount }
   }, [orders, stocks])
 
-  // ── Commission du livreur ──
   const myCommission = useMemo(() => {
-    const livrées = orders.filter((o) => o.status === "Livré" && o.driver_commission && o.driver_commission > 0)
-    const total = livrées.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
-    return { total, count: livrées.length }
+    const livrees = orders.filter((o) => o.status === "Livré" && o.driver_commission && o.driver_commission > 0)
+    const total = livrees.reduce((s, o) => s + Number(o.driver_commission || 0), 0)
+    return { total, count: livrees.length }
   }, [orders])
 
   const consumeOwnStock = async (order: Order) => {
     const driverId = order.assigned_driver_id
     const productName = (order.product || "").trim()
     const qtyToRemove = Number(order.quantity || 1)
-    if (!driverId || !productName || qtyToRemove <= 0) { alert("Commande incomplète pour décrémenter le stock."); return false }
+    if (!driverId || !productName || qtyToRemove <= 0) { alert("Commande incomplète."); return false }
     const stockItem = stocks.find(
       (item) => item.driver_id === driverId && item.product_name.trim().toLowerCase() === productName.toLowerCase()
     )
@@ -178,6 +178,7 @@ export default function LivreurPage() {
   const markDirectDeliveredAndPaid = async (order: Order) => {
     const stockOk = await consumeOwnStock(order)
     if (!stockOk) return false
+
     const payload = {
       status: "Livré",
       logistic_status: "Livré",
@@ -186,6 +187,7 @@ export default function LivreurPage() {
       cash_collected_at: new Date().toISOString(),
       cash_collected_by: profile?.full_name || null,
       driver_commission: 2000,
+      closer_commission: 500,
       commission_calculated: true,
     }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
@@ -225,11 +227,11 @@ export default function LivreurPage() {
   const applyOrderAction = async (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (action === "confirmer") { const ok = await updateStatusOnly(order.id, "Confirmé"); if (ok) alert("Commande confirmée ✅") }
-    if (action === "livre_paye_direct") { const ok = await markDirectDeliveredAndPaid(order); if (ok) alert("Commande livrée et payée ✅") }
-    if (action === "envoye_gare") { const ok = await markSentToGare(order); if (ok) alert("Commande envoyée à la gare ✅") }
-    if (action === "marquer_paye") { const ok = await updatePaymentAndCash(order.id, "Payé", true); if (ok) alert("Paiement marqué comme payé ✅") }
-    if (action === "annuler") { const ok = await updateStatusOnly(order.id, "Annulé"); if (ok) alert("Commande annulée ✅") }
+    if (action === "confirmer") { const ok = await updateStatusOnly(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
+    if (action === "livre_paye_direct") { const ok = await markDirectDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅") }
+    if (action === "envoye_gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
+    if (action === "marquer_paye") { const ok = await updatePaymentAndCash(order.id, "Payé", true); if (ok) alert("Payée ✅") }
+    if (action === "annuler") { const ok = await updateStatusOnly(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
     setSelectedActions((prev) => ({ ...prev, [order.id]: "" }))
   }
 
@@ -288,7 +290,7 @@ export default function LivreurPage() {
             <h2 className="sectionTitle">💰 Mes commissions</h2>
             <div className="commissionTotals">
               <div className="totalCard blue">
-                <span className="totalLabel">Commandes livrées</span>
+                <span className="totalLabel">Commandes livrées et payées</span>
                 <span className="totalValue">{myCommission.count}</span>
               </div>
               <div className="totalCard green">
@@ -394,7 +396,7 @@ export default function LivreurPage() {
         @media (max-width: 980px) { .actionRow { grid-template-columns: 1fr; } }
         @media (max-width: 640px) {
           .page { padding: 18px 10px; }
-          .panel { padding: 14px; border-radius: 14px; }
+          .panel { padding: 14px; }
           .pageTitle { font-size: 24px; }
           .sectionTitle { font-size: 22px; }
           .menuBar { display: grid; grid-template-columns: 1fr; }

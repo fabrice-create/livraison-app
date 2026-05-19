@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -150,10 +150,11 @@ export default function ClosureusePage() {
     return { totalOrders, notAssigned, confirmed, delivered, gare, unpaid, paid, totalStock }
   }, [orders, driverStocks])
 
-  // ── Commission de la closureuse ──
   const myCommission = useMemo(() => {
     if (!profile) return { total: 0, count: 0 }
-    const myOrders = orders.filter((o) => o.closer_id === profile.id && o.closer_commission && o.closer_commission > 0)
+    const myOrders = orders.filter(
+      (o) => o.closer_id === profile.id && o.closer_commission && o.closer_commission > 0
+    )
     const total = myOrders.reduce((s, o) => s + Number(o.closer_commission || 0), 0)
     return { total, count: myOrders.length }
   }, [orders, profile])
@@ -196,7 +197,7 @@ export default function ClosureusePage() {
       assigned_driver_id: null,
       assigned_at: null,
       closer_id: profile?.id || null,
-      closer_commission: 500,
+      closer_commission: 0,
       driver_commission: 0,
       commission_calculated: false,
     }]).select()
@@ -304,7 +305,7 @@ export default function ClosureusePage() {
             <h2 className="sectionTitle">💰 Mes commissions</h2>
             <div className="commissionTotals">
               <div className="totalCard blue">
-                <span className="totalLabel">Commandes closées</span>
+                <span className="totalLabel">Commandes livrées et payées</span>
                 <span className="totalValue">{myCommission.count}</span>
               </div>
               <div className="totalCard green">
@@ -313,7 +314,7 @@ export default function ClosureusePage() {
               </div>
             </div>
             <p className="emptyText" style={{ marginTop: "16px" }}>
-              500 FCFA par commande créée. Les commissions s'accumulent automatiquement à chaque nouvelle commande.
+              500 FCFA par commande livrée et payée. La commission est enregistrée automatiquement quand le livreur marque la commande comme livrée et payée.
             </p>
           </section>
         )}
@@ -446,7 +447,7 @@ export default function ClosureusePage() {
         @media (max-width: 980px) { .assignRow { grid-template-columns: 1fr; } }
         @media (max-width: 640px) {
           .page { padding: 18px 10px; }
-          .panel { padding: 14px; border-radius: 14px; }
+          .panel { padding: 14px; }
           .pageTitle { font-size: 24px; }
           .sectionTitle { font-size: 22px; }
           .menuBar { display: grid; grid-template-columns: 1fr; }
