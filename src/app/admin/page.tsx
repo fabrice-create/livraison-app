@@ -74,7 +74,7 @@ export default function AdminPage() {
   const [stockLoading, setStockLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [activeView, setActiveView] = useState("dashboard")
-  const [statusFilter, setStatusFilter] = useState("En cours")
+  const [statusFilter, setStatusFilter] = useState("encours")
   const [driverFilter, setDriverFilter] = useState("Tous")
   const [search, setSearch] = useState("")
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -83,10 +83,7 @@ export default function AdminPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [editForm, setEditForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" })
 
-  const [form, setForm] = useState({
-    customer_name: "", phone: "", city: "", address: "",
-    product: "", quantity: "1", delivery_type: "", amount: "",
-  })
+  const [form, setForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", delivery_type: "", amount: "" })
   const [stockForm, setStockForm] = useState({ driver_id: "", product_name: "", quantity: "1" })
 
   useEffect(() => { void initPage() }, [])
@@ -96,11 +93,17 @@ export default function AdminPage() {
   const prettyDT = (v?: string | null) => { const n = normDT(v); if (n === "direct") return "Direct"; if (n === "gare") return "Gare"; return v || "-" }
   const isDirect = (v?: string | null) => normDT(v) === "direct"
   const isGare = (v?: string | null) => normDT(v) === "gare"
-  const isFinished = (o: Order) => o.status === "Livré" || o.status === "Annulé" || o.status === "Confirmé" || o.logistic_status === "Envoyé à la gare"
-  const isEnCours = (o: Order) => !isFinished(o)
   const fmt = (v?: number | string | null) => { if (v === null || v === undefined || v === "") return "-"; return `${Number(v).toLocaleString()} FCFA` }
   const fmtDate = (d?: string | null) => { if (!d) return "-"; return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) }
   const isToday = (d?: string | null) => { if (!d) return false; return new Date(d).toDateString() === new Date().toDateString() }
+
+  // En cours = En attente + Confirmé
+  const isEnCours = (o: Order) => {
+    const s = o.status || "En attente"
+    return s === "En attente" || s === "Confirmé"
+  }
+  // Historique = Livré + Gare + Annulé
+  const isHistorique = (o: Order) => !isEnCours(o)
 
   const statusStyle = (s?: string | null) => {
     switch (s) {
@@ -115,10 +118,14 @@ export default function AdminPage() {
   }
 
   const sanitizePhone = (p?: string | null) => String(p || "").replace(/[^\d]/g, "")
-  const getDriverPhone = (id?: string | null) => { if (!id) return ""; const d = drivers.find((d) => d.id === id); return sanitizePhone(d?.phone || null) }
-  const waUrl = (phone: string, msg: string) => { const p = sanitizePhone(phone); if (!p) return "#"; return `https://wa.me/${p}?text=${encodeURIComponent(msg)}` }
-  const clientMsg = (o: Order) => `Bonjour ${o.customer_name},\n\nVotre commande est en cours.\n\nProduit : ${o.product}\nQuantité : ${o.quantity || 1}\nMontant : ${fmt(o.amount)}\nVille : ${o.city}\n\nMerci de confirmer votre disponibilité.`
-  const driverMsg = (o: Order) => `Bonjour,\n\nNouvelle commande assignée.\n\nClient : ${o.customer_name}\nTél : ${o.phone}\nVille : ${o.city}\nAdresse : ${o.address}\nProduit : ${o.product} × ${o.quantity || 1}\nMontant : ${fmt(o.amount)}\nLivraison : ${prettyDT(o.delivery_type)}\n\nMerci.`
+  const callUrl = (phone?: string | null) => { const p = sanitizePhone(phone); return p ? `tel:+${p}` : "#" }
+  const waUrl = (phone?: string | null, msg?: string) => {
+    const p = sanitizePhone(phone)
+    if (!p) return "#"
+    return `https://wa.me/${p}${msg ? `?text=${encodeURIComponent(msg)}` : ""}`
+  }
+  const getDriverPhone = (id?: string | null) => { if (!id) return ""; const d = drivers.find((d) => d.id === id); return d?.phone || null }
+  const clientWaMsg = (o: Order) => `Bonjour ${o.customer_name}, votre commande est en cours !\n\nProduit : ${o.product} × ${o.quantity || 1}\nMontant : ${fmt(o.amount)}\nVille : ${o.city}\nLivraison : ${prettyDT(o.delivery_type)}\n\nMerci de vous tenir disponible.`
 
   const addHistory = async (orderId: number, actionType: string, details: string) => {
     if (!profile) return
@@ -160,10 +167,11 @@ export default function AdminPage() {
     setAuthLoading(false)
   }
 
-  const filterByPeriod = (list: Order[], field: "delivered_at" | "created_at" | "confirmed_at" | "cancelled_at") => {
+  const filterByPeriod = (list: Order[]) => {
     const now = new Date()
     return list.filter((o) => {
-      const d = o[field]; if (!d) return true
+      const d = o.delivered_at || o.confirmed_at || o.cancelled_at || o.created_at
+      if (!d) return true
       const date = new Date(d)
       if (periodFilter === "today") return date.toDateString() === now.toDateString()
       if (periodFilter === "semaine") return (now.getTime() - date.getTime()) / 86400000 <= 7
@@ -186,19 +194,19 @@ export default function AdminPage() {
     gare: orders.filter((o) => o.logistic_status === "Envoyé à la gare").length,
     collected: orders.filter((o) => o.cash_collected === true).length,
     amountCollected: orders.filter((o) => o.cash_collected === true).reduce((s, o) => s + Number(o.amount || 0), 0),
-    amountPending: orders.filter((o) => o.cash_collected !== true).reduce((s, o) => s + Number(o.amount || 0), 0),
+    amountPending: orders.filter((o) => o.cash_collected !== true && isEnCours(o)).reduce((s, o) => s + Number(o.amount || 0), 0),
     stockByDriver: driverStocks.reduce((acc: Record<string, number>, i) => { acc[i.driver_name] = (acc[i.driver_name] || 0) + Number(i.quantity || 0); return acc }, {}),
   }), [orders, driverStocks])
 
   const commissionStats = useMemo(() => {
     const byDriver: Record<string, { name: string; total: number; count: number }> = {}
-    filterByPeriod(orders.filter((o) => o.status === "Livré" && o.driver_commission && o.driver_commission > 0), "delivered_at").forEach((o) => {
+    filterByPeriod(orders.filter((o) => o.driver_commission && o.driver_commission > 0)).forEach((o) => {
       const key = o.assigned_driver_id || "inconnu"
       if (!byDriver[key]) byDriver[key] = { name: o.driver_name || "Inconnu", total: 0, count: 0 }
       byDriver[key].total += Number(o.driver_commission); byDriver[key].count += 1
     })
     const byCloser: Record<string, { name: string; total: number; count: number }> = {}
-    filterByPeriod(orders.filter((o) => o.closer_id && o.closer_commission && o.closer_commission > 0), "delivered_at").forEach((o) => {
+    filterByPeriod(orders.filter((o) => o.closer_id && o.closer_commission && o.closer_commission > 0)).forEach((o) => {
       const key = o.closer_id || "inconnu"
       const name = closers.find((c) => c.id === key)?.full_name || o.closer_name || "Closureuse"
       if (!byCloser[key]) byCloser[key] = { name, total: 0, count: 0 }
@@ -212,10 +220,10 @@ export default function AdminPage() {
   }, [orders, closers, periodFilter])
 
   const enCoursOrders = useMemo(() => orders.filter(isEnCours), [orders])
-  const historiqueOrders = useMemo(() => orders.filter(isFinished), [orders])
+  const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
   const visibleOrders = useMemo(() => {
-    const base = statusFilter === "En cours" ? enCoursOrders : historiqueOrders
+    const base = statusFilter === "encours" ? enCoursOrders : historiqueOrders
     return base.filter((o) => {
       const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
       const q = search.trim().toLowerCase()
@@ -229,13 +237,9 @@ export default function AdminPage() {
   const openEdit = (order: Order) => {
     setEditingOrder(order)
     setEditForm({
-      customer_name: order.customer_name || "",
-      phone: order.phone || "",
-      city: order.city || "",
-      address: order.address || "",
-      product: order.product || "",
-      quantity: String(order.quantity || 1),
-      amount: String(order.amount || ""),
+      customer_name: order.customer_name || "", phone: order.phone || "",
+      city: order.city || "", address: order.address || "", product: order.product || "",
+      quantity: String(order.quantity || 1), amount: String(order.amount || ""),
       delivery_type: order.delivery_type || "",
     })
   }
@@ -244,13 +248,9 @@ export default function AdminPage() {
     e.preventDefault()
     if (!editingOrder) return
     const payload = {
-      customer_name: editForm.customer_name,
-      phone: editForm.phone,
-      city: editForm.city,
-      address: editForm.address,
-      product: editForm.product,
-      quantity: Number(editForm.quantity),
-      amount: Number(editForm.amount),
+      customer_name: editForm.customer_name, phone: editForm.phone,
+      city: editForm.city, address: editForm.address, product: editForm.product,
+      quantity: Number(editForm.quantity), amount: Number(editForm.amount),
       delivery_type: normDT(editForm.delivery_type),
     }
     const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id)
@@ -321,15 +321,6 @@ export default function AdminPage() {
     return true
   }
 
-  const updatePayment = async (id: number, ps: string, collected: boolean) => {
-    const payload = { payment_status: ps, cash_collected: collected, cash_collected_at: collected ? new Date().toISOString() : null, cash_collected_by: collected ? profile?.full_name || null : null }
-    const { error } = await supabase.from("orders").update(payload).eq("id", id)
-    if (error) { alert("Erreur : " + error.message); return false }
-    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, ...payload } : o))
-    await addHistory(id, "paiement_modifie", `Paiement → ${ps}`)
-    return true
-  }
-
   const consumeStock = async (order: Order) => {
     const driverId = order.assigned_driver_id
     const productName = (order.product || "").trim()
@@ -349,7 +340,11 @@ export default function AdminPage() {
     const ok = await consumeStock(order)
     if (!ok) return false
     const now = new Date().toISOString()
-    const payload = { status: "Livré", logistic_status: "Livré", payment_status: "Payé", cash_collected: true, cash_collected_at: now, cash_collected_by: profile?.full_name || null, driver_commission: 2000, closer_commission: 500, commission_calculated: true, delivered_at: now }
+    const payload = {
+      status: "Livré", logistic_status: "Livré", payment_status: "Payé",
+      cash_collected: true, cash_collected_at: now, cash_collected_by: profile?.full_name || null,
+      driver_commission: 2000, closer_commission: 500, commission_calculated: true, delivered_at: now
+    }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
     if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, ...payload } : o))
@@ -361,11 +356,15 @@ export default function AdminPage() {
     const ok = await consumeStock(order)
     if (!ok) return false
     const now = new Date().toISOString()
-    const payload = { logistic_status: "Envoyé à la gare", status: "Confirmé", confirmed_at: now }
+    const payload = {
+      logistic_status: "Envoyé à la gare", status: "Livré", payment_status: "Payé",
+      cash_collected: true, cash_collected_at: now, cash_collected_by: profile?.full_name || null,
+      driver_commission: 2000, closer_commission: 500, commission_calculated: true, delivered_at: now
+    }
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
     if (error) { alert("Erreur : " + error.message); return false }
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, ...payload } : o))
-    await addHistory(order.id, "envoye_gare", "Envoyé à la gare")
+    await addHistory(order.id, "envoye_gare", "Envoyé à la gare — commissions enregistrées")
     return true
   }
 
@@ -383,10 +382,9 @@ export default function AdminPage() {
   }
 
   const getActions = (order: Order) => {
-    if (!isEnCours(order)) return [{ value: "", label: "🔒 Historique" }]
     const actions = [{ value: "", label: "Choisir une action" }, { value: "confirmer", label: "✅ Confirmer" }, { value: "annuler", label: "❌ Annuler" }]
     if (isDirect(order.delivery_type)) actions.push({ value: "livre_paye", label: "🎯 Livré + Payé" })
-    if (isGare(order.delivery_type)) { actions.push({ value: "gare", label: "🚌 Gare" }); actions.push({ value: "paye", label: "💰 Marquer Payé" }) }
+    if (isGare(order.delivery_type)) actions.push({ value: "gare", label: "🚌 Envoyé à la gare" })
     actions.push({ value: "assigner", label: "👤 Assigner livreur" })
     return actions
   }
@@ -394,24 +392,21 @@ export default function AdminPage() {
   const requestAction = (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (!isEnCours(order)) { alert("Cette commande est dans l'historique."); return }
-    if (action === "livre_paye" || action === "annuler") setConfirmAction({ order, action })
+    if (action === "livre_paye" || action === "annuler" || action === "gare") setConfirmAction({ order, action })
     else void executeAction(order, action)
   }
 
   const executeAction = async (order: Order, action: string) => {
     setConfirmAction(null)
     if (action === "confirmer") { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
-    if (action === "livre_paye") { const ok = await markDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅") }
-    if (action === "gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅") }
-    if (action === "paye") { const ok = await updatePayment(order.id, "Payé", true); if (ok) alert("Payée ✅") }
+    if (action === "livre_paye") { const ok = await markDeliveredAndPaid(order); if (ok) alert("Livrée et payée ✅\nCommissions enregistrées !") }
+    if (action === "gare") { const ok = await markSentToGare(order); if (ok) alert("Envoyée à la gare ✅\nCommissions enregistrées !") }
     if (action === "annuler") { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
     if (action === "assigner") { const ok = await assignDriver(order.id); if (ok) alert("Livreur assigné ✅") }
     setSelectedActions((prev) => ({ ...prev, [order.id]: "" }))
   }
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login") }
-
   const periodLabels: Record<string, string> = { today: "Aujourd'hui", semaine: "Semaine", mois: "Ce mois" }
 
   const navItems = [
@@ -463,22 +458,19 @@ export default function AdminPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Quantité</label>
-                  <input name="quantity" type="number" min="1" value={editForm.quantity}
-                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                    required style={fs} />
+                  <input type="number" min="1" value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} required style={fs} />
                 </div>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Montant (FCFA)</label>
-                  <input name="amount" type="number" value={editForm.amount}
-                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                    required style={fs} />
+                  <input type="number" value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} required style={fs} />
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Type de livraison</label>
                 <select value={editForm.delivery_type}
-                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })}
-                  required style={fs}>
+                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })} required style={fs}>
                   <option value="">Choisir...</option>
                   <option value="direct">🚚 Direct</option>
                   <option value="gare">🚌 Gare</option>
@@ -499,18 +491,27 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Confirmation */}
       {confirmAction && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
           <div style={{ background: "#111118", border: "1px solid #2a2a3e", borderRadius: 20, padding: 28, maxWidth: 380, width: "100%" }}>
-            <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{confirmAction.action === "livre_paye" ? "🎯 Confirmer ?" : "❌ Annuler ?"}</p>
+            <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
+              {confirmAction.action === "livre_paye" ? "🎯 Confirmer la livraison ?"
+                : confirmAction.action === "gare" ? "🚌 Confirmer envoi à la gare ?"
+                : "❌ Annuler la commande ?"}
+            </p>
             <p style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.6, marginBottom: 24 }}>
-              {confirmAction.action === "livre_paye" ? `Commande de ${confirmAction.order.customer_name} → Livré + Payé. Irréversible.` : `Annuler la commande de ${confirmAction.order.customer_name} définitivement ?`}
+              {confirmAction.action === "livre_paye"
+                ? `Commande de ${confirmAction.order.customer_name} → Livré + Payé. Commissions enregistrées. Irréversible.`
+                : confirmAction.action === "gare"
+                ? `Commande de ${confirmAction.order.customer_name} → Envoyée à la gare. Commissions enregistrées. Irréversible.`
+                : `Annuler la commande de ${confirmAction.order.customer_name} définitivement ?`}
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => setConfirmAction(null)} style={{ padding: 13, background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 12, color: "#9ca3af", cursor: "pointer", fontSize: 14 }}>Retour</button>
               <button onClick={() => executeAction(confirmAction.order, confirmAction.action)}
                 style={{ padding: 13, background: confirmAction.action === "annuler" ? "#dc2626" : "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: confirmAction.action === "annuler" ? "white" : "#0a0a0f", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
-                {confirmAction.action === "livre_paye" ? "Confirmer" : "Oui, annuler"}
+                {confirmAction.action === "annuler" ? "Oui, annuler" : "Confirmer"}
               </button>
             </div>
           </div>
@@ -580,7 +581,7 @@ export default function AdminPage() {
                 <p style={{ fontSize: 26, fontWeight: 700 }}>{fmt(dashStats.amountCollected)}</p>
               </div>
               <div style={{ background: "linear-gradient(135deg, #450a0a, #7f1d1d)", border: "1px solid #f8717130", borderRadius: 16, padding: 20 }}>
-                <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>⏳ En attente</p>
+                <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>⏳ En attente de livraison</p>
                 <p style={{ fontSize: 26, fontWeight: 700 }}>{fmt(dashStats.amountPending)}</p>
               </div>
             </div>
@@ -606,13 +607,13 @@ export default function AdminPage() {
                 style={{ ...fs, marginBottom: 12 }} />
 
               {/* Toggle En cours / Historique */}
-              <div style={{ display: "flex", gap: 6, marginBottom: 12, background: "#111118", borderRadius: 12, padding: 4, maxWidth: 320 }}>
-                <button onClick={() => setStatusFilter("En cours")}
-                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "En cours" ? "#f59e0b" : "transparent", color: statusFilter === "En cours" ? "#0a0a0f" : "#6b7280" }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 12, background: "#111118", borderRadius: 12, padding: 4, maxWidth: 360 }}>
+                <button onClick={() => setStatusFilter("encours")}
+                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "encours" ? "#f59e0b" : "transparent", color: statusFilter === "encours" ? "#0a0a0f" : "#6b7280" }}>
                   ⚡ En cours ({enCoursOrders.length})
                 </button>
-                <button onClick={() => setStatusFilter("Historique")}
-                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "Historique" ? "#f59e0b" : "transparent", color: statusFilter === "Historique" ? "#0a0a0f" : "#6b7280" }}>
+                <button onClick={() => setStatusFilter("historique")}
+                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "historique" ? "#f59e0b" : "transparent", color: statusFilter === "historique" ? "#0a0a0f" : "#6b7280" }}>
                   📋 Historique ({historiqueOrders.length})
                 </button>
               </div>
@@ -643,7 +644,7 @@ export default function AdminPage() {
                   const enCours = isEnCours(order)
                   const driverPhone = getDriverPhone(order.assigned_driver_id)
                   return (
-                    <div key={order.id} style={{ background: "#111118", border: `1px solid ${enCours ? "#f59e0b20" : "#1e1e2e"}`, borderRadius: 16, padding: 16, opacity: enCours ? 1 : 0.85 }}>
+                    <div key={order.id} style={{ background: "#111118", border: `1px solid ${enCours ? "#f59e0b20" : "#1e1e2e"}`, borderRadius: 16, padding: 16, opacity: enCours ? 1 : 0.9 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
                         <div>
                           <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{order.customer_name}</p>
@@ -661,6 +662,7 @@ export default function AdminPage() {
                           )}
                         </div>
                       </div>
+
                       <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                         <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
                         <div style={{ display: "flex", gap: 8, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(order.amount)}</span></div>
@@ -668,24 +670,40 @@ export default function AdminPage() {
                         <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{order.driver_name || "Non assigné"}</span></div>
                         <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(order.created_at)}</span></div>
                         {order.confirmed_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#60a5fa" }}><span>✅</span><span>Confirmée : {fmtDate(order.confirmed_at)}</span></div>}
-                        {order.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Livrée : {fmtDate(order.delivered_at)}</span></div>}
+                        {order.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Finalisée : {fmtDate(order.delivered_at)}</span></div>}
                         {order.cancelled_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#f87171" }}><span>❌</span><span>Annulée : {fmtDate(order.cancelled_at)}</span></div>}
                         {(order.driver_commission || order.closer_commission) ? (
                           <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>💰</span><span>Livreur : {fmt(order.driver_commission)} · Closureuse : {fmt(order.closer_commission)}</span></div>
                         ) : null}
                       </div>
+
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
                         <span style={{ background: ls.bg, color: ls.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{order.logistic_status || "En attente"}</span>
                         <span style={{ background: ps.bg, color: ps.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>{order.payment_status || "Non payé"}</span>
                       </div>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                        <a href={waUrl(order.phone, clientMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, padding: "9px 10px", background: "#052e16", border: "1px solid #4ade8030", borderRadius: 10, color: "#4ade80", fontSize: 12, fontWeight: 600, textDecoration: "none", textAlign: "center" as const }}>📱 Client</a>
-                        {driverPhone ? (
-                          <a href={waUrl(driverPhone, driverMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, padding: "9px 10px", background: "#1e3a5f", border: "1px solid #60a5fa30", borderRadius: 10, color: "#60a5fa", fontSize: 12, fontWeight: 600, textDecoration: "none", textAlign: "center" as const }}>📱 Livreur</a>
-                        ) : (
-                          <span style={{ flex: 1, padding: "9px 10px", background: "#1e1e2e", borderRadius: 10, color: "#4b5563", fontSize: 12, textAlign: "center" as const }}>Pas de numéro</span>
-                        )}
+
+                      {/* Boutons contact client */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                        <a href={callUrl(order.phone)}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 10px", background: "#1e3a5f", border: "1px solid #60a5fa30", borderRadius: 10, color: "#60a5fa", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                          📞 Client
+                        </a>
+                        <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer"
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 10px", background: "#052e16", border: "1px solid #4ade8030", borderRadius: 10, color: "#4ade80", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                          💬 WhatsApp
+                        </a>
                       </div>
+
+                      {/* Bouton appel livreur */}
+                      {driverPhone && (
+                        <div style={{ marginBottom: 10 }}>
+                          <a href={callUrl(driverPhone)}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 10px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 10, color: "#9ca3af", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                            📞 Appeler {order.driver_name || "Livreur"}
+                          </a>
+                        </div>
+                      )}
+
                       {enCours && (
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <select value={selectedActions[order.id] || ""} onChange={(e) => setSelectedActions((p) => ({ ...p, [order.id]: e.target.value }))}
@@ -703,6 +721,7 @@ export default function AdminPage() {
                           </button>
                         </div>
                       )}
+
                       {getOrderHistory(order.id).length > 0 && (
                         <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e1e2e" }}>
                           <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>HISTORIQUE ACTIONS</p>
@@ -730,7 +749,7 @@ export default function AdminPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 {[
                   { name: "customer_name", label: "Nom client", placeholder: "Ex: Kofi Mensah" },
-                  { name: "phone", label: "Téléphone", placeholder: "Ex: 90 00 00 00" },
+                  { name: "phone", label: "Téléphone", placeholder: "Ex: 22890000000" },
                   { name: "city", label: "Ville", placeholder: "Ex: Lomé" },
                   { name: "address", label: "Adresse", placeholder: "Ex: Akodessewa..." },
                   { name: "product", label: "Produit", placeholder: "Ex: THERAWOLF" },

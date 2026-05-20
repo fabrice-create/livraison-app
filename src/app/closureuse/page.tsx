@@ -36,6 +36,7 @@ type Profile = {
   email: string
   role: string
   full_name: string
+  phone?: string | null
 }
 
 type DriverStock = {
@@ -75,8 +76,13 @@ export default function ClosureusePage() {
   const fmt = (v?: number | string | null) => { if (v === null || v === undefined || v === "") return "-"; return `${Number(v).toLocaleString()} FCFA` }
   const fmtDate = (d?: string | null) => { if (!d) return "-"; return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) }
   const isToday = (d?: string | null) => { if (!d) return false; return new Date(d).toDateString() === new Date().toDateString() }
-  const isFinished = (o: Order) => o.status === "Livré" || o.status === "Annulé" || o.status === "Confirmé" || o.logistic_status === "Envoyé à la gare"
-  const isEnCours = (o: Order) => !isFinished(o)
+
+  // En cours = En attente + Confirmé
+  const isEnCours = (o: Order) => {
+    const s = o.status || "En attente"
+    return s === "En attente" || s === "Confirmé"
+  }
+  const isHistorique = (o: Order) => !isEnCours(o)
 
   const statusStyle = (s?: string | null) => {
     switch (s) {
@@ -89,6 +95,15 @@ export default function ClosureusePage() {
       default: return { bg: "#431407", color: "#fb923c" }
     }
   }
+
+  const sanitizePhone = (p?: string | null) => String(p || "").replace(/[^\d]/g, "")
+  const callUrl = (phone?: string | null) => { const p = sanitizePhone(phone); return p ? `tel:+${p}` : "#" }
+  const waUrl = (phone?: string | null, msg?: string) => {
+    const p = sanitizePhone(phone)
+    if (!p) return "#"
+    return `https://wa.me/${p}${msg ? `?text=${encodeURIComponent(msg)}` : ""}`
+  }
+  const clientWaMsg = (o: Order) => `Bonjour ${o.customer_name}, votre commande est en cours de traitement !\n\nProduit : ${o.product} × ${o.quantity || 1}\nMontant : ${fmt(o.amount)}\nVille : ${o.city}\nLivraison : ${prettyDT(o.delivery_type)}\n\nMerci de vous tenir disponible.`
 
   const initPage = async () => {
     setLoading(true)
@@ -120,7 +135,8 @@ export default function ClosureusePage() {
 
   const myOrders = useMemo(() => orders.filter((o) => o.closer_id === profile?.id), [orders, profile])
   const myEnCours = useMemo(() => myOrders.filter(isEnCours), [myOrders])
-  const myHistorique = useMemo(() => myOrders.filter(isFinished), [myOrders])
+  const myHistorique = useMemo(() => myOrders.filter(isHistorique), [myOrders])
+  const allEnCours = useMemo(() => orders.filter(isEnCours), [orders])
 
   const filterByPeriod = (list: Order[]) => {
     const now = new Date()
@@ -159,8 +175,7 @@ export default function ClosureusePage() {
     delivered: orders.filter((o) => o.status === "Livré").length,
     gare: orders.filter((o) => o.logistic_status === "Envoyé à la gare").length,
     paid: orders.filter((o) => o.payment_status === "Payé").length,
-    totalStock: driverStocks.reduce((s, i) => s + Number(i.quantity || 0), 0),
-  }), [orders, driverStocks])
+  }), [orders])
 
   const stockByDriver = useMemo(() => {
     const r: Record<string, number> = {}
@@ -172,8 +187,6 @@ export default function ClosureusePage() {
     if (stockDriverFilter === "Tous") return driverStocks
     return driverStocks.filter((s) => s.driver_name === stockDriverFilter)
   }, [driverStocks, stockDriverFilter])
-
-  const allEnCours = useMemo(() => orders.filter(isEnCours), [orders])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -219,13 +232,9 @@ export default function ClosureusePage() {
     e.preventDefault()
     if (!editingOrder) return
     const payload = {
-      customer_name: editForm.customer_name,
-      phone: editForm.phone,
-      city: editForm.city,
-      address: editForm.address,
-      product: editForm.product,
-      quantity: Number(editForm.quantity),
-      amount: Number(editForm.amount),
+      customer_name: editForm.customer_name, phone: editForm.phone,
+      city: editForm.city, address: editForm.address, product: editForm.product,
+      quantity: Number(editForm.quantity), amount: Number(editForm.amount),
       delivery_type: normDT(editForm.delivery_type),
     }
     const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id)
@@ -258,7 +267,6 @@ export default function ClosureusePage() {
   }
 
   const logout = async () => { await supabase.auth.signOut(); router.replace("/login") }
-
   const periodLabels: Record<string, string> = { today: "Aujourd'hui", semaine: "Semaine", mois: "Ce mois" }
 
   const navItems = [
@@ -270,7 +278,7 @@ export default function ClosureusePage() {
     { id: "stocks", label: "🗄️ Stocks" },
   ]
 
-  const fieldStyle = { width: "100%", padding: "13px 14px", background: "#111118", border: "1px solid #2a2a3e", borderRadius: 12, color: "white" as const, fontSize: 15, outline: "none", boxSizing: "border-box" as const }
+  const fs = { width: "100%", padding: "13px 14px", background: "#111118", border: "1px solid #2a2a3e", borderRadius: 12, color: "white" as const, fontSize: 15, outline: "none", boxSizing: "border-box" as const }
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#0a0a0f", color: "white" }}>
@@ -282,11 +290,11 @@ export default function ClosureusePage() {
     </div>
   )
 
-  const renderOrderCard = (o: Order, showEdit = false, showAssign = false) => {
+  const renderCard = (o: Order, showEdit = false, showAssign = false) => {
     const ss = statusStyle(o.status)
-    const canEdit = showEdit && isEnCours(o)
+    const enCours = isEnCours(o)
     return (
-      <div key={o.id} style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}>
+      <div key={o.id} style={{ background: "#111118", border: `1px solid ${enCours ? "#f59e0b20" : "#1e1e2e"}`, borderRadius: 16, padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
           <div>
             <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{o.customer_name}</p>
@@ -296,14 +304,15 @@ export default function ClosureusePage() {
             <span style={{ background: ss.bg, color: ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
               {o.status || "En attente"}
             </span>
-            {canEdit && (
+            {showEdit && enCours && (
               <button onClick={() => openEdit(o)}
-                style={{ padding: "4px 10px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 20, color: "#9ca3af", fontSize: 12, cursor: "pointer" }}>
-                ✏️ Modifier
+                style={{ padding: "4px 8px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 20, color: "#9ca3af", fontSize: 11, cursor: "pointer" }}>
+                ✏️
               </button>
             )}
           </div>
         </div>
+
         <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{o.product} × {o.quantity || 1}</span></div>
           <div style={{ display: "flex", gap: 8, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(o.amount)}</span></div>
@@ -311,15 +320,29 @@ export default function ClosureusePage() {
           <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{o.driver_name || "Non assigné"}</span></div>
           <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(o.created_at)}</span></div>
           {o.confirmed_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#60a5fa" }}><span>✅</span><span>Confirmée : {fmtDate(o.confirmed_at)}</span></div>}
-          {o.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Livrée : {fmtDate(o.delivered_at)}</span></div>}
+          {o.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Finalisée : {fmtDate(o.delivered_at)}</span></div>}
           {o.cancelled_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#f87171" }}><span>❌</span><span>Annulée : {fmtDate(o.cancelled_at)}</span></div>}
         </div>
+
+        {/* Boutons appel + WhatsApp */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+          <a href={callUrl(o.phone)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", background: "#1e3a5f", border: "1px solid #60a5fa30", borderRadius: 12, color: "#60a5fa", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            📞 Appeler
+          </a>
+          <a href={waUrl(o.phone, clientWaMsg(o))} target="_blank" rel="noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", background: "#052e16", border: "1px solid #4ade8030", borderRadius: 12, color: "#4ade80", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            💬 WhatsApp
+          </a>
+        </div>
+
         {o.closer_commission ? (
-          <div style={{ background: "#1e3a5f", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#60a5fa", fontWeight: 600, marginBottom: showAssign ? 10 : 0 }}>
+          <div style={{ background: "#1e3a5f", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#60a5fa", fontWeight: 600, marginBottom: showAssign && enCours ? 10 : 0 }}>
             💰 Ma commission : {fmt(o.closer_commission)}
           </div>
         ) : null}
-        {showAssign && isEnCours(o) && (
+
+        {showAssign && enCours && (
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <select value={selectedDrivers[o.id] || ""} onChange={(e) => setSelectedDrivers((p) => ({ ...p, [o.id]: e.target.value }))}
               style={{ flex: 1, padding: "11px 12px", background: "#0a0a0f", border: "1px solid #2a2a3e", borderRadius: 12, color: "white", fontSize: 14, outline: "none" }}>
@@ -359,28 +382,25 @@ export default function ClosureusePage() {
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>{f.label}</label>
                   <input name={f.name} value={(editForm as Record<string, string>)[f.name]}
                     onChange={(e) => setEditForm({ ...editForm, [e.target.name]: e.target.value })}
-                    required style={fieldStyle} />
+                    required style={fs} />
                 </div>
               ))}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Quantité</label>
-                  <input name="quantity" type="number" min="1" value={editForm.quantity}
-                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                    required style={fieldStyle} />
+                  <input type="number" min="1" value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} required style={fs} />
                 </div>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Montant (FCFA)</label>
-                  <input name="amount" type="number" value={editForm.amount}
-                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                    required style={fieldStyle} />
+                  <input type="number" value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} required style={fs} />
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Type de livraison</label>
-                <select name="delivery_type" value={editForm.delivery_type}
-                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })}
-                  required style={fieldStyle}>
+                <select value={editForm.delivery_type}
+                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })} required style={fs}>
                   <option value="">Choisir...</option>
                   <option value="direct">🚚 Direct</option>
                   <option value="gare">🚌 Gare</option>
@@ -406,7 +426,9 @@ export default function ClosureusePage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
           <div style={{ background: "#111118", border: "1px solid #2a2a3e", borderRadius: 20, padding: 28, maxWidth: 360, width: "100%" }}>
             <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Assigner ce livreur ?</p>
-            <p style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.6, marginBottom: 24 }}>Assigner <strong style={{ color: "white" }}>{confirmAssign.driverName}</strong> à cette commande ?</p>
+            <p style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.6, marginBottom: 24 }}>
+              Assigner <strong style={{ color: "white" }}>{confirmAssign.driverName}</strong> à cette commande ?
+            </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => setConfirmAssign(null)} style={{ padding: 13, background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 12, color: "#9ca3af", cursor: "pointer", fontSize: 14 }}>Retour</button>
               <button onClick={executeAssign} style={{ padding: 13, background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>Confirmer</button>
@@ -441,7 +463,6 @@ export default function ClosureusePage() {
         ))}
       </div>
 
-      {/* Content */}
       <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
 
         {/* DASHBOARD */}
@@ -505,7 +526,7 @@ export default function ClosureusePage() {
             </div>
             <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 14, padding: 16, fontSize: 14, color: "#9ca3af", lineHeight: 1.6, display: "flex", gap: 10 }}>
               <span>💡</span>
-              <p>500 FCFA par commande <strong style={{ color: "white" }}>Livré + Payé</strong>. Automatique quand le livreur finalise.</p>
+              <p>500 FCFA par commande <strong style={{ color: "white" }}>Livré + Payé</strong> ou <strong style={{ color: "white" }}>Envoyé à la gare</strong>.</p>
             </div>
           </div>
         )}
@@ -520,7 +541,7 @@ export default function ClosureusePage() {
                   <span style={{ background: "#f59e0b", color: "#0a0a0f", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{myEnCours.length}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {myEnCours.map((o) => renderOrderCard(o, true, false))}
+                  {myEnCours.map((o) => renderCard(o, true, false))}
                 </div>
               </div>
             )}
@@ -547,7 +568,7 @@ export default function ClosureusePage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, opacity: 0.85 }}>
-                  {filterByPeriod(myHistorique).map((o) => renderOrderCard(o, false, false))}
+                  {filterByPeriod(myHistorique).map((o) => renderCard(o, false, false))}
                 </div>
               )}
             </div>
@@ -568,7 +589,7 @@ export default function ClosureusePage() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {allEnCours.map((o) => renderOrderCard(o, true, true))}
+                {allEnCours.map((o) => renderCard(o, true, true))}
               </div>
             )}
           </div>
@@ -581,29 +602,29 @@ export default function ClosureusePage() {
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { name: "customer_name", label: "Nom client", placeholder: "Ex: Kofi Mensah" },
-                { name: "phone", label: "Téléphone", placeholder: "Ex: 90 00 00 00" },
+                { name: "phone", label: "Téléphone", placeholder: "Ex: 22890000000" },
                 { name: "city", label: "Ville", placeholder: "Ex: Lomé" },
                 { name: "address", label: "Adresse", placeholder: "Ex: Akodessewa..." },
                 { name: "product", label: "Produit", placeholder: "Ex: THERAWOLF" },
               ].map((f) => (
                 <div key={f.name}>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 6 }}>{f.label}</label>
-                  <input name={f.name} value={(form as Record<string, string>)[f.name]} onChange={handleChange} required placeholder={f.placeholder} style={fieldStyle} />
+                  <input name={f.name} value={(form as Record<string, string>)[f.name]} onChange={handleChange} required placeholder={f.placeholder} style={fs} />
                 </div>
               ))}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 6 }}>Quantité</label>
-                  <input name="quantity" type="number" min="1" value={form.quantity} onChange={handleChange} required style={fieldStyle} />
+                  <input name="quantity" type="number" min="1" value={form.quantity} onChange={handleChange} required style={fs} />
                 </div>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 6 }}>Montant (FCFA)</label>
-                  <input name="amount" type="number" value={form.amount} onChange={handleChange} required placeholder="25000" style={fieldStyle} />
+                  <input name="amount" type="number" value={form.amount} onChange={handleChange} required placeholder="25000" style={fs} />
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 6 }}>Type de livraison</label>
-                <select name="delivery_type" value={form.delivery_type} onChange={handleChange} required style={fieldStyle}>
+                <select name="delivery_type" value={form.delivery_type} onChange={handleChange} required style={fs}>
                   <option value="">Choisir...</option>
                   <option value="direct">🚚 Direct</option>
                   <option value="gare">🚌 Gare</option>
