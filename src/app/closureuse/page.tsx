@@ -26,6 +26,8 @@ type Order = {
   driver_commission?: number | null
   created_at?: string | null
   delivered_at?: string | null
+  confirmed_at?: string | null
+  cancelled_at?: string | null
   commission_calculated?: boolean | null
 }
 
@@ -55,9 +57,10 @@ export default function ClosureusePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [activeView, setActiveView] = useState("dashboard")
   const [stockDriverFilter, setStockDriverFilter] = useState("Tous")
-  const [statusFilter, setStatusFilter] = useState("Tous")
   const [periodFilter, setPeriodFilter] = useState("mois")
   const [confirmAssign, setConfirmAssign] = useState<{ orderId: number; driverName: string } | null>(null)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [editForm, setEditForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" })
 
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "", address: "",
@@ -71,8 +74,9 @@ export default function ClosureusePage() {
   const prettyDT = (v?: string | null) => { const n = normDT(v); if (n === "direct") return "Direct"; if (n === "gare") return "Gare"; return v || "-" }
   const fmt = (v?: number | string | null) => { if (v === null || v === undefined || v === "") return "-"; return `${Number(v).toLocaleString()} FCFA` }
   const fmtDate = (d?: string | null) => { if (!d) return "-"; return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) }
-  const isLocked = (o: Order) => o.status === "Livré" && o.payment_status === "Payé"
   const isToday = (d?: string | null) => { if (!d) return false; return new Date(d).toDateString() === new Date().toDateString() }
+  const isFinished = (o: Order) => o.status === "Livré" || o.status === "Annulé" || o.status === "Confirmé" || o.logistic_status === "Envoyé à la gare"
+  const isEnCours = (o: Order) => !isFinished(o)
 
   const statusStyle = (s?: string | null) => {
     switch (s) {
@@ -115,11 +119,14 @@ export default function ClosureusePage() {
   }
 
   const myOrders = useMemo(() => orders.filter((o) => o.closer_id === profile?.id), [orders, profile])
+  const myEnCours = useMemo(() => myOrders.filter(isEnCours), [myOrders])
+  const myHistorique = useMemo(() => myOrders.filter(isFinished), [myOrders])
 
   const filterByPeriod = (list: Order[]) => {
     const now = new Date()
     return list.filter((o) => {
-      const d = o.delivered_at || o.created_at; if (!d) return false
+      const d = o.delivered_at || o.confirmed_at || o.cancelled_at || o.created_at
+      if (!d) return true
       const date = new Date(d)
       if (periodFilter === "today") return date.toDateString() === now.toDateString()
       if (periodFilter === "semaine") return (now.getTime() - date.getTime()) / 86400000 <= 7
@@ -147,7 +154,7 @@ export default function ClosureusePage() {
 
   const globalStats = useMemo(() => ({
     total: orders.length,
-    notAssigned: orders.filter((o) => !o.is_assigned).length,
+    enCours: orders.filter(isEnCours).length,
     confirmed: orders.filter((o) => o.status === "Confirmé").length,
     delivered: orders.filter((o) => o.status === "Livré").length,
     gare: orders.filter((o) => o.logistic_status === "Envoyé à la gare").length,
@@ -166,9 +173,7 @@ export default function ClosureusePage() {
     return driverStocks.filter((s) => s.driver_name === stockDriverFilter)
   }, [driverStocks, stockDriverFilter])
 
-  const filteredAllOrders = useMemo(() => {
-    return orders.filter((o) => statusFilter === "Tous" || (o.status || "En attente") === statusFilter)
-  }, [orders, statusFilter])
+  const allEnCours = useMemo(() => orders.filter(isEnCours), [orders])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -196,13 +201,45 @@ export default function ClosureusePage() {
     alert("Commande créée ✅"); setSubmitting(false)
   }
 
+  const openEdit = (order: Order) => {
+    setEditingOrder(order)
+    setEditForm({
+      customer_name: order.customer_name || "",
+      phone: order.phone || "",
+      city: order.city || "",
+      address: order.address || "",
+      product: order.product || "",
+      quantity: String(order.quantity || 1),
+      amount: String(order.amount || ""),
+      delivery_type: order.delivery_type || "",
+    })
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingOrder) return
+    const payload = {
+      customer_name: editForm.customer_name,
+      phone: editForm.phone,
+      city: editForm.city,
+      address: editForm.address,
+      product: editForm.product,
+      quantity: Number(editForm.quantity),
+      amount: Number(editForm.amount),
+      delivery_type: normDT(editForm.delivery_type),
+    }
+    const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id)
+    if (error) { alert("Erreur : " + error.message); return }
+    setOrders((prev) => prev.map((o) => o.id === editingOrder.id ? { ...o, ...payload } : o))
+    setEditingOrder(null)
+    alert("Commande modifiée ✅")
+  }
+
   const requestAssign = (orderId: number) => {
     const driverId = selectedDrivers[orderId]
     if (!driverId) { alert("Choisis un livreur."); return }
     const driver = drivers.find((d) => d.id === driverId)
     if (!driver) return
-    const order = orders.find((o) => o.id === orderId)
-    if (order && isLocked(order)) { alert("Commande finalisée."); return }
     setConfirmAssign({ orderId, driverName: driver.full_name })
   }
 
@@ -227,8 +264,8 @@ export default function ClosureusePage() {
   const navItems = [
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "commissions", label: "💰 Commissions" },
-    { id: "mes_commandes", label: `📋 Mes cmd (${myOrders.length})` },
-    { id: "assigner", label: "👤 Assigner" },
+    { id: "mes_commandes", label: `📋 Mes cmd (${myEnCours.length})` },
+    { id: "assigner", label: `👤 Assigner (${allEnCours.length})` },
     { id: "creer", label: "➕ Créer" },
     { id: "stocks", label: "🗄️ Stocks" },
   ]
@@ -245,8 +282,124 @@ export default function ClosureusePage() {
     </div>
   )
 
+  const renderOrderCard = (o: Order, showEdit = false, showAssign = false) => {
+    const ss = statusStyle(o.status)
+    const canEdit = showEdit && isEnCours(o)
+    return (
+      <div key={o.id} style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{o.customer_name}</p>
+            <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {o.city} · {o.phone}</p>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            <span style={{ background: ss.bg, color: ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+              {o.status || "En attente"}
+            </span>
+            {canEdit && (
+              <button onClick={() => openEdit(o)}
+                style={{ padding: "4px 10px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 20, color: "#9ca3af", fontSize: 12, cursor: "pointer" }}>
+                ✏️ Modifier
+              </button>
+            )}
+          </div>
+        </div>
+        <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{o.product} × {o.quantity || 1}</span></div>
+          <div style={{ display: "flex", gap: 8, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(o.amount)}</span></div>
+          <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>🚚</span><span>{prettyDT(o.delivery_type)}</span></div>
+          <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{o.driver_name || "Non assigné"}</span></div>
+          <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(o.created_at)}</span></div>
+          {o.confirmed_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#60a5fa" }}><span>✅</span><span>Confirmée : {fmtDate(o.confirmed_at)}</span></div>}
+          {o.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Livrée : {fmtDate(o.delivered_at)}</span></div>}
+          {o.cancelled_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#f87171" }}><span>❌</span><span>Annulée : {fmtDate(o.cancelled_at)}</span></div>}
+        </div>
+        {o.closer_commission ? (
+          <div style={{ background: "#1e3a5f", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#60a5fa", fontWeight: 600, marginBottom: showAssign ? 10 : 0 }}>
+            💰 Ma commission : {fmt(o.closer_commission)}
+          </div>
+        ) : null}
+        {showAssign && isEnCours(o) && (
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <select value={selectedDrivers[o.id] || ""} onChange={(e) => setSelectedDrivers((p) => ({ ...p, [o.id]: e.target.value }))}
+              style={{ flex: 1, padding: "11px 12px", background: "#0a0a0f", border: "1px solid #2a2a3e", borderRadius: 12, color: "white", fontSize: 14, outline: "none" }}>
+              <option value="">Choisir livreur</option>
+              {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+            </select>
+            <button onClick={() => requestAssign(o.id)}
+              style={{ padding: "11px 18px", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              OK
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f", color: "white", fontFamily: "Inter, Arial, sans-serif" }}>
+
+      {/* Modal modification */}
+      {editingOrder && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16, overflowY: "auto" }}>
+          <div style={{ background: "#111118", border: "1px solid #2a2a3e", borderRadius: 20, padding: 24, width: "100%", maxWidth: 500 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 18, fontWeight: 700 }}>✏️ Modifier la commande</p>
+              <button onClick={() => setEditingOrder(null)} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { name: "customer_name", label: "Nom client" },
+                { name: "phone", label: "Téléphone" },
+                { name: "city", label: "Ville" },
+                { name: "address", label: "Adresse" },
+                { name: "product", label: "Produit" },
+              ].map((f) => (
+                <div key={f.name}>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>{f.label}</label>
+                  <input name={f.name} value={(editForm as Record<string, string>)[f.name]}
+                    onChange={(e) => setEditForm({ ...editForm, [e.target.name]: e.target.value })}
+                    required style={fieldStyle} />
+                </div>
+              ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Quantité</label>
+                  <input name="quantity" type="number" min="1" value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                    required style={fieldStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Montant (FCFA)</label>
+                  <input name="amount" type="number" value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                    required style={fieldStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Type de livraison</label>
+                <select name="delivery_type" value={editForm.delivery_type}
+                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })}
+                  required style={fieldStyle}>
+                  <option value="">Choisir...</option>
+                  <option value="direct">🚚 Direct</option>
+                  <option value="gare">🚌 Gare</option>
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
+                <button type="button" onClick={() => setEditingOrder(null)}
+                  style={{ padding: 14, background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 12, color: "#9ca3af", cursor: "pointer", fontSize: 14 }}>
+                  Annuler
+                </button>
+                <button type="submit"
+                  style={{ padding: 14, background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation assignation */}
       {confirmAssign && (
@@ -306,7 +459,7 @@ export default function ClosureusePage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
               <div style={{ background: "#1a1200", border: "1px solid #f59e0b30", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>📦 Total</p><p style={{ fontSize: 32, fontWeight: 700 }}>{globalStats.total}</p></div>
-              <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>⚠️ Non assignées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#fb923c" }}>{globalStats.notAssigned}</p></div>
+              <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>⚡ En cours</p><p style={{ fontSize: 32, fontWeight: 700, color: "#fb923c" }}>{globalStats.enCours}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>✅ Confirmées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#60a5fa" }}>{globalStats.confirmed}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>🎯 Livrées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#4ade80" }}>{globalStats.delivered}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>🚌 Gare</p><p style={{ fontSize: 32, fontWeight: 700, color: "#c084fc" }}>{globalStats.gare}</p></div>
@@ -360,103 +513,62 @@ export default function ClosureusePage() {
         {/* MES COMMANDES */}
         {activeView === "mes_commandes" && (
           <div>
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
-              {["Tous", "En attente", "Confirmé", "Livré", "Annulé"].map((s) => (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  style={{ padding: "8px 14px", border: "1px solid", borderColor: statusFilter === s ? "#f59e0b" : "#2a2a3e", background: statusFilter === s ? "#f59e0b" : "#111118", color: statusFilter === s ? "#0a0a0f" : "#6b7280", borderRadius: 20, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, fontWeight: statusFilter === s ? 700 : 400 }}>
-                  {s}
-                </button>
-              ))}
-            </div>
-            {myOrders.filter((o) => statusFilter === "Tous" || (o.status || "En attente") === statusFilter).length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "#6b7280" }}><p style={{ fontSize: 40, marginBottom: 12 }}>📭</p><p>Aucune commande</p></div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {myOrders.filter((o) => statusFilter === "Tous" || (o.status || "En attente") === statusFilter).map((o) => {
-                  const ss = statusStyle(o.status)
-                  const locked = isLocked(o)
-                  return (
-                    <div key={o.id} style={{ background: "#111118", border: `1px solid ${locked ? "#052e16" : "#1e1e2e"}`, borderRadius: 16, padding: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
-                        <div>
-                          <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{o.customer_name}</p>
-                          <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {o.city} · {o.phone}</p>
-                        </div>
-                        <span style={{ background: locked ? "#052e16" : ss.bg, color: locked ? "#4ade80" : ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                          {locked ? "🔒" : (o.status || "En attente")}
-                        </span>
-                      </div>
-                      <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{o.product} × {o.quantity || 1}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(o.amount)}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{o.driver_name || "Non assigné"}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(o.created_at)}</span></div>
-                        {o.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>✅</span><span>Livrée : {fmtDate(o.delivered_at)}</span></div>}
-                      </div>
-                      {locked && o.closer_commission ? (
-                        <div style={{ background: "#1e3a5f", borderRadius: 10, padding: "8px 12px", fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>
-                          💰 Ma commission : {fmt(o.closer_commission)}
-                        </div>
-                      ) : null}
-                    </div>
-                  )
-                })}
+            {myEnCours.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <p style={{ fontSize: 16, fontWeight: 700 }}>⚡ En cours</p>
+                  <span style={{ background: "#f59e0b", color: "#0a0a0f", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{myEnCours.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {myEnCours.map((o) => renderOrderCard(o, true, false))}
+                </div>
               </div>
             )}
+
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "#9ca3af" }}>📋 Historique</p>
+                  <span style={{ background: "#1e1e2e", color: "#9ca3af", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{myHistorique.length}</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, background: "#111118", borderRadius: 12, padding: 4 }}>
+                  {Object.entries(periodLabels).map(([key, label]) => (
+                    <button key={key} onClick={() => setPeriodFilter(key)}
+                      style={{ padding: "6px 10px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 600, background: periodFilter === key ? "#f59e0b" : "transparent", color: periodFilter === key ? "#0a0a0f" : "#6b7280" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {filterByPeriod(myHistorique).length === 0 ? (
+                <div style={{ textAlign: "center", padding: "30px 20px", color: "#6b7280" }}>
+                  <p style={{ fontSize: 32, marginBottom: 8 }}>📭</p>
+                  <p>Aucune commande dans l'historique pour cette période</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, opacity: 0.85 }}>
+                  {filterByPeriod(myHistorique).map((o) => renderOrderCard(o, false, false))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* ASSIGNER */}
         {activeView === "assigner" && (
           <div>
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
-              {["Tous", "En attente", "Confirmé", "Livré", "Annulé"].map((s) => (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  style={{ padding: "8px 14px", border: "1px solid", borderColor: statusFilter === s ? "#f59e0b" : "#2a2a3e", background: statusFilter === s ? "#f59e0b" : "#111118", color: statusFilter === s ? "#0a0a0f" : "#6b7280", borderRadius: 20, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, fontWeight: statusFilter === s ? 700 : 400 }}>
-                  {s}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <p style={{ fontSize: 16, fontWeight: 700 }}>👤 Commandes à assigner</p>
+              <span style={{ background: "#f59e0b", color: "#0a0a0f", fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>{allEnCours.length}</span>
             </div>
-            {filteredAllOrders.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "#6b7280" }}><p style={{ fontSize: 40, marginBottom: 12 }}>📭</p><p>Aucune commande</p></div>
+            {allEnCours.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "#6b7280" }}>
+                <p style={{ fontSize: 40, marginBottom: 12 }}>🎉</p>
+                <p>Toutes les commandes sont traitées !</p>
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {filteredAllOrders.map((o) => {
-                  const ss = statusStyle(o.status)
-                  const locked = isLocked(o)
-                  return (
-                    <div key={o.id} style={{ background: "#111118", border: `1px solid ${locked ? "#052e16" : "#1e1e2e"}`, borderRadius: 16, padding: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
-                        <div>
-                          <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{o.customer_name}</p>
-                          <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {o.city} · {o.phone}</p>
-                        </div>
-                        <span style={{ background: locked ? "#052e16" : ss.bg, color: locked ? "#4ade80" : ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                          {locked ? "🔒" : (o.status || "En attente")}
-                        </span>
-                      </div>
-                      <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{o.product} × {o.quantity || 1}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14 }}><span>💵</span><span style={{ color: "#f59e0b", fontWeight: 700 }}>{fmt(o.amount)}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{o.driver_name || "Non assigné"}</span></div>
-                        <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>{fmtDate(o.created_at)}</span></div>
-                      </div>
-                      {!locked && (
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <select value={selectedDrivers[o.id] || ""} onChange={(e) => setSelectedDrivers((p) => ({ ...p, [o.id]: e.target.value }))}
-                            style={{ flex: 1, padding: "11px 12px", background: "#0a0a0f", border: "1px solid #2a2a3e", borderRadius: 12, color: "white", fontSize: 14, outline: "none" }}>
-                            <option value="">Choisir livreur</option>
-                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                          </select>
-                          <button onClick={() => requestAssign(o.id)}
-                            style={{ padding: "11px 18px", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-                            OK
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                {allEnCours.map((o) => renderOrderCard(o, true, true))}
               </div>
             )}
           </div>
@@ -465,7 +577,7 @@ export default function ClosureusePage() {
         {/* CRÉER */}
         {activeView === "creer" && (
           <div>
-            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Nouvelle commande</p>
+            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>➕ Nouvelle commande</p>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { name: "customer_name", label: "Nom client", placeholder: "Ex: Kofi Mensah" },

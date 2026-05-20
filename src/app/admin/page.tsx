@@ -74,12 +74,14 @@ export default function AdminPage() {
   const [stockLoading, setStockLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [activeView, setActiveView] = useState("dashboard")
-  const [statusFilter, setStatusFilter] = useState("Tous")
+  const [statusFilter, setStatusFilter] = useState("En cours")
   const [driverFilter, setDriverFilter] = useState("Tous")
   const [search, setSearch] = useState("")
   const [profile, setProfile] = useState<Profile | null>(null)
   const [periodFilter, setPeriodFilter] = useState("mois")
   const [confirmAction, setConfirmAction] = useState<{ order: Order; action: string } | null>(null)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [editForm, setEditForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" })
 
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "", address: "",
@@ -94,7 +96,8 @@ export default function AdminPage() {
   const prettyDT = (v?: string | null) => { const n = normDT(v); if (n === "direct") return "Direct"; if (n === "gare") return "Gare"; return v || "-" }
   const isDirect = (v?: string | null) => normDT(v) === "direct"
   const isGare = (v?: string | null) => normDT(v) === "gare"
-  const isLocked = (o: Order) => o.status === "Livré" && o.payment_status === "Payé"
+  const isFinished = (o: Order) => o.status === "Livré" || o.status === "Annulé" || o.status === "Confirmé" || o.logistic_status === "Envoyé à la gare"
+  const isEnCours = (o: Order) => !isFinished(o)
   const fmt = (v?: number | string | null) => { if (v === null || v === undefined || v === "") return "-"; return `${Number(v).toLocaleString()} FCFA` }
   const fmtDate = (d?: string | null) => { if (!d) return "-"; return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) }
   const isToday = (d?: string | null) => { if (!d) return false; return new Date(d).toDateString() === new Date().toDateString() }
@@ -157,10 +160,10 @@ export default function AdminPage() {
     setAuthLoading(false)
   }
 
-  const filterByPeriod = (list: Order[], field: "delivered_at" | "created_at") => {
+  const filterByPeriod = (list: Order[], field: "delivered_at" | "created_at" | "confirmed_at" | "cancelled_at") => {
     const now = new Date()
     return list.filter((o) => {
-      const d = o[field]; if (!d) return false
+      const d = o[field]; if (!d) return true
       const date = new Date(d)
       if (periodFilter === "today") return date.toDateString() === now.toDateString()
       if (periodFilter === "semaine") return (now.getTime() - date.getTime()) / 86400000 <= 7
@@ -177,7 +180,7 @@ export default function AdminPage() {
 
   const dashStats = useMemo(() => ({
     total: orders.length,
-    notAssigned: orders.filter((o) => !o.is_assigned).length,
+    enCours: orders.filter(isEnCours).length,
     confirmed: orders.filter((o) => o.status === "Confirmé").length,
     delivered: orders.filter((o) => o.status === "Livré").length,
     gare: orders.filter((o) => o.logistic_status === "Envoyé à la gare").length,
@@ -208,17 +211,55 @@ export default function AdminPage() {
     }
   }, [orders, closers, periodFilter])
 
+  const enCoursOrders = useMemo(() => orders.filter(isEnCours), [orders])
+  const historiqueOrders = useMemo(() => orders.filter(isFinished), [orders])
+
   const visibleOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const matchStatus = statusFilter === "Tous" || (o.status || "En attente") === statusFilter
+    const base = statusFilter === "En cours" ? enCoursOrders : historiqueOrders
+    return base.filter((o) => {
       const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
       const q = search.trim().toLowerCase()
       const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product, String(o.amount || "")].join(" ").toLowerCase().includes(q)
-      return matchStatus && matchDriver && matchSearch
+      return matchDriver && matchSearch
     })
-  }, [orders, statusFilter, driverFilter, search])
+  }, [orders, statusFilter, driverFilter, search, enCoursOrders, historiqueOrders])
 
   const getOrderHistory = (id: number) => history.filter((h) => h.order_id === id)
+
+  const openEdit = (order: Order) => {
+    setEditingOrder(order)
+    setEditForm({
+      customer_name: order.customer_name || "",
+      phone: order.phone || "",
+      city: order.city || "",
+      address: order.address || "",
+      product: order.product || "",
+      quantity: String(order.quantity || 1),
+      amount: String(order.amount || ""),
+      delivery_type: order.delivery_type || "",
+    })
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingOrder) return
+    const payload = {
+      customer_name: editForm.customer_name,
+      phone: editForm.phone,
+      city: editForm.city,
+      address: editForm.address,
+      product: editForm.product,
+      quantity: Number(editForm.quantity),
+      amount: Number(editForm.amount),
+      delivery_type: normDT(editForm.delivery_type),
+    }
+    const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id)
+    if (error) { alert("Erreur : " + error.message); return }
+    setOrders((prev) => prev.map((o) => o.id === editingOrder.id ? { ...o, ...payload } : o))
+    await addHistory(editingOrder.id, "commande_modifiee", `Modifiée par ${profile?.full_name}`)
+    setEditingOrder(null)
+    alert("Commande modifiée ✅")
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [e.target.name]: e.target.value })
   const handleStockChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setStockForm({ ...stockForm, [e.target.name]: e.target.value })
@@ -319,9 +360,11 @@ export default function AdminPage() {
   const markSentToGare = async (order: Order) => {
     const ok = await consumeStock(order)
     if (!ok) return false
-    const { error } = await supabase.from("orders").update({ logistic_status: "Envoyé à la gare" }).eq("id", order.id)
+    const now = new Date().toISOString()
+    const payload = { logistic_status: "Envoyé à la gare", status: "Confirmé", confirmed_at: now }
+    const { error } = await supabase.from("orders").update(payload).eq("id", order.id)
     if (error) { alert("Erreur : " + error.message); return false }
-    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, logistic_status: "Envoyé à la gare" } : o))
+    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, ...payload } : o))
     await addHistory(order.id, "envoye_gare", "Envoyé à la gare")
     return true
   }
@@ -340,7 +383,7 @@ export default function AdminPage() {
   }
 
   const getActions = (order: Order) => {
-    if (isLocked(order)) return [{ value: "", label: "🔒 Finalisée" }]
+    if (!isEnCours(order)) return [{ value: "", label: "🔒 Historique" }]
     const actions = [{ value: "", label: "Choisir une action" }, { value: "confirmer", label: "✅ Confirmer" }, { value: "annuler", label: "❌ Annuler" }]
     if (isDirect(order.delivery_type)) actions.push({ value: "livre_paye", label: "🎯 Livré + Payé" })
     if (isGare(order.delivery_type)) { actions.push({ value: "gare", label: "🚌 Gare" }); actions.push({ value: "paye", label: "💰 Marquer Payé" }) }
@@ -351,7 +394,7 @@ export default function AdminPage() {
   const requestAction = (order: Order) => {
     const action = selectedActions[order.id]
     if (!action) { alert("Choisis une action."); return }
-    if (isLocked(order)) { alert("Commande finalisée et verrouillée."); return }
+    if (!isEnCours(order)) { alert("Cette commande est dans l'historique."); return }
     if (action === "livre_paye" || action === "annuler") setConfirmAction({ order, action })
     else void executeAction(order, action)
   }
@@ -373,7 +416,7 @@ export default function AdminPage() {
 
   const navItems = [
     { id: "dashboard", label: "📊 Dashboard" },
-    { id: "commandes", label: `📦 Commandes (${orders.length})` },
+    { id: "commandes", label: `📦 Commandes (${enCoursOrders.length})` },
     { id: "creer", label: "➕ Créer" },
     { id: "stock", label: "🗄️ Stock" },
     { id: "commissions", label: "💰 Commissions" },
@@ -393,6 +436,68 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f", color: "white", fontFamily: "Inter, Arial, sans-serif" }}>
+
+      {/* Modal modification */}
+      {editingOrder && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16, overflowY: "auto" }}>
+          <div style={{ background: "#111118", border: "1px solid #2a2a3e", borderRadius: 20, padding: 24, width: "100%", maxWidth: 500 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 18, fontWeight: 700 }}>✏️ Modifier la commande</p>
+              <button onClick={() => setEditingOrder(null)} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { name: "customer_name", label: "Nom client" },
+                { name: "phone", label: "Téléphone" },
+                { name: "city", label: "Ville" },
+                { name: "address", label: "Adresse" },
+                { name: "product", label: "Produit" },
+              ].map((f) => (
+                <div key={f.name}>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>{f.label}</label>
+                  <input name={f.name} value={(editForm as Record<string, string>)[f.name]}
+                    onChange={(e) => setEditForm({ ...editForm, [e.target.name]: e.target.value })}
+                    required style={fs} />
+                </div>
+              ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Quantité</label>
+                  <input name="quantity" type="number" min="1" value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                    required style={fs} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Montant (FCFA)</label>
+                  <input name="amount" type="number" value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                    required style={fs} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 4 }}>Type de livraison</label>
+                <select value={editForm.delivery_type}
+                  onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })}
+                  required style={fs}>
+                  <option value="">Choisir...</option>
+                  <option value="direct">🚚 Direct</option>
+                  <option value="gare">🚌 Gare</option>
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
+                <button type="button" onClick={() => setEditingOrder(null)}
+                  style={{ padding: 14, background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 12, color: "#9ca3af", cursor: "pointer", fontSize: 14 }}>
+                  Annuler
+                </button>
+                <button type="submit"
+                  style={{ padding: 14, background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#0a0a0f", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {confirmAction && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
@@ -438,7 +543,6 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Content */}
       <div style={{ padding: 16, maxWidth: 1100, margin: "0 auto" }}>
 
         {/* DASHBOARD */}
@@ -463,7 +567,7 @@ export default function AdminPage() {
             <p style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, letterSpacing: "0.05em", marginBottom: 12 }}>GLOBAL</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
               <div style={{ background: "#1a1200", border: "1px solid #f59e0b30", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>📦 Total</p><p style={{ fontSize: 32, fontWeight: 700 }}>{dashStats.total}</p></div>
-              <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>⚠️ Non assignées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#fb923c" }}>{dashStats.notAssigned}</p></div>
+              <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>⚡ En cours</p><p style={{ fontSize: 32, fontWeight: 700, color: "#fb923c" }}>{dashStats.enCours}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>✅ Confirmées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#60a5fa" }}>{dashStats.confirmed}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>🎯 Livrées</p><p style={{ fontSize: 32, fontWeight: 700, color: "#4ade80" }}>{dashStats.delivered}</p></div>
               <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 16, padding: 16 }}><p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>🚌 Gare</p><p style={{ fontSize: 32, fontWeight: 700, color: "#c084fc" }}>{dashStats.gare}</p></div>
@@ -500,14 +604,19 @@ export default function AdminPage() {
               <input type="text" placeholder="🔍 Recherche nom, ville, produit..."
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 style={{ ...fs, marginBottom: 12 }} />
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10, paddingBottom: 4 }}>
-                {["Tous", "En attente", "Confirmé", "Livré", "Annulé"].map((s) => (
-                  <button key={s} onClick={() => setStatusFilter(s)}
-                    style={{ padding: "8px 14px", border: "1px solid", borderColor: statusFilter === s ? "#f59e0b" : "#2a2a3e", background: statusFilter === s ? "#f59e0b" : "#111118", color: statusFilter === s ? "#0a0a0f" : "#6b7280", borderRadius: 20, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, fontWeight: statusFilter === s ? 700 : 400 }}>
-                    {s}
-                  </button>
-                ))}
+
+              {/* Toggle En cours / Historique */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 12, background: "#111118", borderRadius: 12, padding: 4, maxWidth: 320 }}>
+                <button onClick={() => setStatusFilter("En cours")}
+                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "En cours" ? "#f59e0b" : "transparent", color: statusFilter === "En cours" ? "#0a0a0f" : "#6b7280" }}>
+                  ⚡ En cours ({enCoursOrders.length})
+                </button>
+                <button onClick={() => setStatusFilter("Historique")}
+                  style={{ flex: 1, padding: "10px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "Historique" ? "#f59e0b" : "transparent", color: statusFilter === "Historique" ? "#0a0a0f" : "#6b7280" }}>
+                  📋 Historique ({historiqueOrders.length})
+                </button>
               </div>
+
               <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
                 <button onClick={() => setDriverFilter("Tous")}
                   style={{ padding: "8px 14px", border: "1px solid", borderColor: driverFilter === "Tous" ? "#f59e0b" : "#2a2a3e", background: driverFilter === "Tous" ? "#f59e0b" : "#111118", color: driverFilter === "Tous" ? "#0a0a0f" : "#6b7280", borderRadius: 20, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, fontWeight: driverFilter === "Tous" ? 700 : 400 }}>
@@ -531,18 +640,26 @@ export default function AdminPage() {
                   const ss = statusStyle(order.status)
                   const ls = statusStyle(order.logistic_status)
                   const ps = statusStyle(order.payment_status)
-                  const locked = isLocked(order)
+                  const enCours = isEnCours(order)
                   const driverPhone = getDriverPhone(order.assigned_driver_id)
                   return (
-                    <div key={order.id} style={{ background: "#111118", border: `1px solid ${locked ? "#052e16" : "#1e1e2e"}`, borderRadius: 16, padding: 16 }}>
+                    <div key={order.id} style={{ background: "#111118", border: `1px solid ${enCours ? "#f59e0b20" : "#1e1e2e"}`, borderRadius: 16, padding: 16, opacity: enCours ? 1 : 0.85 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
                         <div>
                           <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{order.customer_name}</p>
                           <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {order.city} · {order.phone}</p>
                         </div>
-                        <span style={{ background: locked ? "#052e16" : ss.bg, color: locked ? "#4ade80" : ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                          {locked ? "🔒" : (order.status || "En attente")}
-                        </span>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                          <span style={{ background: ss.bg, color: ss.color, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                            {order.status || "En attente"}
+                          </span>
+                          {enCours && (
+                            <button onClick={() => openEdit(order)}
+                              style={{ padding: "4px 8px", background: "#1e1e2e", border: "1px solid #2a2a3e", borderRadius: 20, color: "#9ca3af", fontSize: 11, cursor: "pointer" }}>
+                              ✏️
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div style={{ background: "#0a0a0f", borderRadius: 12, padding: 12, marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                         <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>📦</span><span>{order.product} × {order.quantity || 1}</span></div>
@@ -550,7 +667,8 @@ export default function AdminPage() {
                         <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>🚚</span><span>{prettyDT(order.delivery_type)}</span></div>
                         <div style={{ display: "flex", gap: 8, fontSize: 14, color: "#e5e7eb" }}><span>👤</span><span>{order.driver_name || "Non assigné"}</span></div>
                         <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#6b7280" }}><span>📅</span><span>Créée : {fmtDate(order.created_at)}</span></div>
-                        {order.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>✅</span><span>Livrée : {fmtDate(order.delivered_at)}</span></div>}
+                        {order.confirmed_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#60a5fa" }}><span>✅</span><span>Confirmée : {fmtDate(order.confirmed_at)}</span></div>}
+                        {order.delivered_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>🎯</span><span>Livrée : {fmtDate(order.delivered_at)}</span></div>}
                         {order.cancelled_at && <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#f87171" }}><span>❌</span><span>Annulée : {fmtDate(order.cancelled_at)}</span></div>}
                         {(order.driver_commission || order.closer_commission) ? (
                           <div style={{ display: "flex", gap: 8, fontSize: 12, color: "#4ade80" }}><span>💰</span><span>Livreur : {fmt(order.driver_commission)} · Closureuse : {fmt(order.closer_commission)}</span></div>
@@ -568,7 +686,7 @@ export default function AdminPage() {
                           <span style={{ flex: 1, padding: "9px 10px", background: "#1e1e2e", borderRadius: 10, color: "#4b5563", fontSize: 12, textAlign: "center" as const }}>Pas de numéro</span>
                         )}
                       </div>
-                      {!locked && (
+                      {enCours && (
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <select value={selectedActions[order.id] || ""} onChange={(e) => setSelectedActions((p) => ({ ...p, [order.id]: e.target.value }))}
                             style={{ flex: 1, minWidth: 130, padding: "10px 10px", background: "#0a0a0f", border: "1px solid #2a2a3e", borderRadius: 10, color: "white", fontSize: 13, outline: "none" }}>
@@ -587,9 +705,9 @@ export default function AdminPage() {
                       )}
                       {getOrderHistory(order.id).length > 0 && (
                         <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e1e2e" }}>
-                          <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8, fontWeight: 600 }}>HISTORIQUE</p>
+                          <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>HISTORIQUE ACTIONS</p>
                           {getOrderHistory(order.id).slice(0, 2).map((h) => (
-                            <div key={h.id} style={{ padding: "6px 0", borderBottom: "1px solid #1a1a2e" }}>
+                            <div key={h.id} style={{ padding: "5px 0", borderBottom: "1px solid #1a1a2e" }}>
                               <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 1 }}>{h.action_by_name} — {h.action_type}</p>
                               <p style={{ fontSize: 11, color: "#6b7280" }}>{h.action_details} · {fmtDate(h.created_at)}</p>
                             </div>
@@ -607,7 +725,7 @@ export default function AdminPage() {
         {/* CRÉER */}
         {activeView === "creer" && (
           <div style={{ maxWidth: 700 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Nouvelle commande</p>
+            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>➕ Nouvelle commande</p>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 {[
@@ -645,7 +763,7 @@ export default function AdminPage() {
         {activeView === "stock" && (
           <div>
             <div style={{ maxWidth: 600, marginBottom: 32 }}>
-              <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Ajouter du stock</p>
+              <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>➕ Ajouter du stock</p>
               <form onSubmit={handleAddStock} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 13, color: "#9ca3af", display: "block", marginBottom: 6 }}>Livreur</label>
@@ -692,7 +810,7 @@ export default function AdminPage() {
         {/* COMMISSIONS */}
         {activeView === "commissions" && (
           <div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#111118", borderRadius: 12, padding: 4, maxWidth: 400 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#111118", borderRadius: 12, padding: 4, maxWidth: 360 }}>
               {Object.entries(periodLabels).map(([key, label]) => (
                 <button key={key} onClick={() => setPeriodFilter(key)}
                   style={{ flex: 1, padding: "11px 6px", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, background: periodFilter === key ? "#f59e0b" : "transparent", color: periodFilter === key ? "#0a0a0f" : "#6b7280" }}>
@@ -710,7 +828,7 @@ export default function AdminPage() {
                 <p style={{ fontSize: 28, fontWeight: 700 }}>{fmt(commissionStats.totalCloser)}</p>
               </div>
             </div>
-            <p style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 12, letterSpacing: "0.05em" }}>🚚 PAR LIVREUR — 2 000 FCFA / LIVRAISON</p>
+            <p style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 12 }}>🚚 PAR LIVREUR — 2 000 FCFA / LIVRAISON</p>
             {Object.values(commissionStats.byDriver).length === 0 ? (
               <p style={{ color: "#6b7280", marginBottom: 24 }}>Aucune commission sur cette période.</p>
             ) : (
@@ -723,7 +841,7 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-            <p style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 12, letterSpacing: "0.05em" }}>💼 PAR CLOSUREUSE — 500 FCFA / LIVRAISON</p>
+            <p style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 12 }}>💼 PAR CLOSUREUSE — 500 FCFA / LIVRAISON</p>
             {Object.values(commissionStats.byCloser).length === 0 ? (
               <p style={{ color: "#6b7280" }}>Aucune commission sur cette période.</p>
             ) : (
