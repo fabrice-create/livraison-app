@@ -428,13 +428,13 @@ export default function AdminPage() {
         .bottom-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 14px; background: none; border: none; cursor: pointer; color: #4b5563; font-size: 10px; font-weight: 500; }
         .bottom-nav-btn.active { color: #f59e0b; }
         .overlay-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
           .stats-3, .stats-6 { grid-template-columns: 1fr 1fr; }
           .orders-grid { grid-template-columns: 1fr; }
           .form-2col { grid-template-columns: 1fr; }
           .amount-row { grid-template-columns: 1fr; }
         }
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
           .sidebar { transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
           .overlay-bg.open { display: block; }

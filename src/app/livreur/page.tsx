@@ -325,7 +325,7 @@ export default function LivreurPage() {
         .bottom-nav-btn.active { color: #f59e0b; }
         .bnav-badge { position: absolute; top: 6px; right: 22%; background: #dc2626; color: white; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .overlay-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
           .sidebar { transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
           .overlay-bg.open { display: block; }
