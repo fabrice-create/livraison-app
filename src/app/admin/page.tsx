@@ -434,7 +434,7 @@ export default function AdminPage() {
           .form-2col { grid-template-columns: 1fr; }
           .amount-row { grid-template-columns: 1fr; }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .sidebar { transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
           .overlay-bg.open { display: block; }

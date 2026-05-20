@@ -325,7 +325,7 @@ export default function ClosureusePage() {
         .filter-pill { padding: 8px 16px; border: 1px solid #2a2a3e; background: #111118; color: #6b7280; border-radius: 20px; cursor: pointer; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
         .filter-pill.active { background: #f59e0b; color: #0a0a0f; border-color: #f59e0b; font-weight: 700; }
         .field { width: 100%; padding: 14px; background: #111118; border: 1px solid #2a2a3e; border-radius: 12px; color: white; font-size: 15px; outline: none; }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .sidebar { transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
           .overlay-bg.open { display: block; }
