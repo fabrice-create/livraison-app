@@ -396,7 +396,7 @@ export default function AdminPage() {
     <>
       <style>{`
         .admin-app { display: flex; min-height: 100vh; background: #0a0a0f; color: white; font-family: Inter, Arial, sans-serif; }
-        .sidebar { width: 240px; background: #111118; border-right: 1px solid #1e1e2e; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transition: transform 0.3s; overflow-y: auto; transform: translateX(-100%); }
+        .sidebar { width: 240px; background: #111118; border-right: 1px solid #1e1e2e; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transition: transform 0.3s; overflow-y: auto; transform: translateX(-100%); display: none; }
         .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e1e2e; }
         .sidebar-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; color: #0a0a0f; margin-bottom: 12px; }
         .sidebar-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
@@ -435,7 +435,7 @@ export default function AdminPage() {
           .amount-row { grid-template-columns: 1fr; }
         }
         @media (max-width: 1024px) {
-          .sidebar { width: 240px; background: #111118; border-right: 1px solid #1e1e2e; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transition: transform 0.3s; overflow-y: auto; transform: translateX(-100%); }
+          .sidebar { width: 240px; background: #111118; border-right: 1px solid #1e1e2e; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transition: transform 0.3s; overflow-y: auto; transform: translateX(-100%); display: none; }
           .sidebar.open { transform: translateX(0); }
           .overlay-bg.open { display: block; }
           .main-content { flex: 1; margin-left: 0; min-height: 100vh; }
