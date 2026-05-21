@@ -513,6 +513,7 @@ export function AdminView() {
   const [driverStocks, setDriverStocks] = useState<DriverStock[]>([]);
   const [history, setHistory]           = useState<OrderHistory[]>([]);
   const [profile, setProfile]           = useState<Profile | null>(null);
+  const [tenantId, setTenantId]         = useState<string>("");
   const [authLoading, setAuthLoading]   = useState(true);
   const [loading, setLoading]           = useState(false);
   const [stockLoading, setStockLoading] = useState(false);
@@ -541,6 +542,7 @@ export function AdminView() {
       return;
     }
     setProfile(p);
+    setTenantId((p as any).tenant_id || "");
     const { data: profiles } = await supabase.from("profiles").select("*").order("full_name");
     if (profiles) {
       const all = profiles as Profile[];
