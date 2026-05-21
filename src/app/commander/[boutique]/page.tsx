@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
+import {
+  initPixel, trackAddToCart, trackPurchase, serverTrackPurchase
+} from "@/lib/facebookPixel"
+import { initTiktokPixel, tiktokTrackAddToCart, tiktokTrackPurchase } from "@/lib/tiktokPixel"
 
 const C = {
   bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
@@ -34,6 +38,9 @@ interface BoutiqueInfo {
   slug: string
   phone?: string
   delivery_fee: number
+  facebook_pixel_id?: string
+  facebook_access_token?: string
+  tiktok_pixel_id?: string
 }
 
 const VILLES = [
@@ -62,12 +69,10 @@ export default function CommanderPage() {
 
   useEffect(() => {
     loadBoutique()
-    // Charger panier depuis sessionStorage
     const saved = sessionStorage.getItem(`cart_${slug}`)
     if (saved) setCart(JSON.parse(saved))
   }, [slug])
 
-  // Sync panier sessionStorage
   useEffect(() => {
     if (slug) sessionStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
   }, [cart, slug])
@@ -75,10 +80,24 @@ export default function CommanderPage() {
   const loadBoutique = async () => {
     setLoading(true)
     const { data: tenant } = await supabase
-      .from("tenants").select("id, name, slug, phone, delivery_fee")
+      .from("tenants")
+      .select("id, name, slug, phone, delivery_fee, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
+
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
-    setBoutique({ id: tenant.id, name: tenant.name, slug: tenant.slug, phone: tenant.phone, delivery_fee: tenant.delivery_fee || 0 })
+
+    setBoutique({
+      id: tenant.id, name: tenant.name, slug: tenant.slug,
+      phone: tenant.phone, delivery_fee: tenant.delivery_fee || 0,
+      facebook_pixel_id: tenant.facebook_pixel_id,
+      facebook_access_token: tenant.facebook_access_token,
+      tiktok_pixel_id: tenant.tiktok_pixel_id,
+    })
+
+    // Initialiser pixels
+    if (tenant.facebook_pixel_id) initPixel(tenant.facebook_pixel_id)
+    if (tenant.tiktok_pixel_id) initTiktokPixel(tenant.tiktok_pixel_id)
+
     const { data: prods } = await supabase
       .from("products").select("id, name, price, description, image_url")
       .eq("tenant_id", tenant.id).eq("is_active", true).order("name")
@@ -92,6 +111,9 @@ export default function CommanderPage() {
       if (existing) return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
       return [...prev, { id: product.id, name: product.name, price: product.price, image_url: product.image_url, quantity: 1 }]
     })
+    // Track AddToCart
+    if (boutique?.facebook_pixel_id) trackAddToCart(boutique.facebook_pixel_id, product.name, product.price, 1)
+    if (boutique?.tiktok_pixel_id) tiktokTrackAddToCart(boutique.tiktok_pixel_id, product.name, product.price)
   }
 
   const updateQty = (id: number, qty: number) => {
@@ -112,6 +134,7 @@ export default function CommanderPage() {
     if (!form.phone.trim()) { setError("Ton numéro est requis"); return }
     if (cart.length === 0) { setError("Ajoute au moins un produit"); return }
     setError(""); setSubmitting(true)
+
     try {
       const productNames = cart.map(i => `${i.name} x${i.quantity}`).join(", ")
       const { error: orderError } = await supabase.from("orders").insert({
@@ -128,7 +151,27 @@ export default function CommanderPage() {
         source: "boutique",
         note: form.note.trim() || null,
       })
+
       if (orderError) throw new Error(orderError.message)
+
+      // Track Purchase — pixel client
+      if (boutique?.facebook_pixel_id) {
+        trackPurchase(boutique.facebook_pixel_id, totalFinal, `order_${Date.now()}`)
+      }
+      if (boutique?.tiktok_pixel_id) {
+        tiktokTrackPurchase(boutique.tiktok_pixel_id, totalFinal)
+      }
+
+      // Track Purchase — API Conversions côté serveur (plus fiable iOS 14)
+      if (boutique?.facebook_pixel_id && boutique?.facebook_access_token) {
+        await serverTrackPurchase(
+          boutique.facebook_pixel_id,
+          boutique.facebook_access_token,
+          totalFinal,
+          form.phone.trim()
+        )
+      }
+
       sessionStorage.removeItem(`cart_${slug}`)
       setSuccess(true)
     } catch (err: unknown) {
@@ -179,8 +222,6 @@ export default function CommanderPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
-
-      {/* Header sticky */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
@@ -190,8 +231,8 @@ export default function CommanderPage() {
             </p>
           </div>
           {totalItems > 0 && (
-            <button onClick={() => setStep("form")} style={{ background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "10px 14px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-              🛒 <span>{totalItems}</span> · <span>{fmt(totalProduits)}</span>
+            <button onClick={() => setStep("form")} style={{ background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "10px 14px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              🛒 {totalItems} · {fmt(totalProduits)}
             </button>
           )}
         </div>
@@ -199,40 +240,24 @@ export default function CommanderPage() {
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 12px 100px" }}>
 
-        {/* CATALOGUE — Grille 2 colonnes */}
         {step === "catalogue" && (
           <>
             <p style={{ color: C.muted, fontSize: 13, margin: "0 0 14px 0" }}>
               {products.length} produit{products.length > 1 ? "s" : ""}
             </p>
-
             {products.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
                 <p style={{ color: C.muted }}>Aucun produit disponible.</p>
               </div>
             ) : (
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 12,
-              }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                 {products.map(product => {
                   const qty = getQty(product.id)
                   return (
-                    <div key={product.id} style={{
-                      background: C.card,
-                      border: `1px solid ${qty > 0 ? C.gold : C.border}`,
-                      borderRadius: 14,
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      transition: "border-color 0.2s",
-                    }}>
-                      {/* Photo carré cliquable */}
-                      <div
-                        onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
-                        style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden" }}
-                      >
+                    <div key={product.id} style={{ background: C.card, border: `1px solid ${qty > 0 ? C.gold : C.border}`, borderRadius: 14, overflow: "hidden" }}>
+                      <div onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
+                        style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", cursor: "pointer" }}>
                         {product.image_url ? (
                           <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         ) : (
@@ -244,8 +269,6 @@ export default function CommanderPage() {
                           </div>
                         )}
                       </div>
-
-                      {/* Infos */}
                       <div style={{ padding: "10px 10px 12px" }}>
                         <p onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
                           style={{ color: C.white, fontSize: 13, fontWeight: 700, margin: "0 0 4px 0", lineHeight: 1.3, cursor: "pointer" }}>
@@ -254,14 +277,8 @@ export default function CommanderPage() {
                         <p style={{ color: C.gold, fontSize: 14, fontWeight: 800, margin: "0 0 10px 0" }}>
                           {fmt(product.price)}
                         </p>
-
-                        {/* Boutons quantité ou ajouter */}
                         {qty === 0 ? (
-                          <button onClick={() => addToCart(product)} style={{
-                            width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`,
-                            border: "none", borderRadius: 8, padding: "8px 0",
-                            color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                          }}>
+                          <button onClick={() => addToCart(product)} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 8, padding: "8px 0", color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                             + Ajouter
                           </button>
                         ) : (
@@ -277,8 +294,6 @@ export default function CommanderPage() {
                 })}
               </div>
             )}
-
-            {/* Bouton panier fixe */}
             {totalItems > 0 && (
               <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 16px", background: C.bg, borderTop: `1px solid ${C.border}`, zIndex: 40 }}>
                 <div style={{ maxWidth: 700, margin: "0 auto" }}>
@@ -291,14 +306,11 @@ export default function CommanderPage() {
           </>
         )}
 
-        {/* FORMULAIRE */}
         {step === "form" && (
           <>
             <button onClick={() => setStep("catalogue")} style={{ background: "none", border: "none", color: C.gold, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "0 0 20px 0" }}>
               ← Modifier le panier
             </button>
-
-            {/* Récap panier */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
               <h3 style={{ color: C.white, fontSize: 15, fontWeight: 700, margin: "0 0 12px 0" }}>🛒 Ton panier</h3>
               {cart.map(item => (
@@ -322,8 +334,6 @@ export default function CommanderPage() {
                 <span style={{ color: C.gold, fontSize: 18, fontWeight: 800 }}>{fmt(totalFinal)}</span>
               </div>
             </div>
-
-            {/* Formulaire client */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { label: "Ton prénom et nom", key: "customer_name", placeholder: "Ex: Kofi Mensah", type: "text" },
@@ -362,9 +372,7 @@ export default function CommanderPage() {
                   onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
               </div>
             </div>
-
             {error && <div style={{ background: C.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 16, color: C.danger, fontSize: 13 }}>⚠️ {error}</div>}
-
             <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", marginTop: 20, background: submitting ? C.goldDim : `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "16px", color: "#000", fontSize: 16, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer", minHeight: 52 }}>
               {submitting ? "Envoi en cours..." : `✅ Confirmer · ${fmt(totalFinal)}`}
             </button>
