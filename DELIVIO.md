@@ -23,73 +23,42 @@ comme il le souhaite. Shipivo ne impose rien.
 ## PLAN DE DEVELOPPEMENT
 
 ### PHASE 0 - Préparation ✅ TERMINÉE
-- Domaine shipivo.app acheté
-- Branche dev créée
-- Restructuration code en composants
-- Design tokens centralisés
-- Types partagés
-- RLS activé sur toutes les tables
 
 ### PHASE 1 - Auth + Multi-tenant ✅ TERMINÉE
-- Page login redesignée avec logo premium ✅
+- Page login avec logo premium ✅
 - Redirection automatique par rôle ✅
-- Page signup 3 étapes ✅
-- Création tenant automatique à l inscription ✅
+- Page signup 3 étapes + création tenant auto ✅
 - Page forgot-password ✅
-- lib/auth.ts : getUserProfile, getRedirectByRole, createTenantAndAdmin ✅
-- Fabrice ajouté comme super_admin ✅
-- Logo Shipivo premium S géométrique doré ✅
-- Composant ShipivoLogo.tsx ✅
+- lib/auth.ts complet ✅
+- Logo Shipivo S géométrique doré ✅
 
 ### PHASE 2 - Page commande publique ✅ TERMINÉE
 - shipivo.app/commander/boutique ✅
-- Catalogue produits avec photos et prix ✅
-- Panier multi-produits ✅
-- Total calculé automatiquement ✅
+- Grille produits 2 colonnes ✅
+- Page détail produit (photo 1:1, description, quantité) ✅
+- Panier multi-produits avec sessionStorage ✅
 - Formulaire client complet ✅
 - Frais livraison configurés par e-commerçant ✅
-- 0 FCFA = livraison gratuite affiché automatiquement ✅
 - Bouton WhatsApp après commande ✅
-- Compatible mobile ✅
-- THERAWOLF testé et fonctionnel ✅
 
-### PHASE 2b - Dashboard Admin ← PROCHAINE ÉTAPE
-L e-commerçant doit pouvoir tout gérer lui-même
-sans passer par Supabase ou par Fabrice.
+### PHASE 2b - Dashboard Admin ✅ TERMINÉE
+- Gestion produits : ajouter, modifier, activer/désactiver ✅
+- Upload photo avec compression automatique 1:1 ✅
+- Formats JPG PNG WebP acceptés ✅
+- Optimisation 2G/3G automatique ✅
+- Bouton copier lien boutique et lien produit ✅
+- Gestion équipe : ajouter livreur, closureuse, partenaire ✅
+- Paramètres boutique : nom, téléphone, frais livraison ✅
+- Commissions livreur et closureuse configurables ✅
+- Pixel Facebook ID + Token API Conversions ✅
+- Pixel TikTok ✅
+- Tracking automatique ViewContent AddToCart Purchase ✅
+- API Conversions côté serveur (fiable iOS 14) ✅
+- lib/facebookPixel.ts créé ✅
+- lib/tiktokPixel.ts créé ✅
+- lib/imageUtils.ts compression + crop carré 1:1 ✅
 
-#### Gestion produits
-- Voir tous ses produits
-- Ajouter un produit (nom, prix, description, photo)
-- Modifier un produit
-- Activer / désactiver un produit
-
-#### Gestion équipe
-- Voir ses livreurs et closureuses
-- Ajouter un membre (nom, téléphone, rôle)
-- Désactiver un membre
-
-#### Configuration boutique
-- Modifier le nom de la boutique
-- Changer les frais de livraison
-- Configurer les commissions livreur et closureuse
-
-#### Tracking et publicité
-- Entrer son Pixel ID Facebook
-- Entrer son Token API Conversions Facebook
-- Entrer son Pixel TikTok
-- Événements trackés automatiquement :
-  ViewContent quand page chargée
-  AddToCart quand produit ajouté
-  Purchase quand commande confirmée
-- Envoi événements côté serveur via API Conversions
-  plus fiable que pixel seul depuis iOS 14
-
-#### Vue rapide
-- Nombre de commandes aujourd hui
-- Chiffre affaires du jour
-- Commandes en attente
-
-### PHASE 3 - Commandes avancées
+### PHASE 3 - Commandes avancées ← PROCHAINE ÉTAPE
 - Import commandes Excel et CSV
 - Source commande trackée (WhatsApp Instagram Facebook TikTok)
 - Base clients finaux
@@ -195,13 +164,9 @@ sans passer par Supabase ou par Fabrice.
 ### Plans
 - Essai gratuit : 14 jours sans carte bancaire
 - Starter : 10 000 FCFA par mois
-  2 livreurs, 1 closureuse, 300 commandes, 1 pays
 - Pro : 25 000 FCFA par mois
-  5 livreurs, 3 closureuses, illimité, 3 pays
 - Business : 50 000 FCFA par mois
-  Illimité, tous pays, boutique, intégrations
 - Enterprise : Sur devis
-  White label, support dédié
 
 ### Paiement
 - FedaPay pour Afrique
@@ -242,35 +207,27 @@ Aujourd hui on va faire : [ce que tu veux faire]
 - Design responsive mobile desktop
 - Commissions automatiques livreur et closureuse
 - Boutons appel direct et WhatsApp
-- Logique En cours Historique
 - Numéros livreurs dans Supabase
 - App déployée sur Vercel
 - Domaine shipivo.app acheté
-- Branche dev créée
-- Fichier DELIVIO.md créé
-- Structure complète Shipivo définie
 
 ### Session 2 - 21 Mai 2026
 - Restructuration complète en composants React
-- Design tokens centralisés dans lib/design-tokens.ts
-- Types partagés dans types/order.ts
-- AdminView complet : Dashboard + Commandes + Créer + Stock + Commissions
+- Design tokens centralisés
+- AdminView complet
 - Migration base de données Supabase complète
-- 37 tables créées dont tenants, subscriptions, super_admins
-- RLS activé sur toutes les nouvelles tables
-- Phase 0 terminée à 100%
+- 37 tables créées
+- Phase 0 terminée
 
 ### Session 3 - 21 Mai 2026
 - Phase 1 Auth + Multi-tenant terminée
 - Phase 2 Page commande publique terminée
-- Logo Shipivo premium S géométrique doré créé
-- Fabrice ajouté comme super_admin dans Supabase
-- Tenant THERAWOLF créé avec slug therawolf
-- Produit THERAWOLF Balm 50ml 15000 FCFA créé
-- Page commander/therawolf testée et fonctionnelle
-- Frais livraison configurables par e-commerçant
-- THERAWOLF livraison gratuite configurée
-- Phase 2b Dashboard Admin définie
-- Pixel Facebook et API Conversions ajoutés au plan
-- DELIVIO.md mis à jour avec plan complet
-- Prochaine étape : Phase 2b Dashboard Admin
+- Phase 2b Dashboard Admin terminée
+- Logo Shipivo premium créé
+- Tenant THERAWOLF configuré et testé
+- Upload photo compression 1:1 automatique
+- Grille produits 2 colonnes
+- Page détail produit
+- Tracking Facebook Pixel + API Conversions
+- Tracking TikTok Pixel
+- Prochaine étape : Phase 3 Commandes avancées
