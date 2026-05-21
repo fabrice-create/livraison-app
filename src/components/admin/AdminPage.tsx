@@ -158,10 +158,8 @@ export default function AdminPage() {
   const executeAction = async (order: Order, action: string) => {
     setConfirmAction(null)
     if (action === "confirmer")   { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅") }
-    if (action === "livre_paye")  { const ok = await markDelivered(order, false); if (ok) alert("Livrée et payée ✅
-Commissions enregistrées !") }
-    if (action === "gare")        { const ok = await markDelivered(order, true);  if (ok) alert("Envoyée à la gare ✅
-Commissions enregistrées !") }
+    if (action === "livre_paye")  { const ok = await markDelivered(order, false); if (ok) alert("Livrée et payée ✅\nCommissions enregistrées !") }
+    if (action === "gare")        { const ok = await markDelivered(order, true);  if (ok) alert("Envoyée à la gare ✅\nCommissions enregistrées !") }
     if (action === "annuler")     { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅") }
     if (action === "assigner")    { const ok = await assignDriver(order.id); if (ok) alert("Livreur assigné ✅") }
     setSelectedActions((prev) => ({ ...prev, [order.id]: "" }))
