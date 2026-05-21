@@ -36,6 +36,7 @@ export default function ParametresView({ tenantId }: Props) {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
+  const [copied, setCopied] = useState("")
   const [lienCommande, setLienCommande] = useState("")
 
   useEffect(() => { loadSettings() }, [tenantId])
@@ -156,6 +157,38 @@ export default function ParametresView({ tenantId }: Props) {
       {/* Pixel TikTok */}
       <Section title="🎵 Pixel TikTok">
         <Field label="Pixel ID TikTok" value={settings.tiktok_pixel_id} onChange={set("tiktok_pixel_id")} inp={inp} placeholder="Ex: C4ABCDEFGH..." />
+      </Section>
+
+      {/* Liens trackés */}
+      <Section title="🔗 Liens trackés par source">
+        <div style={{ background: "#16161F", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <p style={{ color: "#9898B0", fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+            Utilise ces liens selon où tu fais ta pub. La source sera enregistrée automatiquement sur chaque commande.
+          </p>
+        </div>
+        {lienCommande && [
+          { src: "whatsapp",  icon: "💬", label: "WhatsApp",  color: "#25D366" },
+          { src: "facebook",  icon: "📘", label: "Facebook",  color: "#1877F2" },
+          { src: "instagram", icon: "📸", label: "Instagram", color: "#E4405F" },
+          { src: "tiktok",    icon: "🎵", label: "TikTok",    color: "#000" },
+          { src: "google",    icon: "🔍", label: "Google",    color: "#4285F4" },
+        ].map(item => {
+          const link = `https://${lienCommande}?src=${item.src}`
+          const key = `link-${item.src}`
+          return (
+            <div key={item.src} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+              <div style={{ flex: 1, background: "#0A0A0F", border: "1px solid #1E1E2E", borderRadius: 8, padding: "8px 10px", overflow: "hidden" }}>
+                <p style={{ color: "#55556A", fontSize: 10, margin: "0 0 2px 0", fontWeight: 600 }}>{item.label}</p>
+                <p style={{ color: "#9898B0", fontSize: 11, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{link}</p>
+              </div>
+              <button onClick={() => { navigator.clipboard.writeText(link); setCopied(key); setTimeout(() => setCopied(""), 2000) }}
+                style={{ background: copied === key ? "rgba(74,222,128,0.1)" : "#16161F", border: "1px solid #1E1E2E", borderRadius: 8, padding: "8px 10px", color: copied === key ? "#4ADE80" : "#9898B0", fontSize: 11, cursor: "pointer", flexShrink: 0, fontWeight: 600 }}>
+                {copied === key ? "✓" : "📋"}
+              </button>
+            </div>
+          )
+        })}
       </Section>
 
       {/* Bouton save */}
