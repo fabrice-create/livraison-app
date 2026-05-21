@@ -41,6 +41,9 @@ export default function ClientsView({ tenantId }: Props) {
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("all")
   const [blacklisting, setBlacklisting] = useState<string | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [clientHistory, setClientHistory] = useState<Record<string, unknown>[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   useEffect(() => { loadClients() }, [tenantId])
 
@@ -103,6 +106,28 @@ export default function ClientsView({ tenantId }: Props) {
   }
 
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
+
+  const loadClientHistory = async (client: Client) => {
+    setSelectedClient(client)
+    setLoadingHistory(true)
+    const { data } = await supabase
+      .from("orders")
+      .select("id, product, quantity, amount, status, city, created_at, source, delivery_type")
+      .eq("tenant_id", tenantId)
+      .eq("phone", client.phone)
+      .order("created_at", { ascending: false })
+    setClientHistory(data || [])
+    setLoadingHistory(false)
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    "En attente": "#FB923C",
+    "Confirmé": "#60A5FA",
+    "Livré": "#4ADE80",
+    "Livré+Payé": "#4ADE80",
+    "Annulé": "#F87171",
+    "Gare": "#C084FC",
+  }
 
   const filtered = clients.filter(c => {
     const matchSearch = c.customer_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -224,7 +249,7 @@ export default function ClientsView({ tenantId }: Props) {
                   </div>
 
                   {/* Actions */}
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     {client.phone && (
                       <>
                         <button onClick={() => callClient(client.phone)}
