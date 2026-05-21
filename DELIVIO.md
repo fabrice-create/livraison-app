@@ -20,30 +20,39 @@ comme il le souhaite. Shipivo ne impose rien.
 - Branche production : main
 - Branche développement : dev
 
+## COMPTES
+- Super Admin : bosbokarbou@gmail.com / Shipivo2026!
+- Boutique test : therawolf (slug)
+- URL test : /commander/therawolf
+
 ## PLAN DE DEVELOPPEMENT
 
 ### PHASE 0 - Préparation ✅ TERMINÉE
 
 ### PHASE 1 - Auth + Multi-tenant ✅ TERMINÉE
-- Page login avec logo premium ✅
+- Page login avec logo premium S géométrique doré ✅
 - Redirection automatique par rôle ✅
-- Page signup 3 étapes + création tenant auto ✅
+- Page signup 3 étapes + création tenant automatique ✅
 - Page forgot-password ✅
-- lib/auth.ts complet ✅
-- Logo Shipivo S géométrique doré ✅
+- lib/auth.ts : getUserProfile, getRedirectByRole, createTenantAndAdmin ✅
+- Fabrice ajouté comme super_admin ✅
+- Logo Shipivo S géométrique dans carré doré ✅
+- Composant ShipivoLogo.tsx ✅
 
 ### PHASE 2 - Page commande publique ✅ TERMINÉE
 - shipivo.app/commander/boutique ✅
 - Grille produits 2 colonnes ✅
 - Page détail produit (photo 1:1, description, quantité) ✅
 - Panier multi-produits avec sessionStorage ✅
-- Formulaire client complet ✅
-- Frais livraison configurés par e-commerçant ✅
+- Formulaire client complet (nom, tel, ville, adresse, note) ✅
+- Frais livraison configurés par e-commerçant (0 = gratuit) ✅
 - Bouton WhatsApp après commande ✅
+- Compatible mobile 2G/3G ✅
 
 ### PHASE 2b - Dashboard Admin ✅ TERMINÉE
 - Gestion produits : ajouter, modifier, activer/désactiver ✅
-- Upload photo avec compression automatique 1:1 ✅
+- Upload photo direct depuis téléphone ✅
+- Compression automatique 1:1 carré (800x800px, 82% qualité) ✅
 - Formats JPG PNG WebP acceptés ✅
 - Optimisation 2G/3G automatique ✅
 - Bouton copier lien boutique et lien produit ✅
@@ -53,16 +62,29 @@ comme il le souhaite. Shipivo ne impose rien.
 - Pixel Facebook ID + Token API Conversions ✅
 - Pixel TikTok ✅
 - Tracking automatique ViewContent AddToCart Purchase ✅
-- API Conversions côté serveur (fiable iOS 14) ✅
+- API Conversions côté serveur fiable iOS 14 ✅
 - lib/facebookPixel.ts créé ✅
 - lib/tiktokPixel.ts créé ✅
 - lib/imageUtils.ts compression + crop carré 1:1 ✅
+- Notifications temps réel closureuse/admin ✅
+- Cloche 🔔 dans header avec badge rouge ✅
+- Bannière dorée "Nouvelle commande" temps réel ✅
+- Son notification ✅
+- Notification navigateur (push) ✅
+- src/hooks/useNotifications.ts créé ✅
+- src/components/ui/NotificationBell.tsx créé ✅
+- Super Admin dashboard ✅
+- Vue globale : nb clients, CA total plateforme ✅
+- Liste tous les e-commerçants avec stats ✅
+- Recherche et filtres par plan ✅
+- Activer/désactiver un client ✅
+- src/app/super-admin/page.tsx créé ✅
 
 ### PHASE 3 - Commandes avancées ← PROCHAINE ÉTAPE
-- Import commandes Excel et CSV
 - Source commande trackée (WhatsApp Instagram Facebook TikTok)
 - Base clients finaux
 - Client fidèle et blacklist
+- Import commandes Excel et CSV
 - Historique complet par client
 
 ### PHASE 4 - Stock avancé
@@ -88,7 +110,6 @@ comme il le souhaite. Shipivo ne impose rien.
 - Anti-fraude
 
 ### PHASE 7 - Communication
-- Notifications temps réel
 - SMS automatiques client et livreur
 - Messagerie interne équipe
 - Annonces à toute l équipe
@@ -164,9 +185,13 @@ comme il le souhaite. Shipivo ne impose rien.
 ### Plans
 - Essai gratuit : 14 jours sans carte bancaire
 - Starter : 10 000 FCFA par mois
+  2 livreurs, 1 closureuse, 300 commandes, 1 pays
 - Pro : 25 000 FCFA par mois
+  5 livreurs, 3 closureuses, illimité, 3 pays
 - Business : 50 000 FCFA par mois
+  Illimité, tous pays, boutique, intégrations
 - Enterprise : Sur devis
+  White label, support dédié
 
 ### Paiement
 - FedaPay pour Afrique
@@ -230,4 +255,6 @@ Aujourd hui on va faire : [ce que tu veux faire]
 - Page détail produit
 - Tracking Facebook Pixel + API Conversions
 - Tracking TikTok Pixel
+- Notifications temps réel closureuse/admin
+- Super Admin dashboard créé
 - Prochaine étape : Phase 3 Commandes avancées
