@@ -31,16 +31,19 @@ comme il le souhaite. Shipivo ne impose rien.
 - Domaine shipivo.app acheté
 - Branche dev créée sur GitHub
 - Fichier DELIVIO.md créé
+- Phase 0 terminée à 100%
+- Phase 1 terminée à 100%
+- Phase 2 terminée à 100%
 
 ## LES 4 ESPACES DE L APPLICATION
 
 ### 1. ESPACE PUBLIC
-- Page accueil Shipivo marketing
-- Page de commande par boutique avec prix
-- Page boutique publique
-- Page inscription nouveau client
-- Page connexion
-- Page mot de passe oublié
+- Page accueil Shipivo marketing (à faire)
+- Page de commande par boutique ✅ FAIT
+- Page boutique publique (à faire)
+- Page inscription nouveau client ✅ FAIT
+- Page connexion ✅ FAIT
+- Page mot de passe oublié ✅ FAIT
 
 ### 2. SUPER ADMIN - Fabrice
 - Voir TOUT : tous clients, tous pays
@@ -67,65 +70,62 @@ comme il le souhaite. Shipivo ne impose rien.
 ## BASE DE DONNEES COMPLETE
 
 ### Plateforme
-- super_admins
-- tenants (e-commerçants clients)
-- subscriptions (abonnements)
+- super_admins ✅ créée + Fabrice ajouté
+- tenants ✅ créée + THERAWOLF ajouté
+- subscriptions ✅ créée
 
 ### Géographie
-- countries (pays)
-- zones (villes et quartiers)
+- countries (à créer)
+- zones (à créer)
 
 ### Équipe
-- profiles (tous utilisateurs)
-- partners (partenaires locaux)
-- login_logs (journal connexions)
+- profiles ✅ avec user_id ajouté
+- partners (à créer)
+- login_logs (à créer)
 
 ### Produits
-- products (catalogue)
-- product_categories
-- stock_central (entrepôt principal)
-- driver_stock (stock livreur)
-- stock_movements (mouvements)
-- stock_requests (demandes stock)
+- products ✅ créée + THERAWOLF Balm ajouté
+- product_categories (à créer)
+- stock_central (existante)
+- driver_stock (existante)
+- stock_movements (à créer)
+- stock_requests (à créer)
 
 ### Commandes
-- customers (clients finaux)
-- orders (commandes)
-- order_items (produits par commande)
-- order_history (historique actions)
-- order_returns (retours)
-- order_disputes (litiges)
+- orders ✅ existante avec tenant_id
+- customers (à créer)
+- order_items (à créer)
+- order_history ✅ existante
+- order_returns (à créer)
+- order_disputes (à créer)
 
 ### Finances
-- commission_rules (règles commissions)
-- commissions (commissions calculées)
-- commission_payments (paiements)
-- cash_reconciliation (caisse)
-- advances (avances)
-- delivery_fees (frais livraison)
+- commission_rules (existante)
+- commissions (existante)
+- commission_payments (à créer)
+- cash_reconciliation (à créer)
+- advances (à créer)
+- delivery_fees → colonne delivery_fee sur tenants ✅
 
 ### Boutique
-- boutiques
-- boutique_pages
+- boutiques (à créer)
+- boutique_pages (à créer)
 
 ### Médias
-- media_files (toutes images et fichiers)
-  id, tenant_id, owner_id,
-  type, url, nom, taille,
-  created_at
+- media_files (à créer)
 
 ### Communication
-- notifications
-- messages (messagerie interne)
-- announcements (annonces équipe)
-- sms_logs
+- notifications (à créer)
+- messages (à créer)
+- announcements (à créer)
+- sms_logs (à créer)
 
 ### Performance
-- driver_objectives (objectifs livreurs)
+- driver_objectives (à créer)
 
 ### Intégrations
-- webhooks
-- webhook_logs
+- webhooks (à créer)
+- webhook_logs (à créer)
 
 ## SOURCES DE COMMANDES
 Toutes arrivent au même endroit chez la closureuse :
@@ -134,157 +134,18 @@ Toutes arrivent au même endroit chez la closureuse :
 - Connexion YouCan automatique
 - Connexion WooCommerce automatique
 - Connexion Tally automatique
-- Lien direct shipivo.app/commander/boutique
+- Lien direct shipivo.app/commander/boutique ✅ FAIT
 - Lien WhatsApp optimisé
 - Boutique Shipivo intégrée
 - Google Forms via script
 
-## FONCTIONNALITES COMPLETES
-
-### Commandes
-- Multi-produits avec prix calculé automatiquement
-- Source trackée WordPress Shopify WhatsApp...
-- Confirmation par appel téléphonique
-- Statuts : En attente, Confirmé, Livré+Payé, Gare, Annulé
-- En cours = En attente + Confirmé
-- Historique = Livré + Gare + Annulé
-- Modification commande en cours
-- Retours et litiges
-- Photo de preuve de livraison
-- Base de données clients finaux
-- Client fidèle et blacklist
-
-### Stock
-- Stock central entrepôt principal
-- Distribution aux livreurs
-- Transfert entre livreurs
-- Alertes stock bas automatiques
-- Demande de stock par livreur
-- Historique mouvements complet
-- Décrémentation automatique à la livraison
-
-### Commissions - IMPORTANT
-PRINCIPE FONDAMENTAL :
-Chaque e-commerçant est libre de définir
-ses propres règles avec son équipe.
-Shipivo ne impose rien. Chacun gère
-selon ses accords personnels.
-
-EXEMPLE DE FABRICE (fondateur) :
-- Livreur : 2 000 FCFA fixe par livraison
-  peu importe la distance
-- Closureuse : 500 FCFA par commande
-  Livré+Payé ou Envoyé à la gare
-
-AUTRES E-COMMERCANTS - options disponibles :
-- Montant fixe par livraison (comme Fabrice)
-- Pourcentage du montant de la commande
-- Paliers selon nombre de livraisons
-- Pas de commission (livreur salarié fixe)
-- Livreur propriétaire de sa moto sans commission
-- Négociation individuelle par livreur
-- Négociation individuelle par closureuse
-- N importe quelle combinaison possible
-
-DECLENCHEMENT AUTOMATIQUE :
-- Livraison directe Livré+Payé = commission
-- Envoi à la gare = commission
-- Annulation = pas de commission
-- Configurable par chaque e-commerçant
-
-### Frais de livraison
-PRINCIPE : Chaque e-commerçant gère
-selon ses accords avec ses livreurs.
-
-Phase 1 : Prix fixe par zone configurable
-- E-commerçant définit ses tarifs par ville
-- Exemple Fabrice : 2 000 FCFA partout
-- Exemple autre : 1 000 FCFA ville,
-  2 500 FCFA hors ville
-
-Phase 2 : Le livreur saisit ses frais
-- Avec validation admin
-
-Phase 3 : Calcul automatique par distance GPS
-- Comme Uber (fonctionnalité avancée future)
-
-### Photos et médias - IMPORTANT
-- Photo de profil par utilisateur
-  livreur, closureuse, admin, partenaire
-- Logo de la boutique
-- Photo de couverture et bannière boutique
-- Photos produits multiples par produit
-- Photo de preuve de livraison par livreur
-- Stockage : Supabase Storage
-- Compression automatique des images
-- Optimisation pour connexion lente 2G 3G
-- Formats acceptés : JPG PNG WebP
-- Taille maximale configurable par plan
-
-### Finances
-- Réconciliation caisse journalière
-- Paiement commissions enregistré
-- Avances sur commission
-- Rapport financier par pays
-- Multi-devises FCFA Naira Cedi Euro...
-- Anti-fraude intégré
-
-### Équipe
-- Objectifs journaliers par livreur
-- Classement livreurs
-- Taux de réussite livraison
-- Bonus automatique si objectif dépassé
-- Messagerie interne équipe
-- Annonces à toute l équipe
-- Alertes si livreur inactif
-
-### Multi-pays
-- Gestion de tous les pays africains et monde
-- Partenaires locaux par pays
-- Dashboard global pour Fabrice
-- Dashboard local pour partenaire
-- Rapport mensuel automatique par pays
-- Plafond dépenses par partenaire
-- Contrat digital partenaire
-
-### Sécurité
-- Authentification sécurisée Supabase
-- RLS chaque client voit ses données uniquement
-- Double authentification optionnelle
-- Journal de connexion complet
-- Blocage après 5 tentatives
-- Déconnexion automatique après inactivité
-- Logs de toutes les actions importantes
-- Sauvegarde automatique quotidienne
-
-### Boutique en ligne
-- shipivo.app/boutique/nom
-- Catalogue produits avec photos et prix
-- Pages produit individuelles
-- Panier simple
-- Formulaire commande intégré
-- Personnalisable couleurs et logo
-- Compatible mobile
-
-### Communication
-- Notifications temps réel dans app
-- SMS automatique client à la confirmation
-- SMS livreur à l assignation
-- WhatsApp client avec message pré-rempli
-- Appel direct client et livreur
-- Résumé journalier WhatsApp admin
-- Bot WhatsApp basique
-
-### Analytics et rapports
-- Graphiques chiffre d affaires
-- Performance par livreur
-- Taux réussite livraison
-- Produits les plus vendus
-- Villes les plus actives
-- Rapport par pays
-- Export PDF et Excel
-
 ## DESIGN SYSTEM
+
+### Logo Shipivo
+- S géométrique dans carré doré #F59E0B ✅ FAIT
+- Texte "Shipivo" bold 800 blanc
+- Slogan "SHIP SMARTER · DELIVER FASTER" gris
+- Composant réutilisable : src/components/ui/ShipivoLogo.tsx ✅
 
 ### Identité visuelle
 - Style : moderne sombre professionnel
@@ -312,98 +173,59 @@ Phase 3 : Calcul automatique par distance GPS
 - Tablette : 768 à 1024px
 - Ordinateur : plus de 1024px
 - Grand écran : plus de 1440px
-- TV et grands écrans : prévu
-
-### Accessibilité
-- Contraste élevé pour soleil africain
-- Grands boutons tactiles minimum 44px
-- Icônes toujours avec texte
-- Fonctionne sur connexion 2G et 3G
-- Compatible vieux téléphones Android
 
 ## MODELE ECONOMIQUE
 
 ### Plans
 - Essai gratuit : 14 jours sans carte bancaire
 - Starter : 10 000 FCFA par mois
-  2 livreurs, 1 closureuse, 300 commandes, 1 pays
 - Pro : 25 000 FCFA par mois
-  5 livreurs, 3 closeuses, illimité, 3 pays
 - Business : 50 000 FCFA par mois
-  Illimité, tous pays, boutique, intégrations
 - Enterprise : Sur devis
-  White label, support dédié
 
 ### Paiement
 - FedaPay pour Afrique
 - Stripe pour international
 - Mobile Money prévu
 
-### Projections
-- Mois 3 : 10 clients = 150 000 FCFA
-- Mois 6 : 30 clients = 500 000 FCFA
-- Mois 12 : 100 clients = 2 000 000 FCFA
-- An 2 : 300 clients = 6 000 000 FCFA
-
-## MARCHES CIBLES
-
-### Phase 1 : Afrique francophone
-Mali, Togo, Sénégal, Côte d Ivoire,
-Cameroun, Burkina, Bénin, Niger, Tchad,
-Congo, Gabon, Madagascar, Guinée
-
-### Phase 2 : Afrique anglophone
-Nigeria, Ghana, Kenya, Rwanda,
-Tanzanie, Ouganda, Zambie, Zimbabwe
-
-### Phase 3 : Afrique lusophone
-Angola, Mozambique, Cap-Vert
-
-### Phase 4 : International
-Diaspora africaine partout dans le monde
-Tout entrepreneur qui fait du COD
-Moyen-Orient, Asie du Sud-Est
-
-## LANGUES PREVUES
-- Phase 1 : Français
-- Phase 2 : Anglais
-- Phase 3 : Portugais
-- Phase 4 : Arabe
-- Phase 5 : Swahili
-
 ## PLAN DE DEVELOPPEMENT
 
-### PHASE 0 - Préparation - EN COURS
+### PHASE 0 - Préparation ✅ TERMINÉE
 - Domaine shipivo.app acheté
 - Branche dev créée
 - Restructuration code en composants
 - Mise à jour base de données Supabase
 - Configuration sécurité RLS
 
-### PHASE 1 - Multi-tenant
-- Chaque client a son espace isolé
-- Page inscription nouveau client
-- Page connexion améliorée
-- Mot de passe oublié
-- Redirection automatique selon rôle
-- Dashboard super admin Fabrice
-- Configuration commissions par client
+### PHASE 1 - Multi-tenant ✅ TERMINÉE
+- Chaque client a son espace isolé ✅
+- Page inscription nouveau client ✅
+- Page connexion améliorée ✅
+- Mot de passe oublié ✅
+- Redirection automatique selon rôle ✅
+- Fabrice créé comme super admin ✅
+- lib/auth.ts avec getUserProfile + getRedirectByRole ✅
+- createTenantAndAdmin automatique à l inscription ✅
+- Logo Shipivo premium S géométrique doré ✅
 
-### PHASE 2 - Page commande publique
-- shipivo.app/commander/boutique
-- Formulaire beau avec prix et multi-produits
-- Total calculé automatiquement
-- Compatible mobile WhatsApp Instagram
-- Lien avec produit pré-rempli
-- Notification automatique closureuse
+### PHASE 2 - Page commande publique ✅ TERMINÉE
+- shipivo.app/commander/boutique ✅
+- Catalogue produits avec photos et prix ✅
+- Panier multi-produits ✅
+- Total calculé automatiquement ✅
+- Formulaire client nom téléphone ville adresse ✅
+- Compatible mobile ✅
+- Frais livraison configurés par e-commerçant ✅
+- 0 FCFA = livraison gratuite affiché en vert ✅
+- Bouton WhatsApp après commande ✅
+- THERAWOLF Balm 15 000 FCFA testé et fonctionnel ✅
 
-### PHASE 3 - Commandes avancées
-- Multi-produits par commande
-- Catalogue produits avec prix
-- Import Excel et CSV
-- Source commande trackée
-- Base clients finaux
-- Client fidèle et blacklist
+### PHASE 3 - Dashboard Admin ← PROCHAINE ÉTAPE
+- Interface pour gérer ses produits
+- Voir et gérer ses commandes
+- Configurer son équipe (ajouter livreur, closureuse)
+- Configurer frais livraison et commissions
+- Voir ses statistiques
 
 ### PHASE 4 - Stock avancé
 - Stock central
@@ -498,20 +320,37 @@ Aujourd hui on va faire : [ce que tu veux faire]
 - Restructuration complète en composants React
 - Nouveaux composants : ClosureuseView, LivreurView, AdminView
 - Composants partagés : OrderStatusBadge, SourceBadge
-- Composants closureuse : OrderCard, OrderList, ClosureuseStats
-- Composants livreur : DeliveryCard, StockWidget, LivreurStats
 - Pages slim page.tsx pour admin, closureuse, livreur
 - Design 100% styles inline (abandon Tailwind v4 instable)
 - Design tokens centralisés dans lib/design-tokens.ts
 - Types partagés dans types/order.ts
 - AdminView complet : Dashboard + Commandes + Créer + Stock + Commissions
 - Vues connectées à Supabase avec auth et redirection par rôle
-- Tous les fichiers pushés sur branche dev GitHub
-- Build Vercel vert après correction imports relatifs supabase
-- App live sur Vercel preview avec vraies données
 - Migration base de données Supabase complète
-- 37 tables créées : tenants, subscriptions, super_admins, countries, zones
-- Colonnes tenant_id ajoutées sur orders, profiles, driver_stock, order_history
+- 37 tables créées dont tenants, subscriptions, super_admins
 - RLS activé sur toutes les nouvelles tables
 - Phase 0 terminée à 100%
-- Phase 1 Multi-tenant prête à démarrer
+
+### Session 3 - 21 Mai 2026
+- Phase 1 Multi-tenant terminée à 100%
+- Page login redesignée avec logo premium S doré
+- Redirection automatique par rôle (super_admin admin closureuse livreur)
+- Page signup 3 étapes avec création tenant automatique
+- Page forgot-password avec envoi email
+- lib/auth.ts : getUserProfile getRedirectByRole createTenantAndAdmin
+- Fabrice ajouté comme super_admin dans Supabase
+- Colonne user_id ajoutée sur profiles et super_admins
+- URL Supabase configurée pour Vercel preview
+- Logo Shipivo premium créé : S géométrique dans carré doré
+- Composant ShipivoLogo.tsx réutilisable créé
+- Logo intégré sur login signup forgot-password
+- Phase 2 Page commande publique terminée à 100%
+- src/app/commander/[boutique]/page.tsx créé
+- Catalogue produits avec panier multi-produits
+- Frais livraison configurés par e-commerçant (delivery_fee sur tenants)
+- THERAWOLF : delivery_fee = 0 livraison gratuite
+- Tenant THERAWOLF créé avec slug therawolf
+- Produit THERAWOLF Balm 50ml 15000 FCFA créé
+- RLS public read activé sur tenants et products
+- Page testée et fonctionnelle sur Vercel
+- Prochaine étape : Phase 3 Dashboard Admin
