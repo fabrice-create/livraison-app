@@ -270,7 +270,7 @@ export default function ClientsView({ tenantId }: { tenantId: string }) {
             const isFidele = client.order_count >= 2
             const src = SOURCE_ICONS[client.source] || SOURCE_ICONS.autre
             return (
-              <div key={client.phone}
+              <button key={client.phone}
                 onClick={() => openHistory(client)}
                 style={{
                   background: client.is_blacklisted ? "rgba(248,113,113,0.04)" : S.card,
@@ -278,6 +278,9 @@ export default function ClientsView({ tenantId }: { tenantId: string }) {
                   borderRadius: 14, padding: "12px 14px",
                   cursor: "pointer",
                   transition: "border-color 0.15s",
+                  width: "100%",
+                  textAlign: "left" as const,
+                  display: "block",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = S.gold)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = client.is_blacklisted ? "rgba(248,113,113,0.3)" : S.border)}
@@ -315,7 +318,7 @@ export default function ClientsView({ tenantId }: { tenantId: string }) {
                     </button>
                   </div>
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
