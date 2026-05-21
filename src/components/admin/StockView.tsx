@@ -38,7 +38,8 @@ interface Driver {
 
 const SEUIL_BAS = 3
 
-export default function StockView({ tenantId }: { tenantId: string }) {
+export default function StockView({ tenantId: initialTenantId }: { tenantId: string }) {
+  const [tenantId, setTenantId] = useState(initialTenantId)
   const [stocks, setStocks] = useState<StockItem[]>([])
   const [mouvements, setMouvements] = useState<StockMouvement[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -56,7 +57,19 @@ export default function StockView({ tenantId }: { tenantId: string }) {
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
 
-  useEffect(() => { loadAll() }, [tenantId])
+  useEffect(() => {
+    // Si tenantId vide, le charger depuis le profil
+    if (!tenantId) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase.from("profiles").select("tenant_id").eq("user_id", user.id).single()
+            .then(({ data }) => { if (data?.tenant_id) setTenantId(data.tenant_id) })
+        }
+      })
+    }
+  }, [])
+
+  useEffect(() => { if (tenantId) loadAll() }, [tenantId])
 
   const loadAll = async () => {
     setLoading(true)
