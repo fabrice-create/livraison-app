@@ -8,6 +8,7 @@ import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFor
 import ProduitsView from "@/components/admin/ProduitsView";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ClientsView from "@/components/admin/ClientsView";
+import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
@@ -705,6 +706,7 @@ export function AdminView() {
     { id: "equipe",      label: "👥 Équipe" },
     { id: "parametres",  label: "⚙️ Paramètres" },
     { id: "clients",     label: "👥 Clients" },
+    { id: "import",      label: "📥 Import" },
   ];
 
   return (
@@ -749,6 +751,7 @@ export function AdminView() {
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
         {activeView === "clients"     && tenantId && <ClientsView tenantId={tenantId} />}
+        {activeView === "import"      && tenantId && <ImportView tenantId={tenantId} />}
       </div>
     </div>
   );
