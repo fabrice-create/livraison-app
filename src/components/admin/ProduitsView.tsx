@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
+import { compressImage, formatFileSize } from "@/lib/imageUtils"
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
   bg: "#0A0A0F", card: "#111118", card2: "#16161F", border: "#1E1E2E",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
   danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
-  success: "#4ADE80", info: "#60A5FA",
+  success: "#4ADE80", info: "#60A5FA", warning: "#FB923C",
 }
 
 interface Product {
@@ -33,6 +34,7 @@ export default function ProduitsView({ tenantId }: Props) {
   const [form, setForm] = useState(EMPTY)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>("")
+  const [imageInfo, setImageInfo] = useState<string>("")
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -57,6 +59,7 @@ export default function ProduitsView({ tenantId }: Props) {
     setForm(EMPTY)
     setImageFile(null)
     setImagePreview("")
+    setImageInfo("")
     setError("")
     setShowForm(true)
   }
@@ -66,33 +69,42 @@ export default function ProduitsView({ tenantId }: Props) {
     setForm({ name: p.name, price: String(p.price), description: p.description || "" })
     setImageFile(null)
     setImagePreview(p.image_url || "")
+    setImageInfo("")
     setError("")
     setShowForm(true)
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError("La photo est trop lourde. Maximum 5 MB.")
+    setError("")
+
+    // Vérifier taille avant compression
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Photo trop lourde. Maximum 10 MB avant compression.")
       return
     }
-    setImageFile(file)
+
+    // Afficher preview immédiatement
     const reader = new FileReader()
     reader.onload = (ev) => setImagePreview(ev.target?.result as string)
     reader.readAsDataURL(file)
-    setError("")
+
+    // Compresser en arrière-plan
+    setImageInfo("Compression en cours...")
+    const compressed = await compressImage(file, 800, 0.82)
+    setImageFile(compressed)
+    setImageInfo(`✓ Optimisé : ${formatFileSize(compressed.size)} (était ${formatFileSize(file.size)})`)
   }
 
   const uploadImage = async (file: File): Promise<string | null> => {
     setUploading(true)
-    const ext = file.name.split(".").pop()
-    const fileName = `${tenantId}/${Date.now()}.${ext}`
+    const fileName = `${tenantId}/${Date.now()}.jpg`
     const { error: uploadError } = await supabase.storage
       .from("shipivo-images")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false })
+      .upload(fileName, file, { contentType: "image/jpeg", cacheControl: "3600", upsert: false })
     setUploading(false)
-    if (uploadError) { setError("Erreur upload photo : " + uploadError.message); return null }
+    if (uploadError) { setError("Erreur upload : " + uploadError.message); return null }
     const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
     return data.publicUrl
   }
@@ -103,8 +115,6 @@ export default function ProduitsView({ tenantId }: Props) {
     setError(""); setSaving(true)
 
     let imageUrl = editing?.image_url || null
-
-    // Upload nouvelle photo si choisie
     if (imageFile) {
       const url = await uploadImage(imageFile)
       if (!url) { setSaving(false); return }
@@ -153,7 +163,6 @@ export default function ProduitsView({ tenantId }: Props) {
 
   return (
     <div style={{ padding: "0 0 40px 0" }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h2 style={{ color: S.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Mes produits</h2>
@@ -170,14 +179,13 @@ export default function ProduitsView({ tenantId }: Props) {
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
         <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, marginBottom: 20 }}>
           <h3 style={{ color: S.text, fontSize: 15, fontWeight: 700, margin: "0 0 16px 0" }}>
             {editing ? "Modifier le produit" : "Nouveau produit"}
           </h3>
 
-          {/* Upload photo */}
+          {/* Zone upload photo */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>
               Photo du produit
@@ -185,20 +193,20 @@ export default function ProduitsView({ tenantId }: Props) {
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
-                width: "100%", height: 140, borderRadius: 10,
+                width: "100%", height: 150, borderRadius: 12,
                 border: `2px dashed ${imagePreview ? S.gold : S.border}`,
                 background: S.bg, cursor: "pointer",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                overflow: "hidden", position: "relative",
+                overflow: "hidden", transition: "border-color 0.2s",
               }}
             >
               {imagePreview ? (
                 <img src={imagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <>
-                  <span style={{ fontSize: 32, marginBottom: 8 }}>📷</span>
-                  <span style={{ color: S.text3, fontSize: 13 }}>Appuie pour choisir une photo</span>
-                  <span style={{ color: S.text3, fontSize: 11, marginTop: 4 }}>JPG, PNG — max 5 MB</span>
+                  <span style={{ fontSize: 36, marginBottom: 8 }}>📷</span>
+                  <span style={{ color: S.text2, fontSize: 13, fontWeight: 500 }}>Appuie pour choisir une photo</span>
+                  <span style={{ color: S.text3, fontSize: 11, marginTop: 4 }}>JPG, PNG, WebP · Auto-compressé pour 2G/3G</span>
                 </>
               )}
             </div>
@@ -209,17 +217,19 @@ export default function ProduitsView({ tenantId }: Props) {
               onChange={handleImageChange}
               style={{ display: "none" }}
             />
+            {imageInfo && (
+              <p style={{ color: S.success, fontSize: 11, margin: "6px 0 0 0" }}>{imageInfo}</p>
+            )}
             {imagePreview && (
               <button
-                onClick={() => { setImageFile(null); setImagePreview("") }}
-                style={{ marginTop: 8, background: "transparent", border: "none", color: S.danger, fontSize: 12, cursor: "pointer", padding: 0 }}
+                onClick={() => { setImageFile(null); setImagePreview(""); setImageInfo("") }}
+                style={{ marginTop: 6, background: "transparent", border: "none", color: S.danger, fontSize: 12, cursor: "pointer", padding: 0 }}
               >
                 ✕ Supprimer la photo
               </button>
             )}
           </div>
 
-          {/* Champs texte */}
           {[
             { label: "Nom du produit *", key: "name", placeholder: "Ex: THERAWOLF Balm 50ml" },
             { label: "Prix (FCFA) *", key: "price", placeholder: "Ex: 15000", type: "number" },
@@ -246,13 +256,12 @@ export default function ProduitsView({ tenantId }: Props) {
               Annuler
             </button>
             <button onClick={handleSave} disabled={saving || uploading} style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
-              {uploading ? "Upload photo..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
+              {uploading ? "⬆️ Upload photo..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Liste produits */}
       {loading ? (
         <p style={{ color: S.text3, fontSize: 14, textAlign: "center", padding: "40px 0" }}>Chargement...</p>
       ) : products.length === 0 ? (
@@ -272,20 +281,16 @@ export default function ProduitsView({ tenantId }: Props) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <h4 style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{p.name}</h4>
+                    <h4 style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: 0 }}>{p.name}</h4>
                     <span style={{ color: S.gold, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</span>
                   </div>
                   {p.description && <p style={{ color: S.text3, fontSize: 12, margin: "4px 0 8px 0", lineHeight: 1.4 }}>{p.description}</p>}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 8 }}>
-                    <button onClick={() => openEdit(p)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${S.border}`, background: "transparent", color: S.text2, cursor: "pointer" }}>
-                      ✏️ Modifier
-                    </button>
+                    <button onClick={() => openEdit(p)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${S.border}`, background: "transparent", color: S.text2, cursor: "pointer" }}>✏️ Modifier</button>
                     <button onClick={() => toggleActive(p)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "none", background: p.is_active ? "#2D1500" : "rgba(74,222,128,0.1)", color: p.is_active ? "#FB923C" : S.success, cursor: "pointer" }}>
                       {p.is_active ? "⏸ Désactiver" : "▶ Activer"}
                     </button>
-                    <button onClick={() => deleteProduct(p.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "none", background: S.dangerBg, color: S.danger, cursor: "pointer" }}>
-                      🗑 Supprimer
-                    </button>
+                    <button onClick={() => deleteProduct(p.id)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "none", background: S.dangerBg, color: S.danger, cursor: "pointer" }}>🗑 Supprimer</button>
                   </div>
                 </div>
               </div>
