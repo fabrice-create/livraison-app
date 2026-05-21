@@ -9,6 +9,11 @@ import { normalizeRole } from "@/lib/utils";
 import { OrderList } from "./OrderList";
 import { ClosureuseStats } from "./ClosureuseStats";
 
+const S = {
+  gold: "#F59E0B", bg: "#0A0A0F", border: "#1E1E2E",
+  text2: "#9898B0", text3: "#55556A",
+};
+
 export function ClosureuseView() {
   const router = useRouter();
   const [orders, setOrders]   = useState<Order[]>([]);
@@ -50,50 +55,65 @@ export function ClosureuseView() {
   }, []);
 
   const handleAssign = useCallback((id: number) => {
-    alert(`Modal assignation livreur pour commande #${id} — à implémenter`);
+    alert(`Modal assignation livreur #${id} — bientôt disponible`);
   }, []);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: "#0A0A0F" }}>
-      <div className="text-sm" style={{ color: "#9898B0" }}>Chargement...</div>
+    <div style={{ minHeight: "100vh", backgroundColor: S.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ fontSize: 13, color: S.text2 }}>Chargement...</div>
     </div>
   );
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#0A0A0F", color: "#F8F8FC" }}>
-      <header className="sticky top-0 z-10 border-b px-4 py-3"
-        style={{ backgroundColor: "#0A0A0F", borderColor: "#1E1E2E" }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold" style={{ color: "#F59E0B" }}>Shipivo</h1>
-            <p className="text-xs" style={{ color: "#55556A" }}>Espace Closureuse</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs font-medium" style={{ color: "#9898B0" }}>{profile?.full_name}</p>
-            </div>
-            <button onClick={handleLogout}
-              className="rounded-lg px-3 py-1.5 text-xs border"
-              style={{ borderColor: "#1E1E2E", color: "#9898B0" }}>
-              Déconnexion
-            </button>
-          </div>
+    <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: "#F8F8FC", fontFamily: "Inter, system-ui, sans-serif" }}>
+
+      {/* Header */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10,
+        backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`,
+        padding: "12px 16px",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
+          <div style={{ fontSize: 11, color: S.text3 }}>Espace Closureuse</div>
         </div>
-      </header>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: S.text2 }}>{profile?.full_name}</div>
+          <div style={{
+            width: 32, height: 32, borderRadius: "50%",
+            backgroundColor: S.gold, color: "#000",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 13, fontWeight: 700,
+          }}>{profile?.full_name?.[0]?.toUpperCase() || "C"}</div>
+          <button onClick={handleLogout} style={{
+            padding: "6px 10px", borderRadius: 8, fontSize: 11,
+            border: `1px solid ${S.border}`, color: S.text3,
+            backgroundColor: "transparent", cursor: "pointer",
+          }}>Quitter</button>
+        </div>
+      </div>
 
-      <main className="mx-auto max-w-2xl px-4 py-4 pb-24">
-        <section className="mb-4">
-          <ClosureuseStats orders={orders} commissionPerOrder={500} />
-        </section>
+      {/* Contenu */}
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "14px 14px 100px" }}>
+        <ClosureuseStats orders={orders} commissionPerOrder={500} />
         <OrderList orders={orders} onConfirm={handleConfirm} onAssign={handleAssign} onCancel={handleCancel} />
-      </main>
+      </div>
 
-      <button className="fixed bottom-6 right-4 flex items-center gap-2 rounded-full px-5 py-3 font-semibold shadow-xl"
-        style={{ backgroundColor: "#F59E0B", color: "#000" }}
-        onClick={() => alert("Formulaire nouvelle commande — à implémenter")}>
-        <span>+</span><span className="text-sm">Nouvelle commande</span>
+      {/* FAB */}
+      <button
+        onClick={() => alert("Formulaire nouvelle commande — bientôt disponible")}
+        style={{
+          position: "fixed", bottom: 20, right: 16,
+          backgroundColor: S.gold, color: "#000",
+          borderRadius: 28, padding: "12px 20px",
+          fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 6,
+          boxShadow: "0 4px 20px rgba(245,158,11,0.4)",
+        }}>
+        + Nouvelle commande
       </button>
     </div>
   );
