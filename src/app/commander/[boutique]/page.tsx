@@ -30,12 +30,10 @@ interface BoutiqueInfo {
   id: string
   name: string
   slug: string
-  logo_url?: string
   phone?: string
-  delivery_fee?: number
 }
 
-const VILLES_TOGO = [
+const VILLES = [
   "Lomé", "Sokodé", "Kara", "Kpalimé", "Atakpamé",
   "Bassar", "Tsévié", "Aného", "Mango", "Dapaong",
   "Notsé", "Vogan", "Badou", "Blitta", "Sotouboua",
@@ -54,115 +52,70 @@ export default function CommanderPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
+  const [includeDelivery, setIncludeDelivery] = useState(false)
+  const [deliveryFee, setDeliveryFee] = useState(2000)
 
   const [form, setForm] = useState({
-    customer_name: "",
-    phone: "",
-    city: "Lomé",
-    address: "",
-    delivery_type: "Livraison directe",
-    note: "",
+    customer_name: "", phone: "", city: "Lomé",
+    address: "", delivery_type: "Livraison directe", note: "",
   })
 
-  useEffect(() => {
-    loadBoutique()
-  }, [slug])
+  useEffect(() => { loadBoutique() }, [slug])
 
   const loadBoutique = async () => {
     setLoading(true)
     try {
-      // Charger infos boutique via tenant slug
       const { data: tenant } = await supabase
-        .from("tenants")
-        .select("id, name, slug, phone")
-        .eq("slug", slug)
-        .single()
-
-      if (!tenant) {
-        setError("Boutique introuvable.")
-        setLoading(false)
-        return
-      }
-
-      setBoutique({
-        id: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        phone: tenant.phone,
-        delivery_fee: 2000,
-      })
-
-      // Charger produits de cette boutique
+        .from("tenants").select("id, name, slug, phone")
+        .eq("slug", slug).single()
+      if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
+      setBoutique({ id: tenant.id, name: tenant.name, slug: tenant.slug, phone: tenant.phone })
       const { data: prods } = await supabase
-        .from("products")
-        .select("id, name, price, description, image_url")
-        .eq("tenant_id", tenant.id)
-        .eq("is_active", true)
-        .order("name")
-
+        .from("products").select("id, name, price, description, image_url")
+        .eq("tenant_id", tenant.id).eq("is_active", true).order("name")
       setProducts(prods || [])
-    } catch {
-      setError("Erreur de chargement.")
-    }
+    } catch { setError("Erreur de chargement.") }
     setLoading(false)
   }
 
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(i => i.product.id === product.id)
-      if (existing) {
-        return prev.map(i => i.product.id === product.id
-          ? { ...i, quantity: i.quantity + 1 }
-          : i)
-      }
+      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
       return [...prev, { product, quantity: 1 }]
     })
   }
 
-  const removeFromCart = (productId: number) => {
-    setCart(prev => prev.filter(i => i.product.id !== productId))
-  }
-
   const updateQty = (productId: number, qty: number) => {
-    if (qty <= 0) { removeFromCart(productId); return }
+    if (qty <= 0) { setCart(prev => prev.filter(i => i.product.id !== productId)); return }
     setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i))
   }
 
   const totalProduits = cart.reduce((s, i) => s + i.product.price * i.quantity, 0)
-  const fraisLivraison = boutique?.delivery_fee || 2000
-  const totalFinal = totalProduits + fraisLivraison
-
+  const totalFinal = totalProduits + (includeDelivery ? deliveryFee : 0)
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
 
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) { setError("Ton nom est requis"); return }
     if (!form.phone.trim()) { setError("Ton numéro est requis"); return }
     if (cart.length === 0) { setError("Ajoute au moins un produit"); return }
-
-    setError("")
-    setSubmitting(true)
-
+    setError(""); setSubmitting(true)
     try {
-      const firstItem = cart[0]
       const productNames = cart.map(i => `${i.product.name} x${i.quantity}`).join(", ")
-
-      const { error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          tenant_id: boutique!.id,
-          customer_name: form.customer_name.trim(),
-          phone: form.phone.trim(),
-          city: form.city,
-          address: form.address.trim(),
-          product: productNames,
-          quantity: cart.reduce((s, i) => s + i.quantity, 0),
-          amount: totalFinal,
-          delivery_type: form.delivery_type,
-          status: "En attente",
-          source: "boutique",
-          note: form.note.trim() || null,
-        })
-
+      const { error: orderError } = await supabase.from("orders").insert({
+        tenant_id: boutique!.id,
+        customer_name: form.customer_name.trim(),
+        phone: form.phone.trim(),
+        city: form.city,
+        address: form.address.trim(),
+        product: productNames,
+        quantity: cart.reduce((s, i) => s + i.quantity, 0),
+        amount: totalFinal,
+        delivery_type: form.delivery_type,
+        status: "En attente",
+        source: "boutique",
+        note: form.note.trim() || null,
+      })
       if (orderError) throw new Error(orderError.message)
       setSuccess(true)
     } catch (err: unknown) {
@@ -171,77 +124,58 @@ export default function CommanderPage() {
     setSubmitting(false)
   }
 
-  // ── LOADING ──
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-          <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Chargement...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Chargement...</p>
+    </div>
+  )
 
-  // ── ERREUR BOUTIQUE ──
-  if (error && !boutique) {
-    return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-          <h1 style={{ color: C.white, fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 700 }}>Boutique introuvable</h1>
-          <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Vérifie le lien et réessaie.</p>
-        </div>
+  if (error && !boutique) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
+        <h1 style={{ color: C.white, fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 700 }}>Boutique introuvable</h1>
+        <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Vérifie le lien et réessaie.</p>
       </div>
-    )
-  }
+    </div>
+  )
 
-  // ── SUCCÈS ──
-  if (success) {
-    return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "Inter, sans-serif" }}>
-        <div style={{ textAlign: "center", maxWidth: 400 }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-          <h1 style={{ color: C.white, fontSize: 24, fontWeight: 800, margin: "0 0 8px 0" }}>Commande envoyée !</h1>
-          <p style={{ color: C.muted, fontSize: 15, margin: "0 0 24px 0", lineHeight: 1.6 }}>
-            Merci <strong style={{ color: C.white }}>{form.customer_name}</strong> !<br />
-            On te contacte bientôt sur le <strong style={{ color: C.white }}>{form.phone}</strong>.
-          </p>
-          <div style={{ background: C.successBg, border: "1px solid rgba(74,222,128,0.2)", borderRadius: 12, padding: "14px 20px", marginBottom: 24 }}>
-            <p style={{ color: C.success, fontSize: 14, fontWeight: 600, margin: 0 }}>✓ Total : {fmt(totalFinal)}</p>
-          </div>
-          {boutique?.phone && (
-            <a href={`https://wa.me/${boutique.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Bonjour ! J'ai passé une commande sur ${boutique.name}. Nom: ${form.customer_name}, Tél: ${form.phone}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-block", background: "#25D366", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
-              💬 Confirmer sur WhatsApp
-            </a>
-          )}
+  if (success) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "Inter, sans-serif" }}>
+      <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+        <h1 style={{ color: C.white, fontSize: 24, fontWeight: 800, margin: "0 0 8px 0" }}>Commande envoyée !</h1>
+        <p style={{ color: C.muted, fontSize: 15, margin: "0 0 24px 0", lineHeight: 1.6 }}>
+          Merci <strong style={{ color: C.white }}>{form.customer_name}</strong> !<br/>
+          On te contacte sur le <strong style={{ color: C.white }}>{form.phone}</strong>.
+        </p>
+        <div style={{ background: C.successBg, border: "1px solid rgba(74,222,128,0.2)", borderRadius: 12, padding: "14px 20px", marginBottom: 24 }}>
+          <p style={{ color: C.success, fontSize: 14, fontWeight: 600, margin: 0 }}>✓ Total : {fmt(totalFinal)}</p>
         </div>
+        {boutique?.phone && (
+          <a href={`https://wa.me/${boutique.phone.replace(/[^0-9]/g,"")}?text=${encodeURIComponent(`Bonjour ! J'ai commandé sur ${boutique.name}. Nom: ${form.customer_name}, Tél: ${form.phone}`)}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ display: "inline-block", background: "#25D366", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+            💬 Confirmer sur WhatsApp
+          </a>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
-  const s = { fontFamily: "Inter, sans-serif" }
+  const inp = { width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, ...s }}>
-      {/* Header boutique */}
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+      {/* Header */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "16px 20px", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 style={{ color: C.white, fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>
-              {boutique?.name || "Boutique"}
-            </h1>
+            <h1 style={{ color: C.white, fontSize: 18, fontWeight: 800, margin: 0 }}>{boutique?.name}</h1>
             <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Commande en ligne</p>
           </div>
           {cart.length > 0 && (
-            <button onClick={() => setStep("form")} style={{
-              background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`,
-              border: "none", borderRadius: 10, padding: "10px 16px",
-              color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 6,
-            }}>
+            <button onClick={() => setStep("form")} style={{ background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "10px 16px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               🛒 {cart.length} · {fmt(totalProduits)}
             </button>
           )}
@@ -250,26 +184,21 @@ export default function CommanderPage() {
 
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px 16px 100px" }}>
 
-        {/* ── ÉTAPE CATALOGUE ── */}
+        {/* CATALOGUE */}
         {step === "catalogue" && (
           <>
             {products.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-                <p style={{ color: C.muted, fontSize: 15 }}>Aucun produit disponible pour le moment.</p>
+                <p style={{ color: C.muted }}>Aucun produit disponible.</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <p style={{ color: C.muted, fontSize: 13, margin: "0 0 8px 0" }}>
-                  {products.length} produit{products.length > 1 ? "s" : ""} disponible{products.length > 1 ? "s" : ""}
-                </p>
+                <p style={{ color: C.muted, fontSize: 13, margin: "0 0 8px 0" }}>{products.length} produit{products.length > 1 ? "s" : ""} disponible{products.length > 1 ? "s" : ""}</p>
                 {products.map(product => {
                   const cartItem = cart.find(i => i.product.id === product.id)
                   return (
-                    <div key={product.id} style={{
-                      background: C.card, border: `1px solid ${cartItem ? C.gold : C.border}`,
-                      borderRadius: 16, padding: 16, transition: "border-color 0.2s",
-                    }}>
+                    <div key={product.id} style={{ background: C.card, border: `1px solid ${cartItem ? C.gold : C.border}`, borderRadius: 16, padding: 16 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
                         {product.image_url ? (
                           <img src={product.image_url} alt={product.name} style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
@@ -284,11 +213,7 @@ export default function CommanderPage() {
                       </div>
                       <div style={{ marginTop: 12 }}>
                         {!cartItem ? (
-                          <button onClick={() => addToCart(product)} style={{
-                            width: "100%", background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`,
-                            border: "none", borderRadius: 10, padding: "11px",
-                            color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                          }}>
+                          <button onClick={() => addToCart(product)} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "11px", color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                             + Ajouter au panier
                           </button>
                         ) : (
@@ -304,16 +229,10 @@ export default function CommanderPage() {
                 })}
               </div>
             )}
-
-            {/* Bouton panier fixe en bas */}
             {cart.length > 0 && (
               <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "16px", background: C.bg, borderTop: `1px solid ${C.border}`, zIndex: 40 }}>
                 <div style={{ maxWidth: 600, margin: "0 auto" }}>
-                  <button onClick={() => setStep("form")} style={{
-                    width: "100%", background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`,
-                    border: "none", borderRadius: 12, padding: "15px",
-                    color: "#000", fontSize: 16, fontWeight: 800, cursor: "pointer",
-                  }}>
+                  <button onClick={() => setStep("form")} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "15px", color: "#000", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
                     Commander · {fmt(totalProduits)} →
                   </button>
                 </div>
@@ -322,10 +241,10 @@ export default function CommanderPage() {
           </>
         )}
 
-        {/* ── ÉTAPE FORMULAIRE ── */}
+        {/* FORMULAIRE */}
         {step === "form" && (
           <>
-            <button onClick={() => setStep("catalogue")} style={{ background: "none", border: "none", color: C.gold, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "0 0 20px 0", display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setStep("catalogue")} style={{ background: "none", border: "none", color: C.gold, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "0 0 20px 0" }}>
               ← Modifier le panier
             </button>
 
@@ -333,22 +252,41 @@ export default function CommanderPage() {
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, marginBottom: 20 }}>
               <h3 style={{ color: C.white, fontSize: 15, fontWeight: 700, margin: "0 0 12px 0" }}>🛒 Ton panier</h3>
               {cart.map(item => (
-                <div key={item.product.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div key={item.product.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
                   <span style={{ color: C.white, fontSize: 14 }}>{item.product.name} × {item.quantity}</span>
                   <span style={{ color: C.gold, fontSize: 14, fontWeight: 700 }}>{fmt(item.product.price * item.quantity)}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ color: C.muted, fontSize: 13 }}>Frais de livraison</span>
-                <span style={{ color: C.mutedLight, fontSize: 13 }}>{fmt(fraisLivraison)}</span>
+
+              {/* Frais livraison OPTIONNELS */}
+              <div style={{ padding: "12px 0 8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: includeDelivery ? 10 : 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div onClick={() => setIncludeDelivery(v => !v)} style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${includeDelivery ? C.gold : C.border}`, background: includeDelivery ? C.gold : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {includeDelivery && <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>}
+                    </div>
+                    <span style={{ color: C.mutedLight, fontSize: 13 }}>Inclure frais de livraison</span>
+                  </div>
+                  {includeDelivery && <span style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{fmt(deliveryFee)}</span>}
+                </div>
+                {includeDelivery && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <span style={{ color: C.muted, fontSize: 12 }}>Montant :</span>
+                    <input type="number" value={deliveryFee} onChange={e => setDeliveryFee(Number(e.target.value))}
+                      style={{ width: 120, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", color: C.white, fontSize: 13, outline: "none" }}
+                      onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
+                    <span style={{ color: C.muted, fontSize: 12 }}>FCFA</span>
+                  </div>
+                )}
               </div>
+
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0 0" }}>
                 <span style={{ color: C.white, fontSize: 15, fontWeight: 700 }}>Total</span>
                 <span style={{ color: C.gold, fontSize: 18, fontWeight: 800 }}>{fmt(totalFinal)}</span>
               </div>
             </div>
 
-            {/* Formulaire */}
+            {/* Formulaire client */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { label: "Ton prénom et nom", key: "customer_name", placeholder: "Ex: Kofi Mensah", type: "text" },
@@ -356,35 +294,19 @@ export default function CommanderPage() {
                 { label: "Ton adresse / quartier", key: "address", placeholder: "Ex: Adidogomé, près du carrefour", type: "text" },
               ].map(f => (
                 <div key={f.key}>
-                  <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
-                    {f.label} <span style={{ color: C.gold }}>*</span>
-                  </label>
-                  <input
-                    type={f.type}
-                    value={(form as Record<string, string>)[f.key]}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const }}
-                    onFocus={e => e.target.style.borderColor = C.gold}
-                    onBlur={e => e.target.style.borderColor = C.border}
-                  />
+                  <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{f.label} <span style={{ color: C.gold }}>*</span></label>
+                  <input type={f.type} value={(form as Record<string,string>)[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder}
+                    style={inp} onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
                 </div>
               ))}
-
-              {/* Ville */}
               <div>
-                <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
-                  Ville <span style={{ color: C.gold }}>*</span>
-                </label>
+                <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ville <span style={{ color: C.gold }}>*</span></label>
                 <select value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                  style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const, appearance: "none" as const }}
-                  onFocus={e => e.target.style.borderColor = C.gold}
-                  onBlur={e => e.target.style.borderColor = C.border}>
-                  {VILLES_TOGO.map(v => <option key={v} value={v} style={{ background: "#111118" }}>{v}</option>)}
+                  style={{ ...inp, appearance: "none" as const, cursor: "pointer" }}
+                  onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border}>
+                  {VILLES.map(v => <option key={v} value={v} style={{ background: "#111118" }}>{v}</option>)}
                 </select>
               </div>
-
-              {/* Type livraison */}
               <div>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Type de livraison</label>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -396,35 +318,19 @@ export default function CommanderPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Note */}
               <div>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Note (optionnel)</label>
-                <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))}
-                  placeholder="Instructions spéciales, point de repère..."
-                  rows={3}
-                  style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const, resize: "none" as const, fontFamily: "Inter, sans-serif" }}
-                  onFocus={e => e.target.style.borderColor = C.gold}
-                  onBlur={e => e.target.style.borderColor = C.border}
-                />
+                <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="Instructions spéciales..." rows={3}
+                  style={{ ...inp, resize: "none" as const, fontFamily: "Inter, sans-serif" }}
+                  onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
               </div>
             </div>
 
-            {error && (
-              <div style={{ background: C.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 16, color: C.danger, fontSize: 13 }}>
-                ⚠️ {error}
-              </div>
-            )}
+            {error && <div style={{ background: C.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 16, color: C.danger, fontSize: 13 }}>⚠️ {error}</div>}
 
-            <button onClick={handleSubmit} disabled={submitting} style={{
-              width: "100%", marginTop: 20,
-              background: submitting ? C.goldDim : `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`,
-              border: "none", borderRadius: 12, padding: "16px",
-              color: "#000", fontSize: 16, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer", minHeight: 52,
-            }}>
+            <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", marginTop: 20, background: submitting ? C.goldDim : `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "16px", color: "#000", fontSize: 16, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer", minHeight: 52 }}>
               {submitting ? "Envoi en cours..." : `✅ Confirmer ma commande · ${fmt(totalFinal)}`}
             </button>
-
             <p style={{ color: C.muted, fontSize: 12, textAlign: "center", marginTop: 16, lineHeight: 1.6 }}>
               En commandant tu acceptes d'être contacté pour confirmer ta livraison.
             </p>
