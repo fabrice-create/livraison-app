@@ -10,7 +10,6 @@ const C = {
   white: "#F8F8FC", muted: "#55556A", mutedLight: "#9898B0",
   danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
   success: "#4ADE80", successBg: "rgba(74,222,128,0.06)",
-  info: "#60A5FA",
 }
 
 interface Product {
@@ -31,6 +30,7 @@ interface BoutiqueInfo {
   name: string
   slug: string
   phone?: string
+  delivery_fee: number
 }
 
 const VILLES = [
@@ -52,9 +52,6 @@ export default function CommanderPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
-  const [includeDelivery, setIncludeDelivery] = useState(false)
-  const [deliveryFee, setDeliveryFee] = useState(2000)
-
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "Lomé",
     address: "", delivery_type: "Livraison directe", note: "",
@@ -66,13 +63,28 @@ export default function CommanderPage() {
     setLoading(true)
     try {
       const { data: tenant } = await supabase
-        .from("tenants").select("id, name, slug, phone")
-        .eq("slug", slug).single()
+        .from("tenants")
+        .select("id, name, slug, phone, delivery_fee")
+        .eq("slug", slug)
+        .single()
+
       if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
-      setBoutique({ id: tenant.id, name: tenant.name, slug: tenant.slug, phone: tenant.phone })
+
+      setBoutique({
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        phone: tenant.phone,
+        delivery_fee: tenant.delivery_fee || 0,
+      })
+
       const { data: prods } = await supabase
-        .from("products").select("id, name, price, description, image_url")
-        .eq("tenant_id", tenant.id).eq("is_active", true).order("name")
+        .from("products")
+        .select("id, name, price, description, image_url")
+        .eq("tenant_id", tenant.id)
+        .eq("is_active", true)
+        .order("name")
+
       setProducts(prods || [])
     } catch { setError("Erreur de chargement.") }
     setLoading(false)
@@ -91,8 +103,9 @@ export default function CommanderPage() {
     setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i))
   }
 
+  const fraisLivraison = boutique?.delivery_fee || 0
   const totalProduits = cart.reduce((s, i) => s + i.product.price * i.quantity, 0)
-  const totalFinal = totalProduits + (includeDelivery ? deliveryFee : 0)
+  const totalFinal = totalProduits + fraisLivraison
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
 
   const handleSubmit = async () => {
@@ -172,7 +185,9 @@ export default function CommanderPage() {
         <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h1 style={{ color: C.white, fontSize: 18, fontWeight: 800, margin: 0 }}>{boutique?.name}</h1>
-            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Commande en ligne</p>
+            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+              {fraisLivraison === 0 ? "🚚 Livraison gratuite" : `🚚 Livraison : ${fmt(fraisLivraison)}`}
+            </p>
           </div>
           {cart.length > 0 && (
             <button onClick={() => setStep("form")} style={{ background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "10px 16px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
@@ -233,7 +248,7 @@ export default function CommanderPage() {
               <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "16px", background: C.bg, borderTop: `1px solid ${C.border}`, zIndex: 40 }}>
                 <div style={{ maxWidth: 600, margin: "0 auto" }}>
                   <button onClick={() => setStep("form")} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "15px", color: "#000", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
-                    Commander · {fmt(totalProduits)} →
+                    Commander · {fmt(totalFinal)} →
                   </button>
                 </div>
               </div>
@@ -258,26 +273,12 @@ export default function CommanderPage() {
                 </div>
               ))}
 
-              {/* Frais livraison OPTIONNELS */}
-              <div style={{ padding: "12px 0 8px 0", borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: includeDelivery ? 10 : 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div onClick={() => setIncludeDelivery(v => !v)} style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${includeDelivery ? C.gold : C.border}`, background: includeDelivery ? C.gold : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {includeDelivery && <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>}
-                    </div>
-                    <span style={{ color: C.mutedLight, fontSize: 13 }}>Inclure frais de livraison</span>
-                  </div>
-                  {includeDelivery && <span style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{fmt(deliveryFee)}</span>}
-                </div>
-                {includeDelivery && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                    <span style={{ color: C.muted, fontSize: 12 }}>Montant :</span>
-                    <input type="number" value={deliveryFee} onChange={e => setDeliveryFee(Number(e.target.value))}
-                      style={{ width: 120, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", color: C.white, fontSize: 13, outline: "none" }}
-                      onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
-                    <span style={{ color: C.muted, fontSize: 12 }}>FCFA</span>
-                  </div>
-                )}
+              {/* Frais livraison — automatique selon config e-commerçant */}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ color: C.muted, fontSize: 13 }}>Livraison</span>
+                <span style={{ color: fraisLivraison === 0 ? C.success : C.mutedLight, fontSize: 13, fontWeight: 600 }}>
+                  {fraisLivraison === 0 ? "🚚 Gratuite" : fmt(fraisLivraison)}
+                </span>
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0 0" }}>
@@ -286,7 +287,7 @@ export default function CommanderPage() {
               </div>
             </div>
 
-            {/* Formulaire client */}
+            {/* Formulaire */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { label: "Ton prénom et nom", key: "customer_name", placeholder: "Ex: Kofi Mensah", type: "text" },
@@ -329,11 +330,8 @@ export default function CommanderPage() {
             {error && <div style={{ background: C.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginTop: 16, color: C.danger, fontSize: 13 }}>⚠️ {error}</div>}
 
             <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", marginTop: 20, background: submitting ? C.goldDim : `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "16px", color: "#000", fontSize: 16, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer", minHeight: 52 }}>
-              {submitting ? "Envoi en cours..." : `✅ Confirmer ma commande · ${fmt(totalFinal)}`}
+              {submitting ? "Envoi en cours..." : `✅ Confirmer · ${fmt(totalFinal)}`}
             </button>
-            <p style={{ color: C.muted, fontSize: 12, textAlign: "center", marginTop: 16, lineHeight: 1.6 }}>
-              En commandant tu acceptes d'être contacté pour confirmer ta livraison.
-            </p>
           </>
         )}
       </div>
