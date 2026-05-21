@@ -736,6 +736,9 @@ export function AdminView() {
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={e => setStockForm(f => ({ ...f, [e.target.name]: e.target.value }))} onStockSubmit={handleAddStock} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
+        {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
+        {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
+        {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
       </div>
     </div>
   );
