@@ -42,9 +42,10 @@
 - Marché : Toute Afrique + international COD
 
 ## PROCHAINES ETAPES
-- Acheter domaine Delivio sur Vercel
-- Créer branche dev sur GitHub
-- Restructurer code en composants
+## PROCHAINES ETAPES
+- ✅ Acheter domaine sur Vercel — FAIT
+- ✅ Créer branche dev sur GitHub — FAIT
+- Restructurer code en composants — EN COURS
 - Mettre à jour base de données Supabase
 - Multi-tenant
 - Page commande publique avec prix multi-produits
