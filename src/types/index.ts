@@ -39,6 +39,8 @@ export type Profile = {
   role: string
   full_name: string
   phone?: string | null
+  tenant_id?: string | null
+  is_active?: boolean
 }
 
 export type DriverStock = {
