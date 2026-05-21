@@ -1,271 +1,162 @@
 // components/livreur/LivreurView.tsx
 "use client";
 
-import { useState, useCallback } from "react";
-import { Order, DriverStock } from "@/types/order";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabase";
+import type { Order, Profile, DriverStock } from "@/types";
+import { normalizeRole } from "@/lib/utils";
 import { DeliveryCard } from "./DeliveryCard";
 import { StockWidget } from "./StockWidget";
 import { LivreurStats } from "./LivreurStats";
-import { colors } from "@/lib/design-tokens";
-
-// --- Mock data (remplacer par Supabase) ---
-const MOCK_DELIVERIES: Order[] = [
-  {
-    id: "ord-002",
-    tenant_id: "t-001",
-    customer_name: "Kossi Agbéko",
-    customer_phone: "+22891223344",
-    customer_address: "Adidogomé, rue du marché, maison bleue",
-    zone: "Adidogomé",
-    city: "Lomé",
-    items: [
-      { id: "i2", product_name: "TheraWolf Baume 50ml", quantity: 1, unit_price: 5000 },
-      { id: "i3", product_name: "TheraWolf Spray", quantity: 1, unit_price: 6000 },
-    ],
-    total_amount: 11000,
-    delivery_fee: 2000,
-    status: "confirme",
-    source: "direct",
-    assigned_driver_name: "Kodjo Mensah",
-    assigned_driver_phone: "+22892334455",
-    created_at: new Date(Date.now() - 45 * 60000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "ord-005",
-    tenant_id: "t-001",
-    customer_name: "Sena Kpakpo",
-    customer_phone: "+22896778899",
-    customer_address: "Baguida, deuxième maison après le pont",
-    zone: "Baguida",
-    city: "Lomé",
-    items: [
-      { id: "i6", product_name: "TheraWolf Baume 100ml", quantity: 1, unit_price: 8500 },
-    ],
-    total_amount: 8500,
-    delivery_fee: 2000,
-    status: "confirme",
-    source: "whatsapp",
-    assigned_driver_name: "Kodjo Mensah",
-    assigned_driver_phone: "+22892334455",
-    created_at: new Date(Date.now() - 20 * 60000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "ord-003",
-    tenant_id: "t-001",
-    customer_name: "Fatou Diallo",
-    customer_phone: "+22893445566",
-    customer_address: "Tokoin, derrière l'école primaire",
-    zone: "Tokoin",
-    city: "Lomé",
-    items: [
-      { id: "i4", product_name: "TheraWolf Baume 100ml", quantity: 3, unit_price: 8500 },
-    ],
-    total_amount: 25500,
-    delivery_fee: 2000,
-    status: "livre_paye",
-    source: "shopify",
-    assigned_driver_name: "Kodjo Mensah",
-    assigned_driver_phone: "+22892334455",
-    created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const MOCK_STOCK: DriverStock[] = [
-  { product_id: "p1", product_name: "TheraWolf Baume 100ml", quantity: 8 },
-  { product_id: "p2", product_name: "TheraWolf Baume 50ml", quantity: 2 },
-  { product_id: "p3", product_name: "TheraWolf Spray", quantity: 5 },
-];
-
-function callCustomer(phone: string) {
-  window.location.href = `tel:${phone}`;
-}
-
-function openWhatsApp(phone: string, name: string) {
-  const msg = encodeURIComponent(
-    `Bonjour ${name}, je suis en chemin pour votre livraison Shipivo.`
-  );
-  window.open(`https://wa.me/${phone.replace(/\D/g, "")}?text=${msg}`, "_blank");
-}
 
 export function LivreurView() {
-  const [orders, setOrders] = useState<Order[]>(MOCK_DELIVERIES);
-  const [tab, setTab] = useState<"livraisons" | "stock">("livraisons");
+  const router = useRouter();
+  const [orders, setOrders]   = useState<Order[]>([]);
+  const [stock, setStock]     = useState<DriverStock[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab]         = useState<"livraisons" | "stock">("livraisons");
 
-  const handleDeliver = useCallback((id: string) => {
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? { ...o, status: "livre_paye", updated_at: new Date().toISOString() }
-          : o
-      )
-    );
-  }, []);
+  useEffect(() => { void init(); }, []);
 
-  const handleSendToGare = useCallback((id: string) => {
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? { ...o, status: "gare", updated_at: new Date().toISOString() }
-          : o
-      )
-    );
-  }, []);
+  const init = async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) { router.replace("/login"); return; }
+    const { data: pd } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (!pd) { router.replace("/login"); return; }
+    const p = pd as Profile;
+    if (normalizeRole(p.role) !== "livreur") {
+      router.replace(normalizeRole(p.role) === "admin" ? "/admin" : "/closureuse");
+      return;
+    }
+    setProfile(p);
+    const { data: od } = await supabase.from("orders")
+      .select("*").eq("assigned_driver_id", user.id).order("id", { ascending: false });
+    setOrders((od as Order[]) || []);
+    const { data: sd } = await supabase.from("driver_stock")
+      .select("*").eq("driver_id", user.id);
+    setStock((sd as DriverStock[]) || []);
+    setLoading(false);
+  };
 
-  const handlePhotoProof = useCallback((id: string) => {
-    alert(`Ouvrir caméra pour commande ${id} — à implémenter`);
-  }, []);
+  const handleDeliver = useCallback(async (id: number) => {
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
+    const now = new Date().toISOString();
+    const payload = {
+      status: "Livré", logistic_status: "Livré", payment_status: "Payé",
+      cash_collected: true, cash_collected_at: now,
+      cash_collected_by: profile?.full_name || null,
+      driver_commission: 2000, closer_commission: 500,
+      commission_calculated: true, delivered_at: now,
+    };
+    const { error } = await supabase.from("orders").update(payload).eq("id", id);
+    if (error) { alert("Erreur : " + error.message); return; }
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
+    alert("Livré + Payé ✅\nCommissions enregistrées !");
+  }, [orders, profile]);
 
-  const handleRequestStock = useCallback(() => {
-    alert("Formulaire demande de stock — à implémenter");
-  }, []);
+  const handleSendToGare = useCallback(async (id: number) => {
+    const now = new Date().toISOString();
+    const payload = {
+      status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
+      cash_collected: true, cash_collected_at: now,
+      cash_collected_by: profile?.full_name || null,
+      driver_commission: 2000, closer_commission: 500,
+      commission_calculated: true, delivered_at: now,
+    };
+    const { error } = await supabase.from("orders").update(payload).eq("id", id);
+    if (error) { alert("Erreur : " + error.message); return; }
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
+    alert("Envoyé à la gare ✅");
+  }, [profile]);
 
-  const enCoursCount = orders.filter((o) => o.status === "confirme").length;
+  const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
+
+  const enCoursCount = orders.filter(o => o.status === "Confirmé").length;
+
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: "#0A0A0F" }}>
+      <div className="text-sm" style={{ color: "#9898B0" }}>Chargement...</div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.bg, color: colors.textPrimary }}>
-      {/* Header */}
-      <header
-        className="sticky top-0 z-10 border-b px-4 py-3"
-        style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-      >
+    <div className="min-h-screen" style={{ backgroundColor: "#0A0A0F", color: "#F8F8FC" }}>
+      <header className="sticky top-0 z-10 border-b px-4 py-3"
+        style={{ backgroundColor: "#0A0A0F", borderColor: "#1E1E2E" }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-bold" style={{ color: colors.gold }}>
-              Shipivo
-            </h1>
-            <p className="text-xs" style={{ color: colors.textMuted }}>
-              Espace Livreur
-            </p>
+            <h1 className="text-base font-bold" style={{ color: "#F59E0B" }}>Shipivo</h1>
+            <p className="text-xs" style={{ color: "#55556A" }}>Espace Livreur</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>
-                Kodjo Mensah
-              </p>
-              <p className="text-[10px]" style={{ color: colors.textMuted }}>
-                Livreur · Lomé Nord
-              </p>
-            </div>
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
-              style={{ backgroundColor: "#2563EB", color: "#fff" }}
-            >
-              K
-            </div>
+            <p className="text-xs font-medium" style={{ color: "#9898B0" }}>{profile?.full_name}</p>
+            <button onClick={handleLogout}
+              className="rounded-lg px-3 py-1.5 text-xs border"
+              style={{ borderColor: "#1E1E2E", color: "#9898B0" }}>Déconnexion</button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-4 pb-24">
-        {/* Stats */}
         <section className="mb-4">
-          <LivreurStats
-            orders={orders}
-            objective={10}
-            commissionPerDelivery={2000}
-          />
+          <LivreurStats orders={orders} objective={10} commissionPerDelivery={2000} />
         </section>
 
-        {/* Tabs Livraisons / Stock */}
-        <div
-          className="mb-4 flex gap-1 rounded-xl p-1"
-          style={{ backgroundColor: colors.card, border: `1px solid ${colors.border}` }}
-        >
-          {(["livraisons", "stock"] as const).map((t) => {
-            const isActive = tab === t;
-            const label = t === "livraisons" ? "Mes livraisons" : "Mon stock";
-            return (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className="relative flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all duration-150"
-                style={{
-                  backgroundColor: isActive ? colors.gold : "transparent",
-                  color: isActive ? "#000" : colors.textSecondary,
-                }}
-              >
-                {label}
-                {t === "livraisons" && enCoursCount > 0 && (
-                  <span
-                    className="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
-                    style={{
-                      backgroundColor: isActive ? "rgba(0,0,0,0.2)" : colors.gold,
-                      color: isActive ? "#000" : "#000",
-                    }}
-                  >
-                    {enCoursCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div className="mb-4 flex gap-1 rounded-xl p-1"
+          style={{ backgroundColor: "#111118", border: "1px solid #1E1E2E" }}>
+          {(["livraisons", "stock"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className="relative flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all"
+              style={{ backgroundColor: tab === t ? "#F59E0B" : "transparent", color: tab === t ? "#000" : "#9898B0" }}>
+              {t === "livraisons" ? "Mes livraisons" : "Mon stock"}
+              {t === "livraisons" && enCoursCount > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
+                  style={{ backgroundColor: tab === t ? "rgba(0,0,0,0.2)" : "#F59E0B", color: "#000" }}>
+                  {enCoursCount}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Contenu tab */}
         {tab === "livraisons" ? (
           <div className="flex flex-col gap-3">
-            {/* En cours */}
-            {orders.filter((o) => o.status === "confirme").length > 0 && (
+            {orders.filter(o => o.status === "Confirmé").length > 0 && (
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: colors.textMuted }}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#55556A" }}>
                   À livrer maintenant
                 </p>
-                <div className="flex flex-col gap-3">
-                  {orders
-                    .filter((o) => o.status === "confirme")
-                    .map((order) => (
-                      <DeliveryCard
-                        key={order.id}
-                        order={order}
-                        onDeliver={handleDeliver}
-                        onSendToGare={handleSendToGare}
-                        onCallCustomer={callCustomer}
-                        onWhatsApp={openWhatsApp}
-                        onPhotoProof={handlePhotoProof}
-                      />
-                    ))}
-                </div>
+                {orders.filter(o => o.status === "Confirmé").map(order => (
+                  <DeliveryCard key={order.id} order={order}
+                    onDeliver={handleDeliver} onSendToGare={handleSendToGare}
+                    onPhotoProof={id => alert(`Photo preuve #${id} — à implémenter`)} />
+                ))}
               </div>
             )}
-
-            {/* Historique */}
-            {orders.filter((o) => o.status === "livre_paye" || o.status === "gare").length > 0 && (
+            {orders.filter(o => o.status === "Livré").length > 0 && (
               <div className="mt-2">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: colors.textMuted }}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#55556A" }}>
                   Terminées aujourd'hui
                 </p>
-                <div className="flex flex-col gap-3">
-                  {orders
-                    .filter((o) => o.status === "livre_paye" || o.status === "gare")
-                    .map((order) => (
-                      <DeliveryCard
-                        key={order.id}
-                        order={order}
-                        onDeliver={handleDeliver}
-                        onSendToGare={handleSendToGare}
-                        onCallCustomer={callCustomer}
-                        onWhatsApp={openWhatsApp}
-                        onPhotoProof={handlePhotoProof}
-                      />
-                    ))}
-                </div>
+                {orders.filter(o => o.status === "Livré").map(order => (
+                  <DeliveryCard key={order.id} order={order}
+                    onDeliver={handleDeliver} onSendToGare={handleSendToGare}
+                    onPhotoProof={id => alert(`Photo #${id}`)} />
+                ))}
               </div>
             )}
-
             {orders.length === 0 && (
-              <div
-                className="rounded-xl border py-16 text-center text-sm"
-                style={{ borderColor: colors.border, color: colors.textMuted }}
-              >
+              <div className="rounded-xl border py-16 text-center text-sm"
+                style={{ borderColor: "#1E1E2E", color: "#55556A" }}>
                 Aucune livraison assignée
               </div>
             )}
           </div>
         ) : (
-          <StockWidget stock={MOCK_STOCK} onRequestStock={handleRequestStock} />
+          <StockWidget stock={stock} onRequestStock={() => alert("Demande de stock — à implémenter")} />
         )}
       </main>
     </div>
