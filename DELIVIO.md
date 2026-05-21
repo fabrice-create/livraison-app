@@ -108,6 +108,12 @@ comme il le souhaite. Shipivo ne impose rien.
 - boutiques
 - boutique_pages
 
+### Médias
+- media_files (toutes images et fichiers)
+  id, tenant_id, owner_id,
+  type, url, nom, taille,
+  created_at
+
 ### Communication
 - notifications
 - messages (messagerie interne)
@@ -202,6 +208,19 @@ Phase 2 : Le livreur saisit ses frais
 Phase 3 : Calcul automatique par distance GPS
 - Comme Uber (fonctionnalité avancée future)
 
+### Photos et médias - IMPORTANT
+- Photo de profil par utilisateur
+  livreur, closureuse, admin, partenaire
+- Logo de la boutique
+- Photo de couverture et bannière boutique
+- Photos produits multiples par produit
+- Photo de preuve de livraison par livreur
+- Stockage : Supabase Storage
+- Compression automatique des images
+- Optimisation pour connexion lente 2G 3G
+- Formats acceptés : JPG PNG WebP
+- Taille maximale configurable par plan
+
 ### Finances
 - Réconciliation caisse journalière
 - Paiement commissions enregistré
@@ -220,7 +239,7 @@ Phase 3 : Calcul automatique par distance GPS
 - Alertes si livreur inactif
 
 ### Multi-pays
-- Gestion de tous les pays africains
+- Gestion de tous les pays africains et monde
 - Partenaires locaux par pays
 - Dashboard global pour Fabrice
 - Dashboard local pour partenaire
@@ -472,6 +491,8 @@ Aujourd hui on va faire : [ce que tu veux faire]
 - Structure complète Shipivo définie
 - Commissions flexibles par e-commerçant
 - Frais livraison configurables
+- Photos et médias ajoutés à la structure
+- Table media_files ajoutée base de données
 
 ### Session 2 - date a completer
 - a completer
