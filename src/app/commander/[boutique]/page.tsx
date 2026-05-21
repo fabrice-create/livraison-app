@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
 import {
   initPixel, trackAddToCart, trackPurchase, serverTrackPurchase
@@ -53,6 +53,7 @@ export default function CommanderPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params?.boutique as string
+  const searchParams = useSearchParams()
 
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -62,6 +63,7 @@ export default function CommanderPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
+  const [source, setSource] = useState("direct")
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "Lomé",
     address: "", delivery_type: "Livraison directe", note: "",
@@ -69,6 +71,11 @@ export default function CommanderPage() {
 
   useEffect(() => {
     loadBoutique()
+
+    // Détecter la source
+    const src = searchParams?.get("src") || detectSource()
+    setSource(src)
+
     const saved = sessionStorage.getItem(`cart_${slug}`)
     if (saved) setCart(JSON.parse(saved))
   }, [slug])
@@ -129,6 +136,22 @@ export default function CommanderPage() {
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0)
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
 
+  function detectSource(): string {
+    if (typeof window === "undefined") return "direct"
+    const ref = document.referrer.toLowerCase()
+    const src = new URLSearchParams(window.location.search).get("src")
+    if (src) return src
+    if (ref.includes("facebook") || ref.includes("fb.com")) return "facebook"
+    if (ref.includes("instagram")) return "instagram"
+    if (ref.includes("tiktok")) return "tiktok"
+    if (ref.includes("twitter") || ref.includes("x.com")) return "twitter"
+    if (ref.includes("whatsapp")) return "whatsapp"
+    if (ref.includes("google")) return "google"
+    if (ref.includes("youtube")) return "youtube"
+    if (ref === "") return "direct"
+    return "autre"
+  }
+
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) { setError("Ton nom est requis"); return }
     if (!form.phone.trim()) { setError("Ton numéro est requis"); return }
@@ -148,7 +171,7 @@ export default function CommanderPage() {
         amount: totalFinal,
         delivery_type: form.delivery_type,
         status: "En attente",
-        source: "boutique",
+        source: source,
         note: form.note.trim() || null,
       })
 
