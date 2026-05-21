@@ -494,5 +494,24 @@ Aujourd hui on va faire : [ce que tu veux faire]
 - Photos et médias ajoutés à la structure
 - Table media_files ajoutée base de données
 
-### Session 2 - date a completer
-- a completer
+### Session 2 - 21 Mai 2026
+- Restructuration complète en composants React
+- Nouveaux composants : ClosureuseView, LivreurView, AdminView
+- Composants partagés : OrderStatusBadge, SourceBadge
+- Composants closureuse : OrderCard, OrderList, ClosureuseStats
+- Composants livreur : DeliveryCard, StockWidget, LivreurStats
+- Pages slim page.tsx pour admin, closureuse, livreur
+- Design 100% styles inline (abandon Tailwind v4 instable)
+- Design tokens centralisés dans lib/design-tokens.ts
+- Types partagés dans types/order.ts
+- AdminView complet : Dashboard + Commandes + Créer + Stock + Commissions
+- Vues connectées à Supabase avec auth et redirection par rôle
+- Tous les fichiers pushés sur branche dev GitHub
+- Build Vercel vert après correction imports relatifs supabase
+- App live sur Vercel preview avec vraies données
+- Migration base de données Supabase complète
+- 37 tables créées : tenants, subscriptions, super_admins, countries, zones
+- Colonnes tenant_id ajoutées sur orders, profiles, driver_stock, order_history
+- RLS activé sur toutes les nouvelles tables
+- Phase 0 terminée à 100%
+- Phase 1 Multi-tenant prête à démarrer
