@@ -23,11 +23,11 @@ export function getRedirectByRole(role: UserRole): string {
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  // 1. Vérifier super_admin
+  // 1. Vérifier super_admin — cherche par user_id OU par id
   const { data: superAdmin } = await supabase
     .from("super_admins")
-    .select("id, full_name")
-    .eq("user_id", userId)
+    .select("id, full_name, user_id")
+    .or(`user_id.eq.${userId},id.eq.${userId}`)
     .single()
 
   if (superAdmin) {
