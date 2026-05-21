@@ -1,42 +1,47 @@
 // lib/imageUtils.ts
-// Compression automatique des images avant upload
-// Réduit à max 800px, qualité 80% — optimal pour connexion 2G/3G
+// Compression + crop carré 1:1 automatique
+// Optimal pour Instagram, Facebook, page produit
 
-export async function compressImage(file: File, maxWidth = 800, quality = 0.8): Promise<File> {
+export async function compressImage(
+  file: File,
+  size = 800,      // taille du carré en pixels
+  quality = 0.82   // qualité JPEG
+): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       const img = new Image()
       img.onload = () => {
         const canvas = document.createElement("canvas")
-
-        // Calculer les nouvelles dimensions
-        let width = img.width
-        let height = img.height
-
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width)
-          width = maxWidth
-        }
-
-        canvas.width = width
-        canvas.height = height
+        canvas.width = size
+        canvas.height = size
 
         const ctx = canvas.getContext("2d")
         if (!ctx) { resolve(file); return }
 
-        // Fond blanc pour les PNG avec transparence
+        // Fond blanc
         ctx.fillStyle = "#FFFFFF"
-        ctx.fillRect(0, 0, width, height)
-        ctx.drawImage(img, 0, 0, width, height)
+        ctx.fillRect(0, 0, size, size)
+
+        // Crop centré carré 1:1
+        const srcSize = Math.min(img.width, img.height)
+        const srcX = (img.width - srcSize) / 2
+        const srcY = (img.height - srcSize) / 2
+
+        ctx.drawImage(
+          img,
+          srcX, srcY, srcSize, srcSize,  // source : carré centré
+          0, 0, size, size               // destination : canvas carré
+        )
 
         canvas.toBlob(
           (blob) => {
             if (!blob) { resolve(file); return }
-            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            })
+            const compressed = new File(
+              [blob],
+              file.name.replace(/\.[^.]+$/, ".jpg"),
+              { type: "image/jpeg", lastModified: Date.now() }
+            )
             resolve(compressed)
           },
           "image/jpeg",
