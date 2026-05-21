@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../lib/supabase"
+import { supabase } from "@/app/lib/supabase"
 
 type Order = {
   id: number
