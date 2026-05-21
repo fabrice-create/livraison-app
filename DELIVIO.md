@@ -34,56 +34,43 @@ comme il le souhaite. Shipivo ne impose rien.
 - Redirection automatique par rôle ✅
 - Page signup 3 étapes + création tenant automatique ✅
 - Page forgot-password ✅
-- lib/auth.ts : getUserProfile, getRedirectByRole, createTenantAndAdmin ✅
+- lib/auth.ts complet ✅
 - Fabrice ajouté comme super_admin ✅
 - Logo Shipivo S géométrique dans carré doré ✅
-- Composant ShipivoLogo.tsx ✅
 
 ### PHASE 2 - Page commande publique ✅ TERMINÉE
 - shipivo.app/commander/boutique ✅
 - Grille produits 2 colonnes ✅
-- Page détail produit (photo 1:1, description, quantité) ✅
-- Panier multi-produits avec sessionStorage ✅
-- Formulaire client complet (nom, tel, ville, adresse, note) ✅
-- Frais livraison configurés par e-commerçant (0 = gratuit) ✅
+- Page détail produit photo 1:1 ✅
+- Panier multi-produits sessionStorage ✅
+- Formulaire client complet ✅
+- Frais livraison configurés par e-commerçant ✅
 - Bouton WhatsApp après commande ✅
-- Compatible mobile 2G/3G ✅
 
 ### PHASE 2b - Dashboard Admin ✅ TERMINÉE
-- Gestion produits : ajouter, modifier, activer/désactiver ✅
-- Upload photo direct depuis téléphone ✅
-- Compression automatique 1:1 carré (800x800px, 82% qualité) ✅
-- Formats JPG PNG WebP acceptés ✅
-- Optimisation 2G/3G automatique ✅
-- Bouton copier lien boutique et lien produit ✅
-- Gestion équipe : ajouter livreur, closureuse, partenaire ✅
-- Paramètres boutique : nom, téléphone, frais livraison ✅
-- Commissions livreur et closureuse configurables ✅
-- Pixel Facebook ID + Token API Conversions ✅
+- Gestion produits avec upload photo 1:1 compression auto ✅
+- Gestion équipe ✅
+- Paramètres boutique + commissions ✅
+- Pixel Facebook + API Conversions ✅
 - Pixel TikTok ✅
-- Tracking automatique ViewContent AddToCart Purchase ✅
-- API Conversions côté serveur fiable iOS 14 ✅
-- lib/facebookPixel.ts créé ✅
-- lib/tiktokPixel.ts créé ✅
-- lib/imageUtils.ts compression + crop carré 1:1 ✅
-- Notifications temps réel closureuse/admin ✅
-- Cloche 🔔 dans header avec badge rouge ✅
-- Bannière dorée "Nouvelle commande" temps réel ✅
-- Son notification ✅
-- Notification navigateur (push) ✅
-- src/hooks/useNotifications.ts créé ✅
-- src/components/ui/NotificationBell.tsx créé ✅
+- Tracking ViewContent AddToCart Purchase ✅
+- Notifications temps réel cloche 🔔 ✅
+- Son + bannière dorée nouvelle commande ✅
 - Super Admin dashboard ✅
-- Vue globale : nb clients, CA total plateforme ✅
-- Liste tous les e-commerçants avec stats ✅
-- Recherche et filtres par plan ✅
-- Activer/désactiver un client ✅
-- src/app/super-admin/page.tsx créé ✅
+- Vue globale tous e-commerçants ✅
 
-### PHASE 3 - Commandes avancées ← PROCHAINE ÉTAPE
-- Source commande trackée (WhatsApp Instagram Facebook TikTok)
-- Base clients finaux
-- Client fidèle et blacklist
+### PHASE 3 - Commandes avancées ← EN COURS
+- Source commande trackée automatiquement ✅
+  (WhatsApp, Facebook, Instagram, TikTok, Google, Direct)
+- Détection via referrer + paramètre ?src= ✅
+- Liens trackés par source dans Paramètres ✅
+- Base clients finaux ✅
+- Client fidèle détecté automatiquement (2+ commandes) ✅
+- Blacklist client ✅
+- Bouton appel direct et WhatsApp par client ✅
+- src/components/admin/ClientsView.tsx créé ✅
+
+#### Reste à faire Phase 3
 - Import commandes Excel et CSV
 - Historique complet par client
 
@@ -106,13 +93,11 @@ comme il le souhaite. Shipivo ne impose rien.
 - Gestion pays
 - Partenaires locaux
 - Dashboard par pays
-- Rapport par pays
 - Anti-fraude
 
 ### PHASE 7 - Communication
 - SMS automatiques client et livreur
 - Messagerie interne équipe
-- Annonces à toute l équipe
 - Résumé journalier WhatsApp admin
 
 ### PHASE 8 - Boutique intégrée
@@ -185,18 +170,9 @@ comme il le souhaite. Shipivo ne impose rien.
 ### Plans
 - Essai gratuit : 14 jours sans carte bancaire
 - Starter : 10 000 FCFA par mois
-  2 livreurs, 1 closureuse, 300 commandes, 1 pays
 - Pro : 25 000 FCFA par mois
-  5 livreurs, 3 closureuses, illimité, 3 pays
 - Business : 50 000 FCFA par mois
-  Illimité, tous pays, boutique, intégrations
 - Enterprise : Sur devis
-  White label, support dédié
-
-### Paiement
-- FedaPay pour Afrique
-- Stripe pour international
-- Mobile Money prévu
 
 ### Projections
 - Mois 3 : 10 clients = 150 000 FCFA
@@ -205,20 +181,7 @@ comme il le souhaite. Shipivo ne impose rien.
 - An 2 : 300 clients = 6 000 000 FCFA
 
 ## MARCHES CIBLES
-
-### Phase 1 : Afrique francophone
-Mali, Togo, Sénégal, Côte d Ivoire,
-Cameroun, Burkina, Bénin, Niger, Tchad,
-Congo, Gabon, Madagascar, Guinée
-
-### Phase 2 : Afrique anglophone
-Nigeria, Ghana, Kenya, Rwanda, Tanzanie
-
-### Phase 3 : Afrique lusophone
-Angola, Mozambique, Cap-Vert
-
-### Phase 4 : International
-Diaspora africaine, COD partout dans le monde
+Afrique francophone → anglophone → lusophone → International
 
 ## COMMENT BRIEFER CLAUDE
 Au début de chaque nouveau chat copie-colle
@@ -230,31 +193,21 @@ Aujourd hui on va faire : [ce que tu veux faire]
 ### Session 1 - Mai 2026
 - Création app complète admin closureuse livreur
 - Design responsive mobile desktop
-- Commissions automatiques livreur et closureuse
-- Boutons appel direct et WhatsApp
-- Numéros livreurs dans Supabase
 - App déployée sur Vercel
 - Domaine shipivo.app acheté
 
 ### Session 2 - 21 Mai 2026
 - Restructuration complète en composants React
-- Design tokens centralisés
-- AdminView complet
-- Migration base de données Supabase complète
-- 37 tables créées
+- Migration base de données Supabase 37 tables
 - Phase 0 terminée
 
 ### Session 3 - 21 Mai 2026
 - Phase 1 Auth + Multi-tenant terminée
 - Phase 2 Page commande publique terminée
 - Phase 2b Dashboard Admin terminée
-- Logo Shipivo premium créé
-- Tenant THERAWOLF configuré et testé
-- Upload photo compression 1:1 automatique
-- Grille produits 2 colonnes
-- Page détail produit
-- Tracking Facebook Pixel + API Conversions
-- Tracking TikTok Pixel
-- Notifications temps réel closureuse/admin
-- Super Admin dashboard créé
-- Prochaine étape : Phase 3 Commandes avancées
+- Notifications temps réel
+- Super Admin dashboard
+- Phase 3 commencée :
+  source trackée, base clients, blacklist, liens trackés
+- Prochaine étape : finir Phase 3 (import Excel/CSV)
+  puis Phase 4 Stock avancé
