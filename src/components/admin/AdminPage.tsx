@@ -266,7 +266,7 @@ export default function AdminPage() {
             <OrderForm form={form} onChange={handleChange} onSubmit={handleSubmit} loading={loading} />
           </div>
         )}
-        {activeView === "stock"       && profile?.tenant_id && <StockView tenantId={profile.tenant_id} />}
+        {activeView === "stock"       && <StockView tenantId={(profile as Record<string, string>)?.tenant_id || ""} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
       </div>
     </div>
