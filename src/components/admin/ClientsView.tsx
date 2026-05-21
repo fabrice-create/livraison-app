@@ -224,7 +224,7 @@ export default function ClientsView({ tenantId }: Props) {
                 border: `1px solid ${client.is_blacklisted ? "rgba(248,113,113,0.2)" : S.border}`,
                 borderRadius: 14, padding: "12px 14px",
                 opacity: client.is_blacklisted ? 0.7 : 1,
-              }}>
+              }} onClick={() => loadClientHistory(client)}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                   {/* Avatar */}
                   <div style={{ width: 42, height: 42, borderRadius: "50%", background: isFidele ? "rgba(245,158,11,0.15)" : S.card2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
