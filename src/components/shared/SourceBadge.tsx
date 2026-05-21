@@ -1,19 +1,16 @@
 // components/shared/SourceBadge.tsx
 "use client";
 
-import { OrderSource } from "@/types/order";
-import { SOURCE_ICONS } from "@/lib/design-tokens";
+const SOURCE_ICONS: Record<string, string> = {
+  whatsapp: "💬", shopify: "🛒", youcan: "🏪", woocommerce: "🔧",
+  tally: "📋", direct: "🔗", wordpress: "🌐", google_forms: "📝", boutique: "🏬",
+};
 
-interface SourceBadgeProps {
-  source: OrderSource;
-}
-
-export function SourceBadge({ source }: SourceBadgeProps) {
+export function SourceBadge({ source }: { source?: string | null }) {
+  if (!source) return null;
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium"
-      style={{ backgroundColor: "#1E1E2E", color: "#9898B0" }}
-    >
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium"
+      style={{ backgroundColor: "#1E1E2E", color: "#9898B0" }}>
       <span>{SOURCE_ICONS[source] ?? "📦"}</span>
       {source}
     </span>
