@@ -697,6 +697,9 @@ export function AdminView() {
     { id: "creer",       label: "➕ Créer" },
     { id: "stock",       label: "🗄️ Stock" },
     { id: "commissions", label: "💰 Commissions" },
+    { id: "produits",    label: "📦 Produits" },
+    { id: "equipe",      label: "👥 Équipe" },
+    { id: "parametres",  label: "⚙️ Paramètres" },
   ];
 
   return (
