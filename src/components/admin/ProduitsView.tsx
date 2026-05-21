@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
 
 const S = {
@@ -8,7 +8,7 @@ const S = {
   bg: "#0A0A0F", card: "#111118", card2: "#16161F", border: "#1E1E2E",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
   danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
-  success: "#4ADE80",
+  success: "#4ADE80", info: "#60A5FA",
 }
 
 interface Product {
@@ -21,11 +21,9 @@ interface Product {
   created_at: string
 }
 
-interface Props {
-  tenantId: string
-}
+interface Props { tenantId: string }
 
-const EMPTY = { name: "", price: "", description: "", image_url: "" }
+const EMPTY = { name: "", price: "", description: "" }
 
 export default function ProduitsView({ tenantId }: Props) {
   const [products, setProducts] = useState<Product[]>([])
@@ -33,9 +31,13 @@ export default function ProduitsView({ tenantId }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState(EMPTY)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>("")
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadProducts() }, [tenantId])
 
@@ -53,15 +55,46 @@ export default function ProduitsView({ tenantId }: Props) {
   const openAdd = () => {
     setEditing(null)
     setForm(EMPTY)
+    setImageFile(null)
+    setImagePreview("")
     setError("")
     setShowForm(true)
   }
 
   const openEdit = (p: Product) => {
     setEditing(p)
-    setForm({ name: p.name, price: String(p.price), description: p.description || "", image_url: p.image_url || "" })
+    setForm({ name: p.name, price: String(p.price), description: p.description || "" })
+    setImageFile(null)
+    setImagePreview(p.image_url || "")
     setError("")
     setShowForm(true)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setError("La photo est trop lourde. Maximum 5 MB.")
+      return
+    }
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    setError("")
+  }
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploading(true)
+    const ext = file.name.split(".").pop()
+    const fileName = `${tenantId}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from("shipivo-images")
+      .upload(fileName, file, { cacheControl: "3600", upsert: false })
+    setUploading(false)
+    if (uploadError) { setError("Erreur upload photo : " + uploadError.message); return null }
+    const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+    return data.publicUrl
   }
 
   const handleSave = async () => {
@@ -69,12 +102,21 @@ export default function ProduitsView({ tenantId }: Props) {
     if (!form.price || isNaN(Number(form.price))) { setError("Le prix est requis"); return }
     setError(""); setSaving(true)
 
+    let imageUrl = editing?.image_url || null
+
+    // Upload nouvelle photo si choisie
+    if (imageFile) {
+      const url = await uploadImage(imageFile)
+      if (!url) { setSaving(false); return }
+      imageUrl = url
+    }
+
     const payload = {
       tenant_id: tenantId,
       name: form.name.trim(),
       price: Number(form.price),
       description: form.description.trim() || null,
-      image_url: form.image_url.trim() || null,
+      image_url: imageUrl,
       is_active: true,
     }
 
@@ -103,11 +145,14 @@ export default function ProduitsView({ tenantId }: Props) {
     loadProducts()
   }
 
-  const inp = { width: "100%", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }
+  const inp = {
+    width: "100%", background: S.bg, border: `1px solid ${S.border}`,
+    borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 13,
+    outline: "none", boxSizing: "border-box" as const,
+  }
 
   return (
     <div style={{ padding: "0 0 40px 0" }}>
-
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
@@ -119,7 +164,11 @@ export default function ProduitsView({ tenantId }: Props) {
         </button>
       </div>
 
-      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>{success}</div>}
+      {success && (
+        <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>
+          {success}
+        </div>
+      )}
 
       {/* Formulaire */}
       {showForm && (
@@ -128,17 +177,59 @@ export default function ProduitsView({ tenantId }: Props) {
             {editing ? "Modifier le produit" : "Nouveau produit"}
           </h3>
 
+          {/* Upload photo */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>
+              Photo du produit
+            </label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: "100%", height: 140, borderRadius: 10,
+                border: `2px dashed ${imagePreview ? S.gold : S.border}`,
+                background: S.bg, cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", position: "relative",
+              }}
+            >
+              {imagePreview ? (
+                <img src={imagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <>
+                  <span style={{ fontSize: 32, marginBottom: 8 }}>📷</span>
+                  <span style={{ color: S.text3, fontSize: 13 }}>Appuie pour choisir une photo</span>
+                  <span style={{ color: S.text3, fontSize: 11, marginTop: 4 }}>JPG, PNG — max 5 MB</span>
+                </>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              style={{ display: "none" }}
+            />
+            {imagePreview && (
+              <button
+                onClick={() => { setImageFile(null); setImagePreview("") }}
+                style={{ marginTop: 8, background: "transparent", border: "none", color: S.danger, fontSize: 12, cursor: "pointer", padding: 0 }}
+              >
+                ✕ Supprimer la photo
+              </button>
+            )}
+          </div>
+
+          {/* Champs texte */}
           {[
             { label: "Nom du produit *", key: "name", placeholder: "Ex: THERAWOLF Balm 50ml" },
             { label: "Prix (FCFA) *", key: "price", placeholder: "Ex: 15000", type: "number" },
             { label: "Description", key: "description", placeholder: "Description courte du produit" },
-            { label: "URL photo", key: "image_url", placeholder: "https://... (optionnel)" },
           ].map(f => (
             <div key={f.key} style={{ marginBottom: 12 }}>
               <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>{f.label}</label>
               <input
                 type={f.type || "text"}
-                value={(form as Record<string,string>)[f.key]}
+                value={(form as Record<string, string>)[f.key]}
                 onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                 placeholder={f.placeholder}
                 style={inp}
@@ -154,8 +245,8 @@ export default function ProduitsView({ tenantId }: Props) {
             <button onClick={() => setShowForm(false)} style={{ flex: 1, background: "transparent", border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Annuler
             </button>
-            <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: saving ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>
-              {saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
+            <button onClick={handleSave} disabled={saving || uploading} style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
+              {uploading ? "Upload photo..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
             </button>
           </div>
         </div>
@@ -175,17 +266,17 @@ export default function ProduitsView({ tenantId }: Props) {
             <div key={p.id} style={{ background: S.card, border: `1px solid ${p.is_active ? S.border : "#2D1500"}`, borderRadius: 14, padding: 14, opacity: p.is_active ? 1 : 0.6 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                  <img src={p.image_url} alt={p.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
                 ) : (
-                  <div style={{ width: 56, height: 56, borderRadius: 8, background: S.card2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📦</div>
+                  <div style={{ width: 64, height: 64, borderRadius: 10, background: S.card2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📦</div>
                 )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h4 style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: 0 }}>{p.name}</h4>
-                    <span style={{ color: S.gold, fontSize: 14, fontWeight: 800 }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <h4 style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{p.name}</h4>
+                    <span style={{ color: S.gold, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</span>
                   </div>
-                  {p.description && <p style={{ color: S.text3, fontSize: 12, margin: "4px 0 8px 0" }}>{p.description}</p>}
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  {p.description && <p style={{ color: S.text3, fontSize: 12, margin: "4px 0 8px 0", lineHeight: 1.4 }}>{p.description}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 8 }}>
                     <button onClick={() => openEdit(p)} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${S.border}`, background: "transparent", color: S.text2, cursor: "pointer" }}>
                       ✏️ Modifier
                     </button>
