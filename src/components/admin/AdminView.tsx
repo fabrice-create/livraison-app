@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFormData } from "@/types";
 import ProduitsView from "@/components/admin/ProduitsView";
+import NotificationBell from "@/components/ui/NotificationBell";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
@@ -726,6 +727,7 @@ export function AdminView() {
           <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
           <div style={{ fontSize: 11, color: S.text3 }}>Admin · {profile?.full_name}</div>
         </div>
+        {tenantId && <NotificationBell tenantId={tenantId} />}
         <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer" }}>Déconnexion</button>
       </div>
 
