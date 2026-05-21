@@ -1,4 +1,6 @@
 // app/admin/page.tsx
-import AdminPage from "@/components/admin/AdminPage";
+import { AdminView } from "@/components/admin/AdminView";
 
-export default AdminPage;
+export default function AdminPage() {
+  return <AdminView />;
+}
