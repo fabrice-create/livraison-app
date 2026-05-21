@@ -4,8 +4,6 @@
 Donner aux entrepreneurs africains et internationaux
 les outils professionnels pour gérer leur e-commerce
 et leurs livraisons, peu importe leur niveau technique.
-Chaque e-commerçant est libre de gérer son équipe
-comme il le souhaite. Shipivo ne impose rien.
 
 ## SLOGAN
 "Ship smarter. Deliver faster."
@@ -25,191 +23,86 @@ comme il le souhaite. Shipivo ne impose rien.
 - Boutique test : therawolf (slug)
 - URL test : /commander/therawolf
 
+## DEPLOY HOOK (pour forcer un déploiement manuel)
+https://api.vercel.com/v1/integrations/deploy/prj_jbR3LwsrmgxCnaVwajkyfsGrEPKO/RR08YaIHMC
+Coller dans le navigateur et appuyer Entrée pour déclencher un déploiement.
+
 ## PLAN DE DEVELOPPEMENT
 
-### PHASE 0 - Préparation ✅ TERMINÉE
+### PHASE 0 ✅ TERMINÉE
+### PHASE 1 ✅ TERMINÉE — Auth + Multi-tenant
+### PHASE 2 ✅ TERMINÉE — Page commande publique
+### PHASE 2b ✅ TERMINÉE — Dashboard Admin complet
+### PHASE 3 ✅ TERMINÉE — Commandes avancées
 
-### PHASE 1 - Auth + Multi-tenant ✅ TERMINÉE
-- Page login avec logo premium S géométrique doré ✅
-- Redirection automatique par rôle ✅
-- Page signup 3 étapes + création tenant automatique ✅
-- Page forgot-password ✅
-- lib/auth.ts complet ✅
-- Fabrice ajouté comme super_admin ✅
-- Logo Shipivo S géométrique dans carré doré ✅
-
-### PHASE 2 - Page commande publique ✅ TERMINÉE
-- shipivo.app/commander/boutique ✅
-- Grille produits 2 colonnes ✅
-- Page détail produit photo 1:1 ✅
-- Panier multi-produits sessionStorage ✅
-- Formulaire client complet ✅
-- Frais livraison configurés par e-commerçant ✅
-- Bouton WhatsApp après commande ✅
-
-### PHASE 2b - Dashboard Admin ✅ TERMINÉE
-- Gestion produits avec upload photo 1:1 compression auto ✅
-- Gestion équipe ✅
-- Paramètres boutique + commissions ✅
-- Pixel Facebook + API Conversions ✅
-- Pixel TikTok ✅
-- Tracking ViewContent AddToCart Purchase ✅
-- Notifications temps réel cloche 🔔 ✅
-- Son + bannière dorée nouvelle commande ✅
-- Super Admin dashboard ✅
-- Vue globale tous e-commerçants ✅
-
-### PHASE 3 - Commandes avancées ← EN COURS
+#### Phase 3 — ce qui a été fait
 - Source commande trackée automatiquement ✅
-  (WhatsApp, Facebook, Instagram, TikTok, Google, Direct)
-- Détection via referrer + paramètre ?src= ✅
 - Liens trackés par source dans Paramètres ✅
 - Base clients finaux ✅
-- Client fidèle détecté automatiquement (2+ commandes) ✅
+- Client fidèle automatique (2+ commandes) ✅
 - Blacklist client ✅
-- Bouton appel direct et WhatsApp par client ✅
-- src/components/admin/ClientsView.tsx créé ✅
+- Historique complet par client (modal cliquable) ✅
+- Import commandes Excel/CSV ✅
+- Notifications temps réel closureuse/admin ✅
+- Super Admin dashboard ✅
 
-#### Reste à faire Phase 3
-- Import commandes Excel et CSV
-- Historique complet par client
+### PHASE 4 - Stock avancé ← PROCHAINE ÉTAPE
+⚠️ ATTENTION : La Phase 4 a causé des erreurs TypeScript.
+Le StockView a été modifié mais n'est pas compatible avec AdminView.
+Au début de la prochaine session, il faut :
+1. Vérifier que le build Vercel passe (corriger l'erreur TypeScript)
+2. Reprendre la Phase 4 de zéro proprement
 
-### PHASE 4 - Stock avancé
-- Stock central entrepôt
-- Distribution aux livreurs
+#### Erreur actuelle
+- AdminView.tsx utilise StockView avec anciens props
+- StockView.tsx a été modifié plusieurs fois et est incohérent
+- Solution : réécrire StockView proprement avec les anciens props
+  ET ajouter les nouvelles fonctionnalités (transfert, historique)
+
+#### Ce que Phase 4 doit contenir
+- Stock central entrepôt (déjà dans l'ancien StockView)
 - Transfert entre livreurs
-- Alertes stock bas
+- Alertes stock bas (rouge si quantité <= 3)
+- Historique mouvements (table stock_mouvements déjà créée)
 - Demande stock par livreur
-- Historique mouvements
 
 ### PHASE 5 - Finances avancées
-- Réconciliation caisse journalière
-- Paiement commissions enregistré
-- Avances sur commission
-- Rapport financier
-- Multi-devises FCFA Naira Cedi Euro
-
 ### PHASE 6 - Multi-pays
-- Gestion pays
-- Partenaires locaux
-- Dashboard par pays
-- Anti-fraude
-
 ### PHASE 7 - Communication
-- SMS automatiques client et livreur
-- Messagerie interne équipe
-- Résumé journalier WhatsApp admin
-
 ### PHASE 8 - Boutique intégrée
-- shipivo.app/boutique/nom
-- Page produit individuelle
-- Personnalisable couleurs et logo
-
 ### PHASE 9 - Intégrations externes
-- Webhook Tally
-- Widget WordPress
-- Shopify automatique
-- YouCan automatique
-- WooCommerce automatique
-- Bot WhatsApp
-
 ### PHASE 10 - Analytics
-- Graphiques chiffre d affaires
-- Performance livreurs
-- Produits les plus vendus
-- Export PDF Excel
-
 ### PHASE 11 - PWA Mobile
-- Installable sur téléphone
-- Notifications push
-- Mode hors ligne partiel
-
 ### PHASE 12 - Monétisation
-- Plans et limites automatiques
-- Paiement FedaPay et Stripe
-- Période essai 14 jours
-- Factures automatiques
-
 ### PHASE 13 - Play Store
-- App Android native
-- Publication Google Play
-- Mode hors ligne complet
 
 ## DESIGN SYSTEM
-
-### Logo Shipivo
-- S géométrique dans carré doré #F59E0B
-- Texte Shipivo bold 800 blanc
-- Slogan SHIP SMARTER · DELIVER FASTER gris
-- Composant : src/components/ui/ShipivoLogo.tsx
-
-### Couleurs
-- Or principal : #F59E0B
-- Fond : #0A0A0F
-- Cartes : #111118
-- Bordures : #1E1E2E
-- Succès : #4ADE80
-- Info : #60A5FA
-- Danger : #F87171
-- Warning : #FB923C
-
-### Typographie
-- Police : Inter
-- Titres : 24-32px gras
-- Corps : 14-16px normal
-- Petit texte : 12-13px
-
-### Accessibilité
-- Contraste élevé pour soleil africain
-- Grands boutons tactiles minimum 44px
-- Fonctionne sur connexion 2G et 3G
-- Compatible vieux téléphones Android
+- Or : #F59E0B | Fond : #0A0A0F | Cartes : #111118
+- Bordures : #1E1E2E | Succès : #4ADE80 | Danger : #F87171
 
 ## MODELE ECONOMIQUE
-
-### Plans
-- Essai gratuit : 14 jours sans carte bancaire
-- Starter : 10 000 FCFA par mois
-- Pro : 25 000 FCFA par mois
-- Business : 50 000 FCFA par mois
-- Enterprise : Sur devis
-
-### Projections
-- Mois 3 : 10 clients = 150 000 FCFA
-- Mois 6 : 30 clients = 500 000 FCFA
-- Mois 12 : 100 clients = 2 000 000 FCFA
-- An 2 : 300 clients = 6 000 000 FCFA
-
-## MARCHES CIBLES
-Afrique francophone → anglophone → lusophone → International
+- Starter : 10 000 FCFA/mois
+- Pro : 25 000 FCFA/mois
+- Business : 50 000 FCFA/mois
 
 ## COMMENT BRIEFER CLAUDE
-Au début de chaque nouveau chat copie-colle
-tout le contenu de ce fichier puis ajoute :
-Aujourd hui on va faire : [ce que tu veux faire]
+Copie-colle ce fichier au début du chat puis ajoute :
+"Aujourd hui on va faire : [ce que tu veux faire]"
 
 ## JOURNAL DES SESSIONS
 
 ### Session 1 - Mai 2026
-- Création app complète admin closureuse livreur
-- Design responsive mobile desktop
-- App déployée sur Vercel
-- Domaine shipivo.app acheté
+- App complète admin closureuse livreur
+- Déployée sur Vercel, domaine shipivo.app acheté
 
 ### Session 2 - 21 Mai 2026
-- Restructuration complète en composants React
-- Migration base de données Supabase 37 tables
+- Restructuration complète composants React
+- Migration base Supabase 37 tables
 - Phase 0 terminée
 
 ### Session 3 - 21 Mai 2026
-- Phase 1 Auth + Multi-tenant terminée
-- Phase 2 Page commande publique terminée
-- Phase 2b Dashboard Admin terminée
+- Phases 1, 2, 2b, 3 terminées
 - Notifications temps réel
 - Super Admin dashboard
-- Phase 3 commencée :
-  source trackée, base clients, blacklist, liens trackés
-- Prochaine étape : finir Phase 3 (import Excel/CSV)
-  puis Phase 4 Stock avancé
-
-<!-- 1779406993 -->
+- Phase 4 commencée mais erreur TypeScript
+- Prochaine session : corriger erreur build puis finir Phase 4
