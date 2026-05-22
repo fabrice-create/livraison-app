@@ -671,6 +671,10 @@ export function AdminView() {
     alert("Commande modifiée ✅");
   };
 
+  const handleStockChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setStockForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  };
+
   const handleAddStock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setStockLoading(true);
     const driver = drivers.find(d => d.id === stockForm.driver_id);
