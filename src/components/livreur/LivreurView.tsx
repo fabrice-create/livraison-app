@@ -1,27 +1,55 @@
-// components/livreur/LivreurView.tsx
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
-import { normalizeRole } from "@/lib/utils";
-import { DeliveryCard } from "./DeliveryCard";
+import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
 import { StockWidget } from "./StockWidget";
-import { LivreurStats } from "./LivreurStats";
 
 const S = {
-  gold: "#F59E0B", bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
+  gold: "#F59E0B", goldDark: "#D97706",
+  bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
+  success: "#4ADE80", successBg: "#052E16",
+  info: "#60A5FA", infoBg: "#0C1E3E",
+  danger: "#F87171", dangerBg: "#2D0F0F",
+  warning: "#FB923C", warningBg: "#2D1500",
+  purple: "#C084FC", purpleBg: "#2E1065",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
+  green: "#25D366",
 };
+
+type Tab = "dashboard" | "encours" | "historique" | "commissions" | "stock";
+type PeriodFilter = "today" | "semaine" | "mois" | "tout";
+
+function clientWaMsg(o: Order) {
+  return `Bonjour ${o.customer_name} ! Je suis votre livreur. Je viens vous livrer votre commande.\n\nProduit : ${o.product} × ${o.quantity || 1}\nMontant : ${fmt(o.amount)}\nAdresse : ${o.address}, ${o.city}\n\nMerci de vous tenir disponible.`;
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const map: Record<string, { color: string; bg: string }> = {
+    "En attente": { color: S.warning, bg: S.warningBg },
+    "Confirmé": { color: S.info, bg: S.infoBg },
+    "Livré": { color: S.success, bg: S.successBg },
+    "Annulé": { color: S.danger, bg: S.dangerBg },
+  };
+  const c = map[status || "En attente"] ?? map["En attente"];
+  return (
+    <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, color: c.color, backgroundColor: c.bg }}>
+      {status || "En attente"}
+    </span>
+  );
+}
 
 export function LivreurView() {
   const router = useRouter();
-  const [orders, setOrders]   = useState<Order[]>([]);
-  const [stock, setStock]     = useState<DriverStock[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [stock, setStock] = useState<DriverStock[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState<"livraisons" | "stock">("livraisons");
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [period, setPeriod] = useState<PeriodFilter>("today");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { void init(); }, []);
 
@@ -36,15 +64,27 @@ export function LivreurView() {
       return;
     }
     setProfile(p);
-    const { data: od } = await supabase.from("orders")
-      .select("*").eq("assigned_driver_id", user.id).order("id", { ascending: false });
-    setOrders((od as Order[]) || []);
-    const { data: sd } = await supabase.from("driver_stock").select("*").eq("driver_id", user.id);
-    setStock((sd as DriverStock[]) || []);
+    await loadData(user.id);
     setLoading(false);
   };
 
+  const loadData = async (driverId: string) => {
+    const { data: od } = await supabase.from("orders")
+      .select("*").eq("assigned_driver_id", driverId).order("id", { ascending: false });
+    setOrders((od as Order[]) || []);
+    const { data: sd } = await supabase.from("driver_stock").select("*").eq("driver_id", driverId);
+    setStock((sd as DriverStock[]) || []);
+  };
+
+  const handleRefresh = async () => {
+    if (!profile) return;
+    setRefreshing(true);
+    await loadData(profile.id);
+    setRefreshing(false);
+  };
+
   const handleDeliver = useCallback(async (id: number) => {
+    if (!confirm("Confirmer la livraison et l'encaissement ?")) return;
     const order = orders.find(o => o.id === id);
     if (!order) return;
     const now = new Date().toISOString();
@@ -57,11 +97,19 @@ export function LivreurView() {
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
     if (error) { alert("Erreur : " + error.message); return; }
+    // Décrémenter stock
+    if (order.product) {
+      const s = stock.find(i => i.product_name.toLowerCase() === order.product.toLowerCase());
+      if (s && s.quantity > 0) {
+        await supabase.from("driver_stock").update({ quantity: Math.max(0, s.quantity - (order.quantity || 1)) }).eq("id", s.id);
+      }
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    alert("Livré + Payé ✅\nCommissions enregistrées !");
-  }, [orders, profile]);
+    alert("✅ Livré + Payé !\nCommission : 2 000 FCFA enregistrée.");
+  }, [orders, profile, stock]);
 
   const handleSendToGare = useCallback(async (id: number) => {
+    if (!confirm("Confirmer envoi à la gare ?")) return;
     const now = new Date().toISOString();
     const payload = {
       status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
@@ -73,17 +121,46 @@ export function LivreurView() {
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
     if (error) { alert("Erreur : " + error.message); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    alert("Envoyé à la gare ✅");
+    alert("✅ Envoyé à la gare !\nCommission : 2 000 FCFA enregistrée.");
   }, [profile]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
 
-  const enCours  = orders.filter(o => o.status === "Confirmé");
-  const termines = orders.filter(o => o.status === "Livré");
+  const filterByPeriod = (list: Order[]) => {
+    const now = new Date();
+    return list.filter(o => {
+      const d = new Date(o.delivered_at || o.created_at || "");
+      if (period === "today") return d.toDateString() === now.toDateString();
+      if (period === "semaine") return (now.getTime() - d.getTime()) / 86400000 <= 7;
+      if (period === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      return true;
+    });
+  };
+
+  const enCours = orders.filter(o => o.status === "Confirmé" || o.status === "En attente");
+  const historique = orders.filter(o => o.status === "Livré" || o.status === "Annulé");
+  const today = new Date().toDateString();
+  const todayDelivered = orders.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
+  const todayCommission = todayDelivered.length * 2000;
+  const totalCommission = orders.filter(o => o.driver_commission && o.driver_commission > 0).reduce((s, o) => s + Number(o.driver_commission), 0);
+  const objective = 10;
+  const progress = Math.min((todayDelivered.length / objective) * 100, 100);
+
+  const navTabs = [
+    { id: "dashboard", label: "📊", full: "Dashboard" },
+    { id: "encours", label: "⚡", full: `En cours (${enCours.length})` },
+    { id: "historique", label: "📋", full: "Historique" },
+    { id: "commissions", label: "💰", full: "Commissions" },
+    { id: "stock", label: "📦", full: "Stock" },
+  ];
 
   if (loading) return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ fontSize: 13, color: S.text2 }}>Chargement...</div>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 40, height: 40, border: `3px solid ${S.gold}`, borderTopColor: "transparent", borderRadius: "50%", margin: "0 auto 12px", animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <p style={{ color: S.text2, fontSize: 13 }}>Chargement...</p>
+      </div>
     </div>
   );
 
@@ -91,116 +168,309 @@ export function LivreurView() {
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
 
       {/* Header */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 10,
-        backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`,
-        padding: "12px 16px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-      }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
-          <div style={{ fontSize: 11, color: S.text3 }}>Espace Livreur</div>
-        </div>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: S.text2 }}>{profile?.full_name}</div>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#000", flexShrink: 0 }}>
+            {profile?.full_name?.[0]?.toUpperCase() || "L"}
           </div>
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%",
-            backgroundColor: "#2563EB", color: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 700,
-          }}>{profile?.full_name?.[0]?.toUpperCase() || "L"}</div>
-          <button onClick={handleLogout} style={{
-            padding: "6px 10px", borderRadius: 8, fontSize: 11,
-            border: `1px solid ${S.border}`, color: S.text3,
-            backgroundColor: "transparent", cursor: "pointer",
-          }}>Quitter</button>
-        </div>
-      </div>
-
-      {/* Contenu */}
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "14px 14px 100px" }}>
-
-        {/* Stats */}
-        <LivreurStats orders={orders} objective={10} commissionPerDelivery={2000} />
-
-        {/* Tabs */}
-        <div style={{
-          display: "flex", gap: 4, backgroundColor: S.card,
-          border: `1px solid ${S.border}`, borderRadius: 12,
-          padding: 4, marginBottom: 14,
-        }}>
-          {(["livraisons", "stock"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              flex: 1, padding: "8px 0", borderRadius: 9,
-              fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
-              backgroundColor: tab === t ? S.gold : "transparent",
-              color: tab === t ? "#000" : S.text2,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            }}>
-              {t === "livraisons" ? "Mes livraisons" : "Mon stock"}
-              {t === "livraisons" && enCours.length > 0 && (
-                <span style={{
-                  backgroundColor: tab === t ? "rgba(0,0,0,0.2)" : S.gold,
-                  color: "#000", borderRadius: 20,
-                  padding: "1px 7px", fontSize: 11, fontWeight: 700,
-                }}>{enCours.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Livraisons */}
-        {tab === "livraisons" && (
           <div>
+            <p style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{profile?.full_name}</p>
+            <p style={{ fontSize: 11, color: S.text3 }}>🚴 Livreur</p>
+          </div>
+        </div>
+        <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 12, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer" }}>
+          Déconnexion
+        </button>
+      </div>
+
+      {/* Nav */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, backgroundColor: S.card, overflowX: "auto" }}>
+        {navTabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id as Tab)}
+            style={{ flex: 1, padding: "12px 8px", border: "none", borderBottom: tab === t.id ? `2px solid ${S.gold}` : "2px solid transparent", backgroundColor: "transparent", color: tab === t.id ? S.gold : S.text2, fontWeight: tab === t.id ? 700 : 400, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+            {t.full}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 14px 80px" }}>
+
+        {/* ── DASHBOARD ── */}
+        {tab === "dashboard" && (
+          <div>
+            {/* Objectif du jour */}
+            <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 18, marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: S.text2 }}>🎯 Objectif du jour</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: todayDelivered.length >= objective ? S.success : S.text }}>
+                  {todayDelivered.length} / {objective} livraisons
+                </span>
+              </div>
+              <div style={{ height: 8, backgroundColor: S.border, borderRadius: 4 }}>
+                <div style={{ height: 8, borderRadius: 4, width: `${progress}%`, backgroundColor: progress >= 100 ? S.success : S.gold, transition: "width 0.4s ease" }} />
+              </div>
+              {progress >= 100 && <p style={{ fontSize: 12, color: S.success, marginTop: 8, fontWeight: 600 }}>🎉 Objectif atteint !</p>}
+            </div>
+
+            {/* Stats aujourd'hui */}
+            <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>AUJOURD&apos;HUI</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                <p style={{ fontSize: 24, marginBottom: 4 }}>⚡</p>
+                <p style={{ fontSize: 22, fontWeight: 800, color: S.warning }}>{enCours.length}</p>
+                <p style={{ fontSize: 11, color: S.text3 }}>En cours</p>
+              </div>
+              <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                <p style={{ fontSize: 24, marginBottom: 4 }}>✅</p>
+                <p style={{ fontSize: 22, fontWeight: 800, color: S.success }}>{todayDelivered.length}</p>
+                <p style={{ fontSize: 11, color: S.text3 }}>Livrées</p>
+              </div>
+              <div style={{ background: "#1a1200", border: `1px solid ${S.gold}30`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                <p style={{ fontSize: 24, marginBottom: 4 }}>💰</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: S.gold }}>{todayCommission.toLocaleString("fr-FR")} F</p>
+                <p style={{ fontSize: 11, color: S.text3 }}>Commission</p>
+              </div>
+            </div>
+
+            {/* Stock rapide */}
+            <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>MON STOCK</p>
+            {stock.length === 0 ? (
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 20, textAlign: "center", color: S.text3, fontSize: 13 }}>Aucun stock</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, marginBottom: 14 }}>
+                {stock.map(s => {
+                  const isLow = s.quantity <= 2;
+                  return (
+                    <div key={s.id} style={{ background: isLow ? S.dangerBg : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                      <p style={{ fontSize: 11, color: S.text2, marginBottom: 4 }}>{s.product_name}</p>
+                      <p style={{ fontSize: 28, fontWeight: 800, color: isLow ? S.danger : S.gold }}>{s.quantity}</p>
+                      {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 2 }}>⚠️ Stock bas</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Prochaines livraisons */}
             {enCours.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: S.text3, marginBottom: 8 }}>
-                  À livrer maintenant
-                </div>
-                {enCours.map(order => (
-                  <DeliveryCard key={order.id} order={order}
-                    onDeliver={handleDeliver}
-                    onSendToGare={handleSendToGare}
-                    onPhotoProof={id => alert(`Photo preuve #${id} — bientôt disponible`)} />
+              <>
+                <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>PROCHAINES LIVRAISONS</p>
+                {enCours.slice(0, 2).map(order => (
+                  <div key={order.id} style={{ background: S.card, border: `1px solid ${S.goldDark}`, borderRadius: 14, padding: 14, marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700 }}>{order.customer_name}</p>
+                        <p style={{ fontSize: 12, color: S.text2 }}>📍 {order.city} · {order.delivery_type}</p>
+                      </div>
+                      <p style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{fmt(order.amount)}</p>
+                    </div>
+                  </div>
                 ))}
-              </div>
-            )}
-
-            {termines.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: S.text3, marginBottom: 8 }}>
-                  Terminées aujourd'hui
-                </div>
-                {termines.map(order => (
-                  <DeliveryCard key={order.id} order={order}
-                    onDeliver={handleDeliver}
-                    onSendToGare={handleSendToGare}
-                    onPhotoProof={id => alert(`Photo #${id}`)} />
-                ))}
-              </div>
-            )}
-
-            {orders.length === 0 && (
-              <div style={{
-                border: `1px solid ${S.border}`, borderRadius: 14,
-                padding: "48px 0", textAlign: "center",
-                fontSize: 13, color: S.text3,
-              }}>
-                Aucune livraison assignée
-              </div>
+                {enCours.length > 2 && (
+                  <button onClick={() => setTab("encours")} style={{ width: "100%", padding: "10px 0", background: "transparent", border: `1px solid ${S.border}`, borderRadius: 10, color: S.text2, fontSize: 13, cursor: "pointer" }}>
+                    Voir toutes ({enCours.length}) →
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {/* Stock */}
+        {/* ── EN COURS ── */}
+        {tab === "encours" && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <p style={{ fontSize: 16, fontWeight: 700 }}>⚡ En cours ({enCours.length})</p>
+              <button onClick={handleRefresh} disabled={refreshing}
+                style={{ padding: "7px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 20, color: S.text2, fontSize: 12, cursor: "pointer" }}>
+                {refreshing ? "..." : "🔄 Actualiser"}
+              </button>
+            </div>
+            {enCours.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 20px", background: S.card, borderRadius: 16, color: S.text3 }}>
+                <p style={{ fontSize: 40, marginBottom: 12 }}>🎉</p>
+                <p>Aucune livraison en cours</p>
+              </div>
+            ) : enCours.map(order => (
+              <DeliveryCardFull key={order.id} order={order} onDeliver={handleDeliver} onSendToGare={handleSendToGare} />
+            ))}
+          </div>
+        )}
+
+        {/* ── HISTORIQUE ── */}
+        {tab === "historique" && (
+          <div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, background: S.card, borderRadius: 12, padding: 4 }}>
+              {(["today", "semaine", "mois", "tout"] as PeriodFilter[]).map(p => (
+                <button key={p} onClick={() => setPeriod(p)}
+                  style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: 600, background: period === p ? S.gold : "transparent", color: period === p ? "#000" : S.text2 }}>
+                  {p === "today" ? "Auj." : p === "semaine" ? "7j" : p === "mois" ? "Mois" : "Tout"}
+                </button>
+              ))}
+            </div>
+            {filterByPeriod(historique).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 20px", background: S.card, borderRadius: 16, color: S.text3 }}>
+                <p style={{ fontSize: 40, marginBottom: 12 }}>📭</p><p>Aucune livraison sur cette période</p>
+              </div>
+            ) : filterByPeriod(historique).map(order => (
+              <div key={order.id} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700 }}>{order.customer_name}</p>
+                    <p style={{ fontSize: 12, color: S.text2 }}>📍 {order.city} · {order.delivery_type}</p>
+                    <p style={{ fontSize: 11, color: S.text3, marginTop: 2 }}>📅 {fmtDate(order.delivered_at || order.cancelled_at)}</p>
+                  </div>
+                  <StatusBadge status={order.logistic_status || order.status} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", background: "#0a0a0f", borderRadius: 10, padding: "8px 12px" }}>
+                  <span style={{ fontSize: 13, color: S.text2 }}>{order.product} × {order.quantity || 1}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: order.status === "Livré" ? S.success : S.danger }}>{fmt(order.amount)}</span>
+                </div>
+                {order.driver_commission && order.driver_commission > 0 && (
+                  <p style={{ fontSize: 12, color: S.gold, marginTop: 8 }}>💰 Commission : {fmt(order.driver_commission)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── COMMISSIONS ── */}
+        {tab === "commissions" && (
+          <div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, background: S.card, borderRadius: 12, padding: 4 }}>
+              {(["today", "semaine", "mois", "tout"] as PeriodFilter[]).map(p => (
+                <button key={p} onClick={() => setPeriod(p)}
+                  style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: 600, background: period === p ? S.gold : "transparent", color: period === p ? "#000" : S.text2 }}>
+                  {p === "today" ? "Auj." : p === "semaine" ? "7j" : p === "mois" ? "Mois" : "Tout"}
+                </button>
+              ))}
+            </div>
+
+            {/* Total */}
+            <div style={{ background: "linear-gradient(135deg, #1a1200, #2d1e00)", border: `1px solid ${S.gold}40`, borderRadius: 18, padding: 24, marginBottom: 20, textAlign: "center" }}>
+              <p style={{ fontSize: 13, color: S.text2, marginBottom: 8 }}>Total commissions</p>
+              <p style={{ fontSize: 36, fontWeight: 800, color: S.gold }}>
+                {filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0))
+                  .reduce((s, o) => s + Number(o.driver_commission), 0).toLocaleString("fr-FR")} FCFA
+              </p>
+              <p style={{ fontSize: 13, color: S.text3, marginTop: 8 }}>
+                {filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0)).length} livraison(s) × 2 000 FCFA
+              </p>
+            </div>
+
+            {/* Détail */}
+            <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>DÉTAIL PAR LIVRAISON</p>
+            {filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0)).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", background: S.card, borderRadius: 16, color: S.text3 }}>
+                <p style={{ fontSize: 32, marginBottom: 8 }}>💰</p><p>Aucune commission sur cette période</p>
+              </div>
+            ) : filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0)).map(order => (
+              <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700 }}>{order.customer_name}</p>
+                  <p style={{ fontSize: 11, color: S.text2 }}>{fmtDate(order.delivered_at)} · {order.logistic_status || "Livré"}</p>
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: S.gold }}>+{fmt(order.driver_commission)}</p>
+              </div>
+            ))}
+
+            {/* Total global */}
+            <div style={{ marginTop: 20, padding: 16, background: S.card, border: `1px solid ${S.border}`, borderRadius: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: S.text2 }}>Total toutes périodes</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: S.gold }}>{totalCommission.toLocaleString("fr-FR")} FCFA</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── STOCK ── */}
         {tab === "stock" && (
-          <StockWidget stock={stock} profile={profile} onRequestStock={() => alert("Demande de stock — bientôt disponible")} onStockUpdated={() => {
-            supabase.from("driver_stock").select("*").eq("driver_id", profile?.id || "").then(({ data }) => { if (data) setStock(data as DriverStock[]); });
-          }} />
+          <StockWidget
+            stock={stock}
+            profile={profile}
+            onRequestStock={() => alert("Demande envoyée à l'admin ✅")}
+            onStockUpdated={async () => {
+              if (!profile) return;
+              const { data } = await supabase.from("driver_stock").select("*").eq("driver_id", profile.id);
+              if (data) setStock(data as DriverStock[]);
+            }}
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Carte livraison complète ─────────────────────────────────
+function DeliveryCardFull({ order, onDeliver, onSendToGare }: {
+  order: Order;
+  onDeliver: (id: number) => void;
+  onSendToGare: (id: number) => void;
+}) {
+  const isConfirmed = order.status === "Confirmé";
+
+  return (
+    <div style={{ background: S.card, border: `1px solid ${isConfirmed ? S.goldDark : S.border}`, borderRadius: 16, overflow: "hidden", marginBottom: 12 }}>
+      {isConfirmed && <div style={{ height: 3, background: `linear-gradient(90deg, ${S.gold}, ${S.goldDark})` }} />}
+
+      {/* Header */}
+      <div style={{ padding: "14px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{order.customer_name}</p>
+          <p style={{ fontSize: 12, color: S.text3 }}>📍 {order.city} — {order.delivery_type || "direct"}</p>
+          <p style={{ fontSize: 12, color: S.text2, marginTop: 2 }}>{order.address}</p>
+        </div>
+        <StatusBadge status={order.status} />
+      </div>
+
+      {/* Détails */}
+      <div style={{ margin: "0 12px 12px", padding: "12px", background: "#0a0a0f", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <p style={{ fontSize: 11, color: S.text3, marginBottom: 4 }}>À collecter</p>
+          <p style={{ fontSize: 24, fontWeight: 800, color: S.gold }}>{fmt(order.amount)}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: 13, fontWeight: 600 }}>{order.product}</p>
+          <p style={{ fontSize: 12, color: S.text2 }}>{order.quantity || 1} unité(s)</p>
+          <p style={{ fontSize: 11, color: S.text3, marginTop: 4 }}>📅 {fmtDate(order.created_at)}</p>
+        </div>
+      </div>
+
+      {/* Téléphone */}
+      <div style={{ padding: "0 12px 10px" }}>
+        <p style={{ fontSize: 12, color: S.text2 }}>📞 {order.phone}</p>
+      </div>
+
+      {/* Boutons contact */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "0 12px 10px" }}>
+        <a href={callUrl(order.phone)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0", background: S.infoBg, border: `1px solid ${S.info}30`, borderRadius: 10, color: S.info, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+          📞 Appeler
+        </a>
+        <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0", background: "#0a2e1a", border: "1px solid #25d36630", borderRadius: 10, color: "#25D366", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+          💬 WhatsApp
+        </a>
+      </div>
+
+      {/* Actions livraison */}
+      {isConfirmed && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, padding: "0 12px 14px" }}>
+          <button onClick={() => onSendToGare(order.id)}
+            style={{ padding: "11px 0", background: S.warningBg, border: "none", borderRadius: 10, color: S.warning, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+            🚌 Gare
+          </button>
+          <button onClick={() => alert("Photo — bientôt disponible")}
+            style={{ padding: "11px 0", background: S.border, border: "none", borderRadius: 10, color: S.text2, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+            📸 Photo
+          </button>
+          <button onClick={() => onDeliver(order.id)}
+            style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            ✓ Livré + Payé
+          </button>
+        </div>
+      )}
     </div>
   );
 }
