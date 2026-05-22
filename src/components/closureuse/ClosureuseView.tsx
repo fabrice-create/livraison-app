@@ -126,10 +126,16 @@ export function ClosureuseView() {
 
   const handleConfirm = useCallback(async (id: number) => {
     if (!confirm("Confirmer cette commande ?")) return;
-    const { error } = await supabase.from("orders").update({ status: "Confirmé", confirmed_at: new Date().toISOString() }).eq("id", id);
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("orders").update({
+      status: "Confirmé",
+      confirmed_at: now,
+      closer_id: profile?.id || null,
+      closer_name: profile?.full_name || null,
+    }).eq("id", id);
     if (error) { alert("Erreur : " + error.message); return; }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: new Date().toISOString() } : o));
-  }, []);
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id || null, closer_name: profile?.full_name || null } : o));
+  }, [profile]);
 
   const handleCancel = useCallback(async (id: number) => {
     if (!confirm("Annuler cette commande ?")) return;
