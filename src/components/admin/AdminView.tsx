@@ -920,11 +920,13 @@ export function AdminView() {
     const ok = await consumeStock(order);
     if (!ok) return false;
     const now = new Date().toISOString();
+    // Commission closureuse seulement si la commande a été confirmée par une closureuse
+    const closerComm = order.closer_id ? 500 : 0;
     const payload = {
       status: "Livré", logistic_status: isGare ? "Envoyé à la gare" : "Livré",
       payment_status: "Payé", cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: 500, commission_calculated: true, delivered_at: now,
+      driver_commission: 2000, closer_commission: closerComm, commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id);
     if (error) { alert("Erreur : " + error.message); return false; }

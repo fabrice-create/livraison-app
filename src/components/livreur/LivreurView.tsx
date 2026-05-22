@@ -88,11 +88,13 @@ export function LivreurView() {
     const order = orders.find(o => o.id === id);
     if (!order) return;
     const now = new Date().toISOString();
+    // Commission closureuse seulement si commande confirmée par une closureuse
+    const closerComm = order.closer_id ? 500 : 0;
     const payload = {
       status: "Livré", logistic_status: "Livré", payment_status: "Payé",
       cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: 500,
+      driver_commission: 2000, closer_commission: closerComm,
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
@@ -110,19 +112,21 @@ export function LivreurView() {
 
   const handleSendToGare = useCallback(async (id: number) => {
     if (!confirm("Confirmer envoi à la gare ?")) return;
+    const order = orders.find(o => o.id === id);
     const now = new Date().toISOString();
+    const closerComm = order?.closer_id ? 500 : 0;
     const payload = {
       status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
       cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: 500,
+      driver_commission: 2000, closer_commission: closerComm,
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
     if (error) { alert("Erreur : " + error.message); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
     alert("✅ Envoyé à la gare !\nCommission : 2 000 FCFA enregistrée.");
-  }, [profile]);
+  }, [orders, profile]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
 

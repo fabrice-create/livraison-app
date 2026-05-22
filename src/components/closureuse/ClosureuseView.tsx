@@ -105,10 +105,17 @@ export function ClosureuseView() {
   const loadData = async (tenantId: string) => {
     const { data: od } = await supabase.from("orders").select("*").order("id", { ascending: false });
     setOrders((od as Order[]) || []);
-    const { data: pd } = await supabase.from("profiles").select("*").eq("role", "livreur");
+    // Filtrer livreurs par tenant
+    const { data: pd } = await supabase.from("profiles").select("*").eq("role", "livreur").eq("tenant_id", tenantId);
     setDrivers((pd as Profile[]) || []);
-    const { data: sd } = await supabase.from("driver_stock").select("*");
-    setDriverStocks((sd as DriverStock[]) || []);
+    // Stock de ces livreurs uniquement
+    if (pd && pd.length > 0) {
+      const driverIds = (pd as Profile[]).map(d => d.id);
+      const { data: sd } = await supabase.from("driver_stock").select("*").in("driver_id", driverIds);
+      setDriverStocks((sd as DriverStock[]) || []);
+    } else {
+      setDriverStocks([]);
+    }
   };
 
   const handleRefresh = async () => {
