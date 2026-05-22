@@ -371,49 +371,366 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
   );
 }
 
-// ─── Vue Stock ───────────────────────────────────────────────
-function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChange, onStockSubmit }: {
+// ─── Types Phase 4 ───────────────────────────────────────────
+type WarehouseStock = { id: number; product_name: string; quantity: number; alert_threshold: number; created_at?: string | null; updated_at?: string | null; };
+type StockMouvement = { id: number; created_at: string; product_name: string; mouvement_type: string; quantity: number; from_location: string; to_location: string; note?: string | null; created_by?: string | null; };
+type StockDemande = { id: number; created_at: string; driver_id: string; driver_name: string; product_name: string; quantity_requested: number; status: string; note?: string | null; };
+
+// ─── Vue Stock Phase 4 ───────────────────────────────────────
+function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChange, onStockSubmit, profile }: {
   drivers: Profile[]; driverStocks: DriverStock[];
   stockForm: StockFormData; stockLoading: boolean;
   onStockChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onStockSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  profile: Profile | null;
 }) {
+  const [subView, setSubView] = useState<"overview"|"warehouse"|"drivers"|"transfer"|"history"|"demandes">("overview");
+  const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([]);
+  const [stockMouvements, setStockMouvements] = useState<StockMouvement[]>([]);
+  const [stockDemandes, setStockDemandes] = useState<StockDemande[]>([]);
+  const [p4Loading, setP4Loading] = useState(false);
+  const [warehouseForm, setWarehouseForm] = useState({ product_name: "", quantity: "1", alert_threshold: "5" });
+  const [transferForm, setTransferForm] = useState({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" });
+  const [w2dForm, setW2dForm] = useState({ product_name: "", driver_id: "", quantity: "1" });
+
+  useEffect(() => { void loadData(); }, []);
+
+  const loadData = async () => {
+    try { const { data } = await supabase.from("warehouse_stock").select("*").order("product_name"); if (data) setWarehouseStocks(data as WarehouseStock[]); } catch (_) {}
+    try { const { data } = await supabase.from("stock_mouvements").select("*").order("created_at", { ascending: false }).limit(100); if (data) setStockMouvements(data as StockMouvement[]); } catch (_) {}
+    try { const { data } = await supabase.from("stock_demandes").select("*").order("created_at", { ascending: false }); if (data) setStockDemandes(data as StockDemande[]); } catch (_) {}
+  };
+
+  const pendingDemandes = stockDemandes.filter(d => d.status === "en_attente");
+  const lowWarehouse = warehouseStocks.filter(w => w.quantity <= w.alert_threshold);
+
+  const handleAddWarehouse = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const name = warehouseForm.product_name.trim(); const qty = Number(warehouseForm.quantity); const threshold = Number(warehouseForm.alert_threshold);
+    if (!name || qty <= 0) { alert("Données invalides."); setP4Loading(false); return; }
+    const existing = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      await supabase.from("warehouse_stock").update({ quantity: existing.quantity + qty, alert_threshold: threshold, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    } else {
+      await supabase.from("warehouse_stock").insert([{ product_name: name, quantity: qty, alert_threshold: threshold }]);
+    }
+    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "entree_entrepot", quantity: qty, from_location: "Fournisseur", to_location: "Entrepôt", created_by: profile?.full_name || "Admin" }]);
+    await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); alert("✅ Stock entrepôt mis à jour"); setP4Loading(false);
+  };
+
+  const handleW2D = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const driver = drivers.find(d => d.id === w2dForm.driver_id);
+    if (!driver) { alert("Choisis un livreur."); setP4Loading(false); return; }
+    const name = w2dForm.product_name.trim(); const qty = Number(w2dForm.quantity);
+    const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
+    if (!wStock || wStock.quantity < qty) { alert(`Stock entrepôt insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
+    await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - qty, updated_at: new Date().toISOString() }).eq("id", wStock.id);
+    const existing = driverStocks.find(i => i.driver_id === driver.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + qty }).eq("id", existing.id); }
+    else { await supabase.from("driver_stock").insert([{ driver_id: driver.id, driver_name: driver.full_name, product_name: name, quantity: qty }]); }
+    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_entrepot_livreur", quantity: qty, from_location: "Entrepôt", to_location: driver.full_name, created_by: profile?.full_name || "Admin" }]);
+    await loadData(); setW2dForm({ product_name: "", driver_id: "", quantity: "1" }); alert(`✅ ${qty} unité(s) transférée(s) à ${driver.full_name}`); setP4Loading(false);
+  };
+
+  const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const from = drivers.find(d => d.id === transferForm.from_driver_id); const to = drivers.find(d => d.id === transferForm.to_driver_id);
+    if (!from || !to || from.id === to.id) { alert("Choisis deux livreurs différents."); setP4Loading(false); return; }
+    const name = transferForm.product_name.trim(); const qty = Number(transferForm.quantity);
+    const fromStock = driverStocks.find(i => i.driver_id === from.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (!fromStock || fromStock.quantity < qty) { alert(`Stock insuffisant pour ${from.full_name}. Disponible : ${fromStock?.quantity || 0}`); setP4Loading(false); return; }
+    await supabase.from("driver_stock").update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
+    const toStock = driverStocks.find(i => i.driver_id === to.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (toStock) { await supabase.from("driver_stock").update({ quantity: toStock.quantity + qty }).eq("id", toStock.id); }
+    else { await supabase.from("driver_stock").insert([{ driver_id: to.id, driver_name: to.full_name, product_name: name, quantity: qty }]); }
+    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_livreur", quantity: qty, from_location: from.full_name, to_location: to.full_name, created_by: profile?.full_name || "Admin" }]);
+    await loadData(); setTransferForm({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" }); alert(`✅ Transfert : ${from.full_name} → ${to.full_name}`); setP4Loading(false);
+  };
+
+  const handleApprove = async (d: StockDemande) => {
+    if (!confirm(`Approuver ${d.quantity_requested} × ${d.product_name} pour ${d.driver_name} ?`)) return;
+    setP4Loading(true);
+    const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === d.product_name.toLowerCase());
+    if (!wStock || wStock.quantity < d.quantity_requested) { alert(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
+    await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - d.quantity_requested, updated_at: new Date().toISOString() }).eq("id", wStock.id);
+    const existing = driverStocks.find(i => i.driver_id === d.driver_id && i.product_name.toLowerCase() === d.product_name.toLowerCase());
+    if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
+    else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
+    await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
+    await supabase.from("stock_mouvements").insert([{ product_name: d.product_name, mouvement_type: "demande_approuvee", quantity: d.quantity_requested, from_location: "Entrepôt", to_location: d.driver_name, created_by: profile?.full_name || "Admin" }]);
+    await loadData(); alert("✅ Demande approuvée"); setP4Loading(false);
+  };
+
+  const handleReject = async (d: StockDemande) => {
+    if (!confirm(`Refuser la demande de ${d.driver_name} ?`)) return;
+    await supabase.from("stock_demandes").update({ status: "refusée" }).eq("id", d.id);
+    setStockDemandes(prev => prev.map(x => x.id === d.id ? { ...x, status: "refusée" } : x));
+  };
+
+  const subTabs = [
+    { id: "overview", label: "📊 Vue d'ensemble" },
+    { id: "warehouse", label: "🏭 Entrepôt" },
+    { id: "drivers", label: "🚴 Livreurs" },
+    { id: "transfer", label: "🔄 Transferts" },
+    { id: "history", label: "📋 Historique" },
+    { id: "demandes", label: `📬 Demandes${pendingDemandes.length > 0 ? ` (${pendingDemandes.length})` : ""}` },
+  ];
+
+  const inputSt = { width: "100%", padding: "10px 12px", background: "#0A0A0F", border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const };
+
   return (
     <div>
-      {/* Formulaire ajout stock */}
-      <div style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: S.text, marginBottom: 14 }}>➕ Ajouter du stock</div>
-        <form onSubmit={onStockSubmit}>
-          <Select label="Livreur" name="driver_id" value={stockForm.driver_id} onChange={onStockChange}
-            options={drivers.map(d => ({ value: d.id, label: d.full_name }))} />
-          <Input label="Produit" name="product_name" value={stockForm.product_name} onChange={onStockChange as any} placeholder="Nom du produit" />
-          <Input label="Quantité" name="quantity" value={stockForm.quantity} onChange={onStockChange as any} type="number" placeholder="1" />
-          <button type="submit" disabled={stockLoading} style={{
-            width: "100%", padding: "11px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
-            backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer", marginTop: 4,
-          }}>{stockLoading ? "Ajout en cours..." : "Ajouter au stock"}</button>
-        </form>
+      {/* Sous-onglets */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 20, paddingBottom: 4 }}>
+        {subTabs.map(t => (
+          <button key={t.id} onClick={() => setSubView(t.id as typeof subView)}
+            style={{ padding: "8px 14px", border: `1px solid ${subView === t.id ? S.gold : S.border}`, background: subView === t.id ? "#1a1200" : S.card, color: subView === t.id ? S.gold : S.text2, borderRadius: 20, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0, fontWeight: subView === t.id ? 700 : 400 }}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Stock par livreur */}
-      <SectionTitle>Stock actuel</SectionTitle>
-      {drivers.map(driver => {
-        const items = driverStocks.filter(s => s.driver_id === driver.id);
-        if (items.length === 0) return null;
-        return (
-          <div key={driver.id} style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: S.text, marginBottom: 10 }}>🛵 {driver.full_name}</div>
-            {items.map(item => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0A0A0F", borderRadius: 8, padding: "8px 12px", marginBottom: 5 }}>
-                <span style={{ fontSize: 12, color: S.text2 }}>{item.product_name}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 20, backgroundColor: Number(item.quantity) <= 2 ? S.dangerBg : S.successBg, color: Number(item.quantity) <= 2 ? S.danger : S.success }}>
-                  {item.quantity}
-                </span>
+      {/* Alertes stock bas */}
+      {lowWarehouse.length > 0 && subView === "overview" && (
+        <div style={{ marginBottom: 16, padding: 12, background: S.dangerBg, border: `1px solid ${S.danger}`, borderRadius: 12 }}>
+          <p style={{ fontSize: 12, color: S.danger, fontWeight: 700, marginBottom: 8 }}>⚠️ ALERTES STOCK BAS</p>
+          {lowWarehouse.map(w => (
+            <div key={w.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid #3d0a0a` }}>
+              <span style={{ fontSize: 13 }}>{w.product_name}</span>
+              <span style={{ color: S.danger, fontWeight: 700, fontSize: 13 }}>{w.quantity} / seuil {w.alert_threshold}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Vue d'ensemble ── */}
+      {subView === "overview" && (
+        <div>
+          <p style={{ fontSize: 12, color: S.text3, fontWeight: 600, marginBottom: 10 }}>STOCK ENTREPÔT</p>
+          {warehouseStocks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: S.text2, background: S.card, borderRadius: 14, marginBottom: 16 }}>
+              <p style={{ fontSize: 28, marginBottom: 6 }}>🏭</p><p style={{ fontSize: 13 }}>Aucun stock entrepôt. Utilisez l&apos;onglet &ldquo;Entrepôt&rdquo; pour en ajouter.</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
+              {warehouseStocks.map(w => {
+                const isLow = w.quantity <= w.alert_threshold;
+                return (
+                  <div key={w.id} style={{ background: isLow ? S.dangerBg : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>ENTREPÔT</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>🏭</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{w.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{w.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p style={{ fontSize: 12, color: S.text3, fontWeight: 600, marginBottom: 10 }}>STOCK PAR LIVREUR</p>
+          {driverStocks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: S.text2, background: S.card, borderRadius: 14 }}><p style={{ fontSize: 28, marginBottom: 6 }}>📭</p><p style={{ fontSize: 13 }}>Aucun stock livreur.</p></div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {driverStocks.map(s => {
+                const isLow = s.quantity <= 3;
+                return (
+                  <div key={s.id} style={{ background: isLow ? "#1a0a00" : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>{s.driver_name}</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>📦</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{s.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{s.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Entrepôt ── */}
+      {subView === "warehouse" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>🏭 Ajouter au stock entrepôt</p>
+          <form onSubmit={handleAddWarehouse} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxWidth: 500 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label><input value={warehouseForm.product_name} onChange={e => setWarehouseForm(f => ({ ...f, product_name: e.target.value }))} required placeholder="Ex: THERAWOLF" style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={warehouseForm.quantity} onChange={e => setWarehouseForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Seuil alerte</label><input type="number" min="1" value={warehouseForm.alert_threshold} onChange={e => setWarehouseForm(f => ({ ...f, alert_threshold: e.target.value }))} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "En cours..." : "➕ Ajouter au stock entrepôt"}</button>
+          </form>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Stock actuel entrepôt</p>
+          {warehouseStocks.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun stock entrepôt.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {warehouseStocks.map(w => {
+                const isLow = w.quantity <= w.alert_threshold;
+                return (
+                  <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: isLow ? S.dangerBg : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 12 }}>
+                    <div><p style={{ fontSize: 14, fontWeight: 700 }}>{w.product_name}</p><p style={{ fontSize: 12, color: S.text2 }}>Seuil : {w.alert_threshold}</p></div>
+                    <div style={{ textAlign: "right" }}><p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{w.quantity}</p>{isLow && <p style={{ fontSize: 10, color: S.danger, fontWeight: 700 }}>⚠️ Stock bas</p>}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Livreurs ── */}
+      {subView === "drivers" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>➕ Ajouter stock direct à un livreur</p>
+          <form onSubmit={onStockSubmit} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Livreur</label>
+              <select name="driver_id" value={stockForm.driver_id} onChange={onStockChange} required style={inputSt}>
+                <option value="">Choisir un livreur</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label><input name="product_name" value={stockForm.product_name} onChange={onStockChange} required placeholder="Ex: THERAWOLF" style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input name="quantity" type="number" min="1" value={stockForm.quantity} onChange={onStockChange} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={stockLoading} style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{stockLoading ? "Ajout..." : "➕ Ajouter"}</button>
+          </form>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Stock actuel livreurs</p>
+          {driverStocks.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun stock livreur.</p> : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {driverStocks.map(s => {
+                const isLow = s.quantity <= 3;
+                return (
+                  <div key={s.id} style={{ background: isLow ? "#1a0a00" : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>{s.driver_name}</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>📦</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{s.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{s.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Transferts ── */}
+      {subView === "transfer" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🔄 Entrepôt → Livreur</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 12 }}>Déduire de l&apos;entrepôt et ajouter au livreur</p>
+          <form onSubmit={handleW2D} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit (entrepôt)</label>
+              <select value={w2dForm.product_name} onChange={e => setW2dForm(f => ({ ...f, product_name: e.target.value }))} required style={inputSt}>
+                <option value="">Choisir un produit</option>
+                {warehouseStocks.map(w => <option key={w.id} value={w.product_name}>{w.product_name} (dispo : {w.quantity})</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Livreur</label>
+                <select value={w2dForm.driver_id} onChange={e => setW2dForm(f => ({ ...f, driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Choisir</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
               </div>
-            ))}
-          </div>
-        );
-      })}
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={w2dForm.quantity} onChange={e => setW2dForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: "linear-gradient(135deg, #1d4ed8, #1e40af)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "..." : "🔄 Transférer vers livreur"}</button>
+          </form>
+
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, paddingTop: 16, borderTop: `1px solid ${S.border}` }}>↔️ Livreur → Livreur</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 12 }}>Déplacer du stock entre deux livreurs</p>
+          <form onSubmit={handleTransfer} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label>
+              <select value={transferForm.product_name} onChange={e => setTransferForm(f => ({ ...f, product_name: e.target.value }))} required style={inputSt}>
+                <option value="">Choisir</option>
+                {Array.from(new Set(driverStocks.map(s => s.product_name))).map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>De</label>
+                <select value={transferForm.from_driver_id} onChange={e => setTransferForm(f => ({ ...f, from_driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Source</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              </div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Vers</label>
+                <select value={transferForm.to_driver_id} onChange={e => setTransferForm(f => ({ ...f, to_driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Dest.</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={transferForm.quantity} onChange={e => setTransferForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "..." : "↔️ Transférer"}</button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Historique ── */}
+      {subView === "history" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📋 Historique des mouvements</p>
+          {stockMouvements.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun mouvement.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {stockMouvements.map(m => {
+                const colors: Record<string, string> = { entree_entrepot: S.success, transfert_entrepot_livreur: S.info, transfert_livreur: S.purple, vente_livraison: S.warning, demande_approuvee: S.success };
+                const labels: Record<string, string> = { entree_entrepot: "➕ Entrée entrepôt", transfert_entrepot_livreur: "🔄 Entrepôt→Livreur", transfert_livreur: "↔️ Livreur→Livreur", vente_livraison: "🎯 Vendu", demande_approuvee: "✅ Demande approuvée" };
+                const c = colors[m.mouvement_type] || S.text2;
+                return (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: c, marginBottom: 2 }}>{labels[m.mouvement_type] || m.mouvement_type}</p>
+                      <p style={{ fontSize: 13, color: S.text, marginBottom: 2 }}>{m.product_name}</p>
+                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_location} → {m.to_location}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: c }}>{m.quantity}</p>
+                      <p style={{ fontSize: 10, color: S.text2 }}>{fmtDate(m.created_at)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Demandes ── */}
+      {subView === "demandes" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>📬 Demandes de stock</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 16 }}>Les livreurs peuvent demander du stock depuis leur interface.</p>
+          {stockDemandes.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucune demande.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {stockDemandes.map(d => {
+                const isPending = d.status === "en_attente";
+                const sc = d.status === "approuvée" ? { bg: S.successBg, color: S.success } : d.status === "refusée" ? { bg: S.dangerBg, color: S.danger } : { bg: "#1a1200", color: S.gold };
+                return (
+                  <div key={d.id} style={{ padding: 14, background: S.card, border: `1px solid ${S.border}`, borderRadius: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{d.driver_name}</p>
+                        <p style={{ fontSize: 13, color: S.text2 }}>📦 {d.product_name} × {d.quantity_requested}</p>
+                        {d.note && <p style={{ fontSize: 12, color: S.text2, marginTop: 4 }}>💬 {d.note}</p>}
+                        <p style={{ fontSize: 11, color: S.text3, marginTop: 4 }}>{fmtDate(d.created_at)}</p>
+                      </div>
+                      <span style={{ background: sc.bg, color: sc.color, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                        {d.status === "en_attente" ? "⏳ En attente" : d.status === "approuvée" ? "✅ Approuvée" : "❌ Refusée"}
+                      </span>
+                    </div>
+                    {isPending && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <button onClick={() => handleApprove(d)} disabled={p4Loading} style={{ padding: "9px 0", background: S.successBg, border: `1px solid ${S.success}40`, borderRadius: 10, color: S.success, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>✅ Approuver</button>
+                        <button onClick={() => handleReject(d)} style={{ padding: "9px 0", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.danger, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>❌ Refuser</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -749,7 +1066,7 @@ export function AdminView() {
         {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
-        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} />}
+        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
