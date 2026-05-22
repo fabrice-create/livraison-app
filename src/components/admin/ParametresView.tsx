@@ -13,6 +13,12 @@ const S = {
 
 interface Props { tenantId: string }
 
+interface ProfileSettings {
+  full_name: string
+  phone: string
+  email: string
+}
+
 interface TenantSettings {
   name: string
   phone: string
@@ -32,12 +38,18 @@ const EMPTY: TenantSettings = {
 
 export default function ParametresView({ tenantId }: Props) {
   const [settings, setSettings] = useState<TenantSettings>(EMPTY)
+  const [profile, setProfile] = useState<ProfileSettings>({ full_name: "", phone: "", email: "" })
+  const [profileId, setProfileId] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [savingPassword, setSavingPassword] = useState(false)
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
   const [copied, setCopied] = useState("")
   const [lienCommande, setLienCommande] = useState("")
+  const [password, setPassword] = useState({ current: "", new: "", confirm: "" })
+  const [showPasswords, setShowPasswords] = useState(false)
 
   useEffect(() => { loadSettings() }, [tenantId])
 
@@ -62,7 +74,42 @@ export default function ParametresView({ tenantId }: Props) {
       })
       setLienCommande(`shipivo.app/commander/${data.slug}`)
     }
+
+    // Charger profil admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setProfileId(user.id)
+      const { data: pd } = await supabase.from("profiles").select("full_name, phone, email").eq("id", user.id).single()
+      if (pd) setProfile({ full_name: pd.full_name || "", phone: pd.phone || "", email: pd.email || user.email || "" })
+    }
+
     setLoading(false)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!profileId) return
+    setSavingProfile(true); setError(""); setSuccess("")
+    const { error: err } = await supabase.from("profiles").update({
+      full_name: profile.full_name,
+      phone: profile.phone,
+    }).eq("id", profileId)
+    if (err) { setError(err.message); setSavingProfile(false); return }
+    setSuccess("Profil mis à jour ✓")
+    setSavingProfile(false)
+    setTimeout(() => setSuccess(""), 3000)
+  }
+
+  const handleChangePassword = async () => {
+    if (!password.new || !password.confirm) { setError("Remplis tous les champs."); return }
+    if (password.new !== password.confirm) { setError("Les mots de passe ne correspondent pas."); return }
+    if (password.new.length < 6) { setError("Le mot de passe doit avoir au moins 6 caractères."); return }
+    setSavingPassword(true); setError(""); setSuccess("")
+    const { error: err } = await supabase.auth.updateUser({ password: password.new })
+    if (err) { setError(err.message); setSavingPassword(false); return }
+    setSuccess("Mot de passe modifié ✓")
+    setPassword({ current: "", new: "", confirm: "" })
+    setSavingPassword(false)
+    setTimeout(() => setSuccess(""), 3000)
   }
 
   const handleSave = async () => {
@@ -97,6 +144,47 @@ export default function ParametresView({ tenantId }: Props) {
 
       {success && <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>{success}</div>}
       {error && <div style={{ background: S.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
+
+      {/* Profil personnel */}
+      <Section title="👤 Mon profil personnel">
+        <Field label="Nom complet" value={profile.full_name} onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))} inp={inp} placeholder="Ex: Jean Dupont" />
+        <Field label="Téléphone" value={profile.phone} onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} inp={inp} type="tel" placeholder="Ex: 22890000000" />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Email (non modifiable)</label>
+          <input value={profile.email} disabled style={{ ...inp, opacity: 0.5, cursor: "not-allowed" }} />
+        </div>
+        <button onClick={handleSaveProfile} disabled={savingProfile}
+          style={{ width: "100%", padding: "11px 0", background: savingProfile ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {savingProfile ? "Enregistrement..." : "💾 Enregistrer le profil"}
+        </button>
+      </Section>
+
+      {/* Mot de passe */}
+      <Section title="🔐 Changer mon mot de passe">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <p style={{ fontSize: 12, color: S.text2, margin: 0 }}>Modifie ton mot de passe de connexion</p>
+          <button onClick={() => setShowPasswords(!showPasswords)}
+            style={{ padding: "5px 10px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 8, color: S.text2, fontSize: 11, cursor: "pointer" }}>
+            {showPasswords ? "Masquer" : "Afficher"}
+          </button>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nouveau mot de passe</label>
+          <input type={showPasswords ? "text" : "password"} value={password.new}
+            onChange={e => setPassword(p => ({ ...p, new: e.target.value }))}
+            placeholder="Minimum 6 caractères" style={inp} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Confirmer le mot de passe</label>
+          <input type={showPasswords ? "text" : "password"} value={password.confirm}
+            onChange={e => setPassword(p => ({ ...p, confirm: e.target.value }))}
+            placeholder="Répète le mot de passe" style={inp} />
+        </div>
+        <button onClick={handleChangePassword} disabled={savingPassword}
+          style={{ width: "100%", padding: "11px 0", background: "#1e1e2e", border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          {savingPassword ? "Modification..." : "🔐 Changer le mot de passe"}
+        </button>
+      </Section>
 
       {/* Lien commande */}
       <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "14px 16px", marginBottom: 24 }}>
