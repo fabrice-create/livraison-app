@@ -44,7 +44,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
   const loadOtherDrivers = async () => {
     if (!profile) return;
     const { data } = await supabase.from("profiles")
-      .select("*").eq("role", "livreur").eq("tenant_id", profile.tenant_id).neq("id", profile.id);
+      .select("*").ilike("role", "livreur").eq("tenant_id", profile.tenant_id).neq("id", profile.id);
     setOtherDrivers((data as Profile[]) || []);
   };
 

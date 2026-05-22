@@ -106,7 +106,7 @@ export function ClosureuseView() {
     const { data: od } = await supabase.from("orders").select("*").order("id", { ascending: false });
     setOrders((od as Order[]) || []);
     // Filtrer livreurs par tenant
-    const { data: pd } = await supabase.from("profiles").select("*").eq("role", "livreur").eq("tenant_id", tenantId);
+    const { data: pd } = await supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId);
     setDrivers((pd as Profile[]) || []);
     // Stock de ces livreurs uniquement
     if (pd && pd.length > 0) {
