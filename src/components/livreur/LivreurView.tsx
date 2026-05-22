@@ -196,7 +196,9 @@ export function LivreurView() {
 
         {/* Stock */}
         {tab === "stock" && (
-          <StockWidget stock={stock} onRequestStock={() => alert("Demande de stock — bientôt disponible")} />
+          <StockWidget stock={stock} profile={profile} onRequestStock={() => alert("Demande de stock — bientôt disponible")} onStockUpdated={() => {
+            supabase.from("driver_stock").select("*").eq("driver_id", profile?.id || "").then(({ data }) => { if (data) setStock(data as DriverStock[]); });
+          }} />
         )}
       </div>
     </div>
