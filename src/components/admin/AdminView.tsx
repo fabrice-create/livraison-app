@@ -12,6 +12,7 @@ import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 // ─── Design tokens ───────────────────────────────────────────
 const S = {
@@ -102,6 +103,7 @@ function Select({ label, name, value, onChange, options }: {
 
 // ─── Vue Dashboard ───────────────────────────────────────────
 function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks: DriverStock[] }) {
+  const isMobile = useIsMobile();
   const today = useMemo(() => ({
     created:   orders.filter(o => isToday(o.created_at)).length,
     delivered: orders.filter(o => isToday(o.delivered_at)).length,
@@ -128,15 +130,15 @@ function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks
 
   return (
     <div>
-      <SectionTitle>Aujourd'hui</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
+      <SectionTitle>Aujourd&apos;hui</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
         <StatCard icon="📝" label="Créées"   value={today.created} />
         <StatCard icon="🎯" label="Livrées"  value={today.delivered} color={S.success} bg={S.successBg} border={S.success + "30"} />
         <StatCard icon="💵" label="Encaissé" value={fmt(today.amount)} color={S.gold} bg="#1A1200" border={S.gold + "30"} small />
       </div>
 
       <SectionTitle>Global</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
         <StatCard icon="📦" label="Total"     value={global.total} />
         <StatCard icon="⚡" label="En cours"  value={global.enCours} color={S.warning} />
         <StatCard icon="✅" label="Confirmées" value={global.confirmed} color={S.info} />
@@ -146,7 +148,7 @@ function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks
       </div>
 
       <SectionTitle>Finances</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 4 }}>
         <StatCard icon="⏳" label="À encaisser"   value={fmt(global.pending)} color={S.warning} small />
         <StatCard icon="🛵" label="Comm. livreurs" value={fmt(global.driverCommissions)} color={S.info} small />
         <StatCard icon="👩" label="Comm. closeurs" value={fmt(global.closerCommissions)} color={S.purple} small />
@@ -285,6 +287,7 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
 // ─── Vue Commissions ─────────────────────────────────────────
 function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profile[] }) {
   const [period, setPeriod] = useState<PeriodFilter>("mois");
+  const isMobile = useIsMobile();
 
   const stats = useMemo(() => {
     const filtered = filterByPeriod(orders, period);
@@ -384,6 +387,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
   onStockSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   profile: Profile | null;
 }) {
+  const isMobile = useIsMobile();
   const [subView, setSubView] = useState<"overview"|"warehouse"|"drivers"|"transfer"|"history"|"demandes">("overview");
   const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([]);
   const [stockMouvements, setStockMouvements] = useState<StockMouvement[]>([]);
@@ -555,7 +559,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
         <div>
           <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>🏭 Ajouter au stock entrepôt</p>
           <form onSubmit={handleAddWarehouse} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxWidth: 500 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
               <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label><input value={warehouseForm.product_name} onChange={e => setWarehouseForm(f => ({ ...f, product_name: e.target.value }))} required placeholder="Ex: THERAWOLF" style={inputSt} /></div>
               <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={warehouseForm.quantity} onChange={e => setWarehouseForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
               <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Seuil alerte</label><input type="number" min="1" value={warehouseForm.alert_threshold} onChange={e => setWarehouseForm(f => ({ ...f, alert_threshold: e.target.value }))} required style={inputSt} /></div>
@@ -741,6 +745,7 @@ function CreerView({ form, loading, onChange, onSubmit }: {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{ maxWidth: 500 }}>
       <div style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16 }}>
@@ -751,7 +756,7 @@ function CreerView({ form, loading, onChange, onSubmit }: {
           <Input label="Ville" name="city" value={form.city} onChange={onChange as any} placeholder="Lomé, Sokodé..." />
           <Input label="Adresse" name="address" value={form.address} onChange={onChange as any} placeholder="Quartier, rue..." />
           <Input label="Produit" name="product" value={form.product} onChange={onChange as any} placeholder="Nom du produit" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
             <Input label="Quantité" name="quantity" value={form.quantity} onChange={onChange as any} type="number" placeholder="1" />
             <Input label="Montant (FCFA)" name="amount" value={form.amount} onChange={onChange as any} type="number" placeholder="0" />
           </div>
