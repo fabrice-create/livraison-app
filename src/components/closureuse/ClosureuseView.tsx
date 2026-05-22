@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706",
@@ -37,6 +38,8 @@ function StatusBadge({ status }: { status?: string | null }) {
 
 export function ClosureuseView() {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Profile[]>([]);
   const [driverStocks, setDriverStocks] = useState<DriverStock[]>([]);
@@ -52,8 +55,37 @@ export function ClosureuseView() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createForm, setCreateForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" });
   const [createLoading, setCreateLoading] = useState(false);
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
 
   useEffect(() => { void init(); }, []);
+
+  // Temps réel — nouvelles commandes
+  useEffect(() => {
+    if (!profile) return;
+    const channel = supabase
+      .channel("closureuse-orders")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "orders",
+      }, (payload) => {
+        const newOrder = payload.new as Order;
+        setOrders(prev => [newOrder, ...prev]);
+        setNewOrdersCount(c => c + 1);
+        // Son de notification
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880; gain.gain.value = 0.3;
+          osc.start(); osc.stop(ctx.currentTime + 0.15);
+        } catch (_) {}
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => { void supabase.removeChannel(channel); };
+  }, [profile]);
 
   const init = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -228,6 +260,19 @@ export function ClosureuseView() {
         </div>
       </div>
 
+      {/* Bannière nouvelle commande */}
+      {newOrdersCount > 0 && (
+        <div style={{ background: "linear-gradient(135deg, #1a1200, #2d1e00)", border: `1px solid ${S.gold}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: S.gold }}>
+            🔔 {newOrdersCount} nouvelle(s) commande(s) arrivée(s) !
+          </p>
+          <button onClick={() => { setNewOrdersCount(0); setTab("commandes"); setStatusFilter("encours"); }}
+            style={{ padding: "6px 14px", background: S.gold, border: "none", borderRadius: 20, color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Voir →
+          </button>
+        </div>
+      )}
+
       {/* Nav */}
       <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, background: S.card, overflowX: "auto" }}>
         {navTabs.map(t => (
@@ -254,7 +299,7 @@ export function ClosureuseView() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
               {[
                 { label: "Total", value: orders.length, color: S.text },
                 { label: "⚡ En cours", value: enCours.length, color: S.warning },
@@ -312,7 +357,7 @@ export function ClosureuseView() {
             {showCreateForm && (
               <div style={{ background: S.card, border: `1px solid ${S.gold}40`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: S.gold, marginBottom: 14 }}>📝 Saisie manuelle</p>
-                <form onSubmit={handleCreate} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <form onSubmit={handleCreate} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                   {[
                     { name: "customer_name", label: "Nom client", placeholder: "Ex: Kofi Mensah" },
                     { name: "phone", label: "Téléphone", placeholder: "Ex: 22890000000" },
