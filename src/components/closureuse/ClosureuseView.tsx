@@ -103,14 +103,17 @@ export function ClosureuseView() {
   };
 
   const loadData = async (tenantId: string) => {
-    const { data: od } = await supabase.from("orders").select("*").order("id", { ascending: false });
-    setOrders((od as Order[]) || []);
-    // Filtrer livreurs par tenant
-    const { data: pd } = await supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId);
-    setDrivers((pd as Profile[]) || []);
-    // Stock de ces livreurs uniquement
-    if (pd && pd.length > 0) {
-      const driverIds = (pd as Profile[]).map(d => d.id);
+    // Charger en parallèle pour aller plus vite
+    const [ordersRes, profilesRes] = await Promise.all([
+      supabase.from("orders").select("*").order("id", { ascending: false }),
+      supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId)
+    ]);
+    setOrders((ordersRes.data as Order[]) || []);
+    const driverList = (profilesRes.data as Profile[]) || [];
+    setDrivers(driverList);
+    // Charger stock seulement si des livreurs existent
+    if (driverList.length > 0) {
+      const driverIds = driverList.map(d => d.id);
       const { data: sd } = await supabase.from("driver_stock").select("*").in("driver_id", driverIds);
       setDriverStocks((sd as DriverStock[]) || []);
     } else {

@@ -64,16 +64,31 @@ export function LivreurView() {
       return;
     }
     setProfile(p);
-    await loadData(user.id);
+    // Charger en parallèle pour aller plus vite
+    const [ordersRes, stockRes] = await Promise.all([
+      supabase.from("orders")
+        .select("*")
+        .eq("assigned_driver_id", user.id)
+        .in("status", ["Confirmé", "Livré", "Annulé"])
+        .order("id", { ascending: false }),
+      supabase.from("driver_stock").select("*").eq("driver_id", user.id)
+    ]);
+    setOrders((ordersRes.data as Order[]) || []);
+    setStock((stockRes.data as DriverStock[]) || []);
     setLoading(false);
   };
 
   const loadData = async (driverId: string) => {
-    const { data: od } = await supabase.from("orders")
-      .select("*").eq("assigned_driver_id", driverId).order("id", { ascending: false });
-    setOrders((od as Order[]) || []);
-    const { data: sd } = await supabase.from("driver_stock").select("*").eq("driver_id", driverId);
-    setStock((sd as DriverStock[]) || []);
+    const [ordersRes, stockRes] = await Promise.all([
+      supabase.from("orders")
+        .select("*")
+        .eq("assigned_driver_id", driverId)
+        .in("status", ["Confirmé", "Livré", "Annulé"])
+        .order("id", { ascending: false }),
+      supabase.from("driver_stock").select("*").eq("driver_id", driverId)
+    ]);
+    setOrders((ordersRes.data as Order[]) || []);
+    setStock((stockRes.data as DriverStock[]) || []);
   };
 
   const handleRefresh = async () => {
@@ -141,10 +156,12 @@ export function LivreurView() {
     });
   };
 
-  const enCours = orders.filter(o => o.status === "Confirmé" || o.status === "En attente");
-  const historique = orders.filter(o => o.status === "Livré" || o.status === "Annulé");
   const today = new Date().toDateString();
-  const todayDelivered = orders.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
+  const enCours = orders.filter(o => o.status === "Confirmé");
+  const todayEnCours = enCours.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() === today);
+  const autresEnCours = enCours.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() !== today);
+  const historique = orders.filter(o => o.status === "Livré" || o.status === "Annulé");
+  const todayDelivered = historique.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
   const todayCommission = todayDelivered.length * 2000;
   const totalCommission = orders.filter(o => o.driver_commission && o.driver_commission > 0).reduce((s, o) => s + Number(o.driver_commission), 0);
   const objective = 10;
@@ -295,9 +312,30 @@ export function LivreurView() {
                 <p style={{ fontSize: 40, marginBottom: 12 }}>🎉</p>
                 <p>Aucune livraison en cours</p>
               </div>
-            ) : enCours.map(order => (
-              <DeliveryCardFull key={order.id} order={order} onDeliver={handleDeliver} onSendToGare={handleSendToGare} />
-            ))}
+            ) : (
+              <div>
+                {todayEnCours.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: 11, color: S.gold, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10 }}>
+                      ⚡ AUJOURD&apos;HUI ({todayEnCours.length})
+                    </p>
+                    {todayEnCours.map(order => (
+                      <DeliveryCardFull key={order.id} order={order} onDeliver={handleDeliver} onSendToGare={handleSendToGare} />
+                    ))}
+                  </div>
+                )}
+                {autresEnCours.length > 0 && (
+                  <div style={{ marginTop: todayEnCours.length > 0 ? 16 : 0 }}>
+                    <p style={{ fontSize: 11, color: S.text3, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10 }}>
+                      AUTRES JOURS ({autresEnCours.length})
+                    </p>
+                    {autresEnCours.map(order => (
+                      <DeliveryCardFull key={order.id} order={order} onDeliver={handleDeliver} onSendToGare={handleSendToGare} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
