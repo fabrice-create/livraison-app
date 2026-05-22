@@ -7,7 +7,7 @@
 import type { Order, Profile, OrderHistory } from "@/types"
 import OrderCard from "@/components/order/OrderCard"
 import { isEnCours, isHistorique, isDirect, isGare, inputStyle } from "@/lib/utils"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 type Props = {
   orders: Order[]
@@ -138,6 +138,5 @@ export default function CommandesView({
 
 // Hook local simple pour éviter de remonter les filtres dans le parent
 function useLocalState<T>(initial: T): [T, (v: T) => void] {
-  const { useState } = require("react")
   return useState(initial)
 }
