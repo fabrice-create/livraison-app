@@ -207,7 +207,22 @@ export function LivreurView() {
   const todayCommission = todayDelivered.length * 2000;
   const totalCommission = orders.filter(o => o.driver_commission && o.driver_commission > 0).reduce((s, o) => s + Number(o.driver_commission), 0);
   const totalEncaisse = orders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
-  const montantDu = Math.max(0, totalEncaisse - totalCommission);
+
+  // Charger les versements confirmés pour déduire du montant dû
+  const [totalVerse, setTotalVerse] = useState(0);
+  useEffect(() => {
+    if (!profile) return;
+    supabase.from("versements")
+      .select("montant")
+      .eq("driver_id", profile.id)
+      .eq("status", "confirmé")
+      .then(({ data }) => {
+        const total = (data || []).reduce((s: number, v: {montant: number}) => s + Number(v.montant), 0);
+        setTotalVerse(total);
+      });
+  }, [profile]);
+
+  const montantDu = Math.max(0, totalEncaisse - totalCommission - totalVerse);
   const objective = 10;
   const progress = Math.min((todayDelivered.length / objective) * 100, 100);
 
@@ -273,6 +288,11 @@ export function LivreurView() {
                     .in("status", ["Confirmé", "Livré", "Annulé"])
                     .order("id", { ascending: false });
                   if (data) setOrders(data as Order[]);
+                  // Recharger versements confirmés
+                  const { data: vData } = await supabase.from("versements")
+                    .select("montant").eq("driver_id", profile.id).eq("status", "confirmé");
+                  const total = (vData || []).reduce((s: number, v: {montant: number}) => s + Number(v.montant), 0);
+                  setTotalVerse(total);
                 }}
               />
             )}
