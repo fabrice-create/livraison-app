@@ -51,6 +51,11 @@ export default function EquipeView({ tenantId }: Props) {
   const [newPassword, setNewPassword] = useState("")
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState("")
+  const [inviteModal, setInviteModal] = useState(false)
+  const [inviteRole, setInviteRole] = useState("livreur")
+  const [inviteName, setInviteName] = useState("")
+  const [inviteLink, setInviteLink] = useState("")
+  const [generatingLink, setGeneratingLink] = useState(false)
 
   useEffect(() => { loadMembers() }, [tenantId])
 
@@ -111,6 +116,17 @@ export default function EquipeView({ tenantId }: Props) {
   const toggleActive = async (m: Member) => {
     await supabase.from("profiles").update({ is_active: !m.is_active }).eq("id", m.id)
     loadMembers()
+  }
+
+  const generateInviteLink = async () => {
+    setGeneratingLink(true)
+    const { data, error } = await supabase.from("invitations").insert([{
+      tenant_id: tenantId, role: inviteRole, full_name: inviteName || null,
+    }]).select("token").single()
+    if (error || !data) { setGeneratingLink(false); return; }
+    const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
+    setInviteLink(`${base}/rejoindre/${data.token}`)
+    setGeneratingLink(false)
   }
 
   const handleChangePassword = async () => {
@@ -210,12 +226,67 @@ export default function EquipeView({ tenantId }: Props) {
           <h2 style={{ color: S.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Mon équipe</h2>
           <p style={{ color: S.text3, fontSize: 13, margin: "4px 0 0 0" }}>{members.length} membre{members.length > 1 ? "s" : ""}</p>
         </div>
-        <button onClick={() => { setShowForm(true); setError("") }} style={{ background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "10px 16px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          + Ajouter
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => { setInviteModal(true); setInviteLink(""); setInviteName(""); }} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, padding: "10px 14px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            🔗 Inviter
+          </button>
+          <button onClick={() => { setShowForm(true); setError("") }} style={{ background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "10px 16px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            + Ajouter
+          </button>
+        </div>
       </div>
 
-      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>{success}</div>}
+      {/* Modal invitation */}
+      {inviteModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 20, padding: 24, width: "100%", maxWidth: 420 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 16, fontWeight: 700 }}>🔗 Inviter par lien</p>
+              <button onClick={() => setInviteModal(false)} style={{ background: "none", border: "none", color: S.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+
+            {!inviteLink ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 6 }}>Rôle *</label>
+                  <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none" }}>
+                    <option value="livreur">🏍️ Livreur</option>
+                    <option value="closureuse">👩‍💼 Closeur(se)</option>
+                    <option value="manager">🧑‍💼 Manager</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 6 }}>Prénom et nom (optionnel)</label>
+                  <input value={inviteName} onChange={e => setInviteName(e.target.value)}
+                    placeholder="Ex: Kossi Atsu" style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                </div>
+                <button onClick={generateInviteLink} disabled={generatingLink}
+                  style={{ padding: "12px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 12, color: "#000", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                  {generatingLink ? "Génération..." : "🔗 Générer le lien"}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 13, color: S.text2, marginBottom: 12 }}>✅ Lien généré ! Valable 7 jours.</p>
+                <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 12, fontSize: 12, color: S.text, wordBreak: "break-all" as const, marginBottom: 14 }}>
+                  {inviteLink}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <button onClick={() => { navigator.clipboard.writeText(inviteLink); }}
+                    style={{ padding: "11px 0", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text2, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                    📋 Copier
+                  </button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(`Rejoins notre équipe sur Shipivo : ${inviteLink}`)}`} target="_blank" rel="noreferrer"
+                    style={{ padding: "11px 0", background: "#064e3b", border: "1px solid #10b981", borderRadius: 10, color: "#10b981", fontWeight: 700, fontSize: 13, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    💬 WhatsApp
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>{success}</div>}
 
       {/* Formulaire ajout membre */}
       {showForm && (
