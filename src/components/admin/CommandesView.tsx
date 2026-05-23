@@ -42,23 +42,16 @@ export default function CommandesView({
   const [driverFilter, setDriverFilter]         = useLocalState("Tous")
   const [search, setSearch]                     = useLocalState("")
 
-  const now = new Date()
-  const today = now.toDateString()
   const enCoursOrders    = useMemo(() => orders.filter(isEnCours),    [orders])
   const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
-  // 3 niveaux de priorité
-  const todayOrders = useMemo(() => enCoursOrders.filter(o => {
-    return new Date(o.created_at || "").toDateString() === today && o.status === "En attente"
-  }), [enCoursOrders, today])
+  // 3 niveaux de priorité — calculés à chaque render pour avoir now à jour
+  const now = new Date()
+  const today = now.toDateString()
 
-  const lateOrders = useMemo(() => enCoursOrders.filter(o => {
-    const created = new Date(o.created_at || "")
-    const hoursOld = (now.getTime() - created.getTime()) / 3600000
-    return hoursOld > 24 && o.status === "En attente"
-  }), [enCoursOrders])
-
-  const confirmedOrders = useMemo(() => enCoursOrders.filter(o => o.status === "Confirmé"), [enCoursOrders])
+  const todayOrders     = enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() === today && o.status === "En attente")
+  const lateOrders      = enCoursOrders.filter(o => { const h = (now.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente" })
+  const confirmedOrders = enCoursOrders.filter(o => o.status === "Confirmé")
 
   const applyFilters = (list: typeof orders) => list.filter(o => {
     const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
@@ -68,11 +61,20 @@ export default function CommandesView({
   })
 
   const visibleOrders = useMemo(() => {
-    const base = localStatusState === "encours"
-      ? [...todayOrders, ...lateOrders, ...confirmedOrders]
-      : historiqueOrders
-    return applyFilters(base)
-  }, [orders, localStatusState, driverFilter, search, todayOrders, lateOrders, confirmedOrders, historiqueOrders])
+    const now2 = new Date()
+    const today2 = now2.toDateString()
+    const enc = orders.filter(isEnCours)
+    const t = enc.filter(o => new Date(o.created_at || "").toDateString() === today2 && o.status === "En attente")
+    const l = enc.filter(o => { const h = (now2.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente" })
+    const c = enc.filter(o => o.status === "Confirmé")
+    const base = localStatusState === "encours" ? [...t, ...l, ...c] : orders.filter(isHistorique)
+    return base.filter(o => {
+      const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
+      const q = search.trim().toLowerCase()
+      return (driverFilter === "Tous" || o.driver_name === driverFilter) &&
+        (q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q))
+    })
+  }, [orders, localStatusState, driverFilter, search])
 
   const getActions = (order: Order) => {
     const actions = [
