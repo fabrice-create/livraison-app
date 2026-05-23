@@ -123,7 +123,10 @@ export default function EquipeView({ tenantId }: Props) {
     const { data, error } = await supabase.from("invitations").insert([{
       tenant_id: tenantId, role: inviteRole, full_name: inviteName || null,
     }]).select("token").single()
-    if (error || !data) { setGeneratingLink(false); return; }
+    if (error || !data) { 
+      alert("Erreur: " + (error?.message || "inconnue"))
+      setGeneratingLink(false); return; 
+    }
     const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
     setInviteLink(`${base}/rejoindre/${data.token}`)
     setGeneratingLink(false)
