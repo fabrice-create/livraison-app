@@ -165,12 +165,15 @@ export function LivreurView() {
         toast("✅ Livré + Payé ! Commission enregistrée.", "success");
         // SMS livraison client
         if (order && profile?.tenant_id) {
-          const { data: tenantData } = await supabase.from("tenants").select("name").eq("id", profile.tenant_id).single();
+          const { data: tenantData } = await supabase.from("tenants").select("name, at_username, at_api_key, at_sender_id").eq("id", profile.tenant_id).single();
           const boutique = tenantData?.name || "Shipivo";
           void sendSms({
             tenant_id: profile.tenant_id,
             phone: order.phone,
             message: smsMessages.livraison(order.customer_name, order.product, boutique),
+            at_username: tenantData?.at_username,
+            at_api_key: tenantData?.at_api_key,
+            at_sender_id: tenantData?.at_sender_id,
           });
         }
       }
