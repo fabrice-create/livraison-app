@@ -92,6 +92,53 @@ function Logo() {
   )
 }
 
+function CountrySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const selected = COUNTRIES.find(c => c.code === value)
+  const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button type="button" onClick={() => setOpen(!open)} style={{
+        width: "100%", background: C.bg, border: `1px solid ${open ? C.gold : C.border}`,
+        borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14,
+        textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <span>{selected?.name || "Choisir un pays"}</span>
+        <span style={{ color: C.muted, fontSize: 12 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+          background: "#111118", border: `1px solid ${C.border}`, borderRadius: 10,
+          marginTop: 4, maxHeight: 280, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        }}>
+          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.border}` }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Rechercher un pays..."
+              autoFocus
+              style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.white, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: 220 }}>
+            {filtered.map(c => (
+              <button key={c.code} type="button" onClick={() => { onChange(c.code); setOpen(false); setSearch(""); }}
+                style={{
+                  width: "100%", padding: "10px 14px", background: c.code === value ? "rgba(245,158,11,0.1)" : "transparent",
+                  border: "none", color: c.code === value ? C.gold : C.white, fontSize: 13,
+                  textAlign: "left", cursor: "pointer", display: "block",
+                }}>
+                {c.name}
+              </button>
+            ))}
+            {filtered.length === 0 && <p style={{ padding: "16px", color: C.muted, fontSize: 13, textAlign: "center" }}>Aucun résultat</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
@@ -257,11 +304,7 @@ export default function SignupPage() {
               ))}
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Pays</label>
-                <select value={form.country} onChange={e => set("country")(e.target.value)}
-                  style={{ ...inp, appearance: "none" as const, cursor: "pointer" }}
-                  onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border}>
-                  {COUNTRIES.map(c => <option key={c.code} value={c.code} style={{ background: "#111118" }}>{c.name}</option>)}
-                </select>
+                <CountrySelect value={form.country} onChange={v => set("country")(v)} />
               </div>
               {slug && (
                 <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 10, padding: "10px 14px" }}>
