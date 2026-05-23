@@ -51,12 +51,12 @@ export default function VersementForm({ profile, montantDu, onSuccess }: Props) 
       const ext = capture.name.split(".").pop();
       const fileName = `versements/${profile.id}/${Date.now()}.${ext}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("shipivo-uploads")
+        .from("shipivo-images")
         .upload(fileName, capture, { upsert: true });
 
       if (uploadError) { toast("Erreur upload : " + uploadError.message, "error"); setLoading(false); return; }
 
-      const { data: urlData } = supabase.storage.from("shipivo-uploads").getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from("shipivo-images").getPublicUrl(fileName);
       const captureUrl = urlData?.publicUrl || "";
 
       // Enregistrer le versement
