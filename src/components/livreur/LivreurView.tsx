@@ -50,6 +50,7 @@ export function LivreurView() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [period, setPeriod] = useState<PeriodFilter>("today");
   const [refreshing, setRefreshing] = useState(false);
+  const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
 
   useEffect(() => { void init(); }, []);
 
@@ -64,6 +65,12 @@ export function LivreurView() {
       return;
     }
     setProfile(p);
+    // Charger règles de commission
+    if (p.tenant_id) {
+      const { data: td } = await supabase.from("tenants")
+        .select("driver_commission, closer_commission").eq("id", p.tenant_id).single();
+      if (td) setCommissionRules({ driver: Number(td.driver_commission) || 2000, closer: Number(td.closer_commission) || 500 });
+    }
     // Charger en parallèle pour aller plus vite
     const [ordersRes, stockRes] = await Promise.all([
       supabase.from("orders")
@@ -109,7 +116,7 @@ export function LivreurView() {
       status: "Livré", logistic_status: "Livré", payment_status: "Payé",
       cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: closerComm,
+      driver_commission: commissionRules.driver, closer_commission: closerComm,
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
@@ -134,7 +141,7 @@ export function LivreurView() {
       status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
       cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: closerComm,
+      driver_commission: commissionRules.driver, closer_commission: closerComm,
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);

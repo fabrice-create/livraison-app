@@ -839,6 +839,7 @@ export function AdminView() {
   const [history, setHistory]           = useState<OrderHistory[]>([]);
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [tenantId, setTenantId]         = useState<string>("");
+  const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
   const [authLoading, setAuthLoading]   = useState(true);
   const [loading, setLoading]           = useState(false);
   const [stockLoading, setStockLoading] = useState(false);
@@ -867,7 +868,20 @@ export function AdminView() {
       return;
     }
     setProfile(p);
-    setTenantId((p as any).tenant_id || "");
+    const tid = (p as any).tenant_id || "";
+    setTenantId(tid);
+    // Charger les règles de commission depuis les paramètres de la boutique
+    if (tid) {
+      const { data: tenantData } = await supabase.from("tenants")
+        .select("driver_commission, closer_commission")
+        .eq("id", tid).single();
+      if (tenantData) {
+        setCommissionRules({
+          driver: Number(tenantData.driver_commission) || 2000,
+          closer: Number(tenantData.closer_commission) || 500,
+        });
+      }
+    }
     const { data: profiles } = await supabase.from("profiles").select("*").order("full_name");
     if (profiles) {
       const all = profiles as Profile[];
@@ -921,12 +935,12 @@ export function AdminView() {
     if (!ok) return false;
     const now = new Date().toISOString();
     // Commission closureuse seulement si la commande a été confirmée par une closureuse
-    const closerComm = order.closer_id ? 500 : 0;
+    const closerComm = order.closer_id ? commissionRules.closer : 0;
     const payload = {
       status: "Livré", logistic_status: isGare ? "Envoyé à la gare" : "Livré",
       payment_status: "Payé", cash_collected: true, cash_collected_at: now,
       cash_collected_by: profile?.full_name || null,
-      driver_commission: 2000, closer_commission: closerComm, commission_calculated: true, delivered_at: now,
+      driver_commission: commissionRules.driver, closer_commission: closerComm, commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id);
     if (error) { alert("Erreur : " + error.message); return false; }
