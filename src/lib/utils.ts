@@ -6,9 +6,38 @@ import type { Order } from "@/types"
 
 // ---------- Devises par pays ----------
 export const COUNTRY_CURRENCY: Record<string, string> = {
+  // Afrique de l'Ouest (FCFA)
   TG: "FCFA", SN: "FCFA", CI: "FCFA", ML: "FCFA", BF: "FCFA",
-  BJ: "FCFA", NE: "FCFA", CM: "FCFA XAF", GN: "GNF",
-  NG: "NGN", GH: "GHS", FR: "EUR", BE: "EUR", CA: "CAD", OTHER: "FCFA",
+  BJ: "FCFA", NE: "FCFA", GW: "FCFA", TF: "FCFA",
+  // Afrique Centrale (FCFA XAF)
+  CM: "XAF", CG: "XAF", CD: "CDF", CF: "XAF", GA: "XAF", TD: "XAF", GQ: "XAF",
+  // Afrique de l'Est
+  NG: "NGN", GH: "GHS", GN: "GNF", SL: "SLL", LR: "LRD", GM: "GMD", CV: "CVE",
+  MR: "MRO", ET: "ETB", KE: "KES", TZ: "TZS", UG: "UGX", RW: "RWF",
+  BI: "BIF", MG: "MGA", MZ: "MZN", ZM: "ZMW", ZW: "ZWL", MW: "MWK",
+  // Afrique du Nord
+  MA: "MAD", DZ: "DZD", TN: "TND", LY: "LYD", EG: "EGP", SD: "SDG",
+  // Afrique Australe
+  ZA: "ZAR", BW: "BWP", NA: "NAD", LS: "LSL", SZ: "SZL",
+  AO: "AOA", MU: "MUR", SC: "SCR",
+  // Europe
+  FR: "EUR", BE: "EUR", CH: "CHF", LU: "EUR", MC: "EUR",
+  DE: "EUR", IT: "EUR", ES: "EUR", PT: "EUR", NL: "EUR",
+  GB: "GBP", IE: "EUR", AT: "EUR", SE: "SEK", NO: "NOK",
+  DK: "DKK", FI: "EUR", PL: "PLN", CZ: "CZK", HU: "HUF",
+  // Amérique du Nord
+  CA: "CAD", US: "USD", MX: "MXN",
+  // Amérique Latine
+  BR: "BRL", AR: "ARS", CO: "COP", PE: "PEN", CL: "CLP",
+  VE: "VES", EC: "USD", BO: "BOB", PY: "PYG", UY: "UYU",
+  // Asie
+  CN: "CNY", JP: "JPY", KR: "KRW", IN: "INR", SG: "SGD",
+  AE: "AED", SA: "SAR", QA: "QAR", KW: "KWD", BH: "BHD",
+  TR: "TRY", IL: "ILS", LB: "LBP", JO: "JOD",
+  // Océanie
+  AU: "AUD", NZ: "NZD",
+  // Autre
+  OTHER: "FCFA",
 }
 
 // Devise globale — initialisée depuis le profil admin

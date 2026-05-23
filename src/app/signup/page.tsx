@@ -14,14 +14,58 @@ const C = {
 }
 
 const COUNTRIES = [
-  { code: "TG", name: "Togo" }, { code: "SN", name: "Sénégal" },
-  { code: "CI", name: "Côte d'Ivoire" }, { code: "ML", name: "Mali" },
-  { code: "CM", name: "Cameroun" }, { code: "BF", name: "Burkina Faso" },
-  { code: "BJ", name: "Bénin" }, { code: "NE", name: "Niger" },
-  { code: "NG", name: "Nigeria" }, { code: "GH", name: "Ghana" },
-  { code: "GN", name: "Guinée" }, { code: "FR", name: "France" },
-  { code: "BE", name: "Belgique" }, { code: "CA", name: "Canada" },
-  { code: "OTHER", name: "Autre pays" },
+  // Afrique de l'Ouest
+  { code: "TG", name: "🇹🇬 Togo" }, { code: "SN", name: "🇸🇳 Sénégal" },
+  { code: "CI", name: "🇨🇮 Côte d'Ivoire" }, { code: "ML", name: "🇲🇱 Mali" },
+  { code: "BF", name: "🇧🇫 Burkina Faso" }, { code: "BJ", name: "🇧🇯 Bénin" },
+  { code: "NE", name: "🇳🇪 Niger" }, { code: "GN", name: "🇬🇳 Guinée" },
+  { code: "GW", name: "🇬🇼 Guinée-Bissau" }, { code: "SL", name: "🇸🇱 Sierra Leone" },
+  { code: "LR", name: "🇱🇷 Libéria" }, { code: "GM", name: "🇬🇲 Gambie" },
+  { code: "CV", name: "🇨🇻 Cap-Vert" }, { code: "MR", name: "🇲🇷 Mauritanie" },
+  { code: "NG", name: "🇳🇬 Nigeria" }, { code: "GH", name: "🇬🇭 Ghana" },
+  // Afrique Centrale
+  { code: "CM", name: "🇨🇲 Cameroun" }, { code: "CG", name: "🇨🇬 Congo" },
+  { code: "CD", name: "🇨🇩 RD Congo" }, { code: "CF", name: "🇨🇫 Centrafrique" },
+  { code: "GA", name: "🇬🇦 Gabon" }, { code: "TD", name: "🇹🇩 Tchad" },
+  { code: "GQ", name: "🇬🇶 Guinée Équatoriale" },
+  // Afrique de l'Est
+  { code: "ET", name: "🇪🇹 Éthiopie" }, { code: "KE", name: "🇰🇪 Kenya" },
+  { code: "TZ", name: "🇹🇿 Tanzanie" }, { code: "UG", name: "🇺🇬 Ouganda" },
+  { code: "RW", name: "🇷🇼 Rwanda" }, { code: "BI", name: "🇧🇮 Burundi" },
+  // Afrique du Nord
+  { code: "MA", name: "🇲🇦 Maroc" }, { code: "DZ", name: "🇩🇿 Algérie" },
+  { code: "TN", name: "🇹🇳 Tunisie" }, { code: "LY", name: "🇱🇾 Libye" },
+  { code: "EG", name: "🇪🇬 Égypte" }, { code: "SD", name: "🇸🇩 Soudan" },
+  // Afrique Australe
+  { code: "ZA", name: "🇿🇦 Afrique du Sud" }, { code: "AO", name: "🇦🇴 Angola" },
+  { code: "MZ", name: "🇲🇿 Mozambique" }, { code: "MG", name: "🇲🇬 Madagascar" },
+  { code: "ZM", name: "🇿🇲 Zambie" }, { code: "ZW", name: "🇿🇼 Zimbabwe" },
+  { code: "MU", name: "🇲🇺 Maurice" },
+  // Europe
+  { code: "FR", name: "🇫🇷 France" }, { code: "BE", name: "🇧🇪 Belgique" },
+  { code: "CH", name: "🇨🇭 Suisse" }, { code: "LU", name: "🇱🇺 Luxembourg" },
+  { code: "DE", name: "🇩🇪 Allemagne" }, { code: "IT", name: "🇮🇹 Italie" },
+  { code: "ES", name: "🇪🇸 Espagne" }, { code: "PT", name: "🇵🇹 Portugal" },
+  { code: "NL", name: "🇳🇱 Pays-Bas" }, { code: "GB", name: "🇬🇧 Royaume-Uni" },
+  { code: "IE", name: "🇮🇪 Irlande" }, { code: "SE", name: "🇸🇪 Suède" },
+  { code: "NO", name: "🇳🇴 Norvège" }, { code: "DK", name: "🇩🇰 Danemark" },
+  { code: "FI", name: "🇫🇮 Finlande" }, { code: "AT", name: "🇦🇹 Autriche" },
+  { code: "PL", name: "🇵🇱 Pologne" },
+  // Amérique
+  { code: "CA", name: "🇨🇦 Canada" }, { code: "US", name: "🇺🇸 États-Unis" },
+  { code: "MX", name: "🇲🇽 Mexique" }, { code: "BR", name: "🇧🇷 Brésil" },
+  { code: "CO", name: "🇨🇴 Colombie" }, { code: "AR", name: "🇦🇷 Argentine" },
+  // Moyen-Orient
+  { code: "AE", name: "🇦🇪 Émirats Arabes Unis" }, { code: "SA", name: "🇸🇦 Arabie Saoudite" },
+  { code: "QA", name: "🇶🇦 Qatar" }, { code: "KW", name: "🇰🇼 Koweït" },
+  { code: "TR", name: "🇹🇷 Turquie" }, { code: "LB", name: "🇱🇧 Liban" },
+  // Asie
+  { code: "CN", name: "🇨🇳 Chine" }, { code: "JP", name: "🇯🇵 Japon" },
+  { code: "IN", name: "🇮🇳 Inde" }, { code: "SG", name: "🇸🇬 Singapour" },
+  // Océanie
+  { code: "AU", name: "🇦🇺 Australie" }, { code: "NZ", name: "🇳🇿 Nouvelle-Zélande" },
+  // Autre
+  { code: "OTHER", name: "🌍 Autre pays" },
 ]
 
 type Step = 1 | 2 | 3
