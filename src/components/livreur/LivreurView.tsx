@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
 import { StockWidget } from "./StockWidget";
+import VersementForm from "./VersementForm";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 
 const S = {
@@ -205,6 +206,8 @@ export function LivreurView() {
   const todayDelivered = historique.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
   const todayCommission = todayDelivered.length * 2000;
   const totalCommission = orders.filter(o => o.driver_commission && o.driver_commission > 0).reduce((s, o) => s + Number(o.driver_commission), 0);
+  const totalEncaisse = orders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
+  const montantDu = Math.max(0, totalEncaisse - totalCommission);
   const objective = 10;
   const progress = Math.min((todayDelivered.length / objective) * 100, 100);
 
@@ -259,6 +262,21 @@ export function LivreurView() {
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div>
+            {/* Versement */}
+            {profile && montantDu > 0 && (
+              <VersementForm
+                profile={profile}
+                montantDu={montantDu}
+                onSuccess={async () => {
+                  const { data } = await supabase.from("orders").select("*")
+                    .eq("assigned_driver_id", profile.id)
+                    .in("status", ["Confirmé", "Livré", "Annulé"])
+                    .order("id", { ascending: false });
+                  if (data) setOrders(data as Order[]);
+                }}
+              />
+            )}
+
             {/* Objectif du jour */}
             <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 18, marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>

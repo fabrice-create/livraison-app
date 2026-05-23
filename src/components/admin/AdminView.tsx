@@ -11,6 +11,7 @@ import ClientsView from "@/components/admin/ClientsView";
 import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
+import FinancesView from "@/components/admin/FinancesView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
@@ -1085,6 +1086,7 @@ export function AdminView() {
     { id: "commandes",   label: `📦 Commandes (${enCoursCount})` },
     { id: "creer",       label: "➕ Créer" },
     { id: "stock",       label: "🗄️ Stock" },
+    { id: "finances",    label: "💼 Finances" },
     { id: "commissions", label: "💰 Commissions" },
     { id: "produits",    label: "📦 Produits" },
     { id: "equipe",      label: "👥 Équipe" },
@@ -1093,7 +1095,7 @@ export function AdminView() {
     { id: "import",      label: "📥 Import" },
   ];
   // Manager voit seulement : Dashboard, Commandes, Créer, Stock
-  const managerAllowed = ["dashboard", "commandes", "creer", "stock"];
+  const managerAllowed = ["dashboard", "commandes", "creer", "stock", "finances"];
   const navItems = isManager ? allNavItems.filter(n => managerAllowed.includes(n.id)) : allNavItems;
 
   return (
@@ -1134,6 +1136,7 @@ export function AdminView() {
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} />}
+        {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
