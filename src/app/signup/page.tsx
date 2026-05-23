@@ -98,8 +98,16 @@ export default function SignupPage() {
       })
       if (authError) { setError(authError.message.includes("already registered") ? "Email déjà utilisé." : authError.message); setLoading(false); return }
       if (!data.user) { setError("Erreur création compte."); setLoading(false); return }
-      await createTenantAndAdmin({ userId: data.user.id, email: form.email.trim(), fullName: form.fullName.trim(), businessName: form.businessName.trim(), phone: form.phone.trim(), country: form.country })
-      router.push("/admin?welcome=1")
+      
+      try {
+        await createTenantAndAdmin({ userId: data.user.id, email: form.email.trim(), fullName: form.fullName.trim(), businessName: form.businessName.trim(), phone: form.phone.trim(), country: form.country })
+        router.push("/admin?welcome=1")
+      } catch (err: unknown) {
+        // Si createTenantAndAdmin échoue, on supprime le compte Auth pour permettre de réessayer
+        await supabase.auth.signOut()
+        setError(err instanceof Error ? err.message : "Erreur création boutique. Réessaie."); 
+        setLoading(false)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur inattendue"); setLoading(false)
     }
