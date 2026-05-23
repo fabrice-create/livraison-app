@@ -14,6 +14,12 @@ const S = {
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
 };
 
+type StockMouvement = {
+  id: number; created_at: string; product_name: string;
+  mouvement_type: string; quantity: number;
+  from_location: string; to_location: string; note?: string | null;
+};
+
 interface Props {
   stock: DriverStock[];
   profile: Profile | null;
@@ -21,9 +27,18 @@ interface Props {
   onStockUpdated: () => void;
 }
 
+const fmtDate = (d?: string | null) => {
+  if (!d) return "-";
+  return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+};
+
 export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: Props) {
   const total = stock.reduce((sum, s) => sum + Number(s.quantity), 0);
   const lowStock = stock.filter(s => Number(s.quantity) <= 2);
+
+  const [activeTab, setActiveTab] = useState<"stock" | "historique">("stock");
+  const [mouvements, setMouvements] = useState<StockMouvement[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [showTransfer, setShowTransfer] = useState(false);
   const [showGive, setShowGive] = useState(false);
@@ -42,8 +57,24 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
   }, [showTransfer, showGive]);
 
   useEffect(() => {
+    if (activeTab === "historique" && profile) void loadHistory();
+  }, [activeTab, profile]);
+
+  useEffect(() => {
     if (fromDriverId) void loadOtherStock(fromDriverId);
   }, [fromDriverId]);
+
+  const loadHistory = async () => {
+    if (!profile) return;
+    setLoadingHistory(true);
+    const { data } = await supabase.from("stock_mouvements")
+      .select("*")
+      .or(`from_location.eq.${profile.full_name},to_location.eq.${profile.full_name}`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setMouvements((data as StockMouvement[]) || []);
+    setLoadingHistory(false);
+  };
 
   const loadOtherDrivers = async () => {
     if (!profile) return;
@@ -130,6 +161,60 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
 
   return (
     <div>
+      {/* Tabs Stock / Historique */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, background: S.card, borderRadius: 12, padding: 4 }}>
+        <button onClick={() => setActiveTab("stock")}
+          style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, background: activeTab === "stock" ? S.gold : "transparent", color: activeTab === "stock" ? "#000" : S.text2 }}>
+          📦 Mon stock
+        </button>
+        <button onClick={() => setActiveTab("historique")}
+          style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, background: activeTab === "historique" ? S.gold : "transparent", color: activeTab === "historique" ? "#000" : S.text2 }}>
+          📋 Historique
+        </button>
+      </div>
+
+      {/* ── Historique ── */}
+      {activeTab === "historique" && (
+        <div>
+          {loadingHistory ? (
+            <p style={{ color: S.text2, fontSize: 13, textAlign: "center", padding: 20 }}>Chargement...</p>
+          ) : mouvements.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: S.text3 }}>
+              <p style={{ fontSize: 32, marginBottom: 8 }}>📋</p>
+              <p style={{ fontSize: 13 }}>Aucun mouvement de stock</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {mouvements.map(m => {
+                const isIn = m.to_location === profile?.full_name;
+                const color = isIn ? S.success : S.danger;
+                const labels: Record<string, string> = {
+                  entree_entrepot: "➕ Reçu de l'entrepôt",
+                  transfert_entrepot_livreur: "➕ Reçu de l'entrepôt",
+                  transfert_livreur: isIn ? "📥 Reçu d'un collègue" : "📤 Donné à un collègue",
+                  vente_livraison: "🎯 Vendu (livraison)",
+                  demande_approuvee: "✅ Demande approuvée",
+                };
+                return (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>{labels[m.mouvement_type] || m.mouvement_type}</p>
+                      <p style={{ fontSize: 13, color: S.text, marginBottom: 2 }}>{m.product_name}</p>
+                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_location} → {m.to_location}</p>
+                      <p style={{ fontSize: 10, color: S.text3, marginTop: 2 }}>{fmtDate(m.created_at)}</p>
+                    </div>
+                    <p style={{ fontSize: 20, fontWeight: 700, color }}>{isIn ? "+" : "-"}{m.quantity}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Stock actuel ── */}
+      {activeTab === "stock" && (
+      <div>
       {/* Stock actuel */}
       <div style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -245,6 +330,8 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
             </button>
           </form>
         </div>
+      )}
+      </div>
       )}
     </div>
   );
