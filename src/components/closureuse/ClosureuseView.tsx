@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl, setCurrency } from "@/lib/utils";
+import { sendSms, smsMessages } from "@/lib/sendSms";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 import ProfileMenu from "@/components/ui/ProfileMenu";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -148,6 +149,18 @@ export function ClosureuseView() {
     }).eq("id", id);
     if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id || null, closer_name: profile?.full_name || null } : o));
+    // SMS confirmation client
+    const order = orders.find(o => o.id === id);
+    if (order && profile?.tenant_id) {
+      // Récupérer le nom de la boutique
+      const { data: tenantData } = await supabase.from("tenants").select("name").eq("id", profile.tenant_id).single();
+      const boutique = tenantData?.name || "Shipivo";
+      void sendSms({
+        tenant_id: profile.tenant_id,
+        phone: order.phone,
+        message: smsMessages.confirmation(order.customer_name, order.product, boutique),
+      });
+    }
       }
     });
   }, [profile]);
