@@ -278,7 +278,7 @@ export function LivreurView() {
         {tab === "dashboard" && (
           <div>
             {/* Versement */}
-            {profile && montantDu > 0 && (
+            {profile && (
               <VersementForm
                 profile={profile}
                 montantDu={montantDu}
