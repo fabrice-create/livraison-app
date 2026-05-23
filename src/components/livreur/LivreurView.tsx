@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl, setCurrency } from "@/lib/utils";
+import { sendSms, smsMessages } from "@/lib/sendSms";
 import { StockWidget } from "./StockWidget";
 import VersementForm from "./VersementForm";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
@@ -162,6 +163,16 @@ export function LivreurView() {
         }
         setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
         toast("✅ Livré + Payé ! Commission enregistrée.", "success");
+        // SMS livraison client
+        if (order && profile?.tenant_id) {
+          const { data: tenantData } = await supabase.from("tenants").select("name").eq("id", profile.tenant_id).single();
+          const boutique = tenantData?.name || "Shipivo";
+          void sendSms({
+            tenant_id: profile.tenant_id,
+            phone: order.phone,
+            message: smsMessages.livraison(order.customer_name, order.product, boutique),
+          });
+        }
       }
     });
   }, [orders, profile, stock]);
