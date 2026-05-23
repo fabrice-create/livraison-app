@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabase";
 import type { Profile } from "@/types";
 import { fmt } from "@/lib/utils";
@@ -30,6 +30,18 @@ export default function VersementForm({ profile, montantDu, onSuccess }: Props) 
   const [capture, setCapture] = useState<File | null>(null);
   const [capturePreview, setCapturePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [historique, setHistorique] = useState<{id: string; montant: number; operateur: string; status: string; created_at: string}[]>([]);
+
+  const loadHistorique = async () => {
+    const { data } = await supabase.from("versements")
+      .select("id, montant, operateur, status, created_at")
+      .eq("driver_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setHistorique(data || []);
+  };
+
+  useEffect(() => { void loadHistorique(); }, [profile.id]);
 
   const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +90,7 @@ export default function VersementForm({ profile, montantDu, onSuccess }: Props) 
       setShow(false);
       setMontant(""); setOperateur(""); setReference(""); setNote("");
       setCapture(null); setCapturePreview(null);
+      void loadHistorique();
       onSuccess();
     } catch (err) {
       toast("Erreur inattendue", "error");
@@ -164,6 +177,26 @@ export default function VersementForm({ profile, montantDu, onSuccess }: Props) 
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Historique versements */}
+      {historique.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: S.text2, marginBottom: 8 }}>📋 Mes versements récents</p>
+          {historique.map(v => {
+            const statusC = v.status === "confirmé" ? S.success : v.status === "rejeté" ? S.danger : S.warning;
+            const statusL = v.status === "confirmé" ? "✅ Confirmé" : v.status === "rejeté" ? "❌ Rejeté" : "⏳ En attente";
+            return (
+              <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, marginBottom: 6 }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: S.gold }}>{fmt(v.montant)}</p>
+                  <p style={{ fontSize: 11, color: S.text3 }}>{v.operateur} · {new Date(v.created_at).toLocaleDateString("fr-FR")}</p>
+                </div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: statusC }}>{statusL}</p>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

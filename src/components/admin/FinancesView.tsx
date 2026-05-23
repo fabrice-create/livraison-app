@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile } from "@/types";
 import { fmt, fmtDate, filterByPeriod, type PeriodFilter } from "@/lib/utils";
@@ -40,6 +40,8 @@ export default function FinancesView({ orders, drivers, closers, profile, tenant
   const [commPayments, setCommPayments] = useState<CommissionPayment[]>([]);
   const [captureModal, setCaptureModal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [newVersement, setNewVersement] = useState(0);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const loadData = useCallback(async () => {
     const [vRes, cRes] = await Promise.all([
@@ -51,6 +53,62 @@ export default function FinancesView({ orders, drivers, closers, profile, tenant
   }, [tenantId]);
 
   useEffect(() => { void loadData(); }, [loadData]);
+
+  // Temps réel — nouveaux versements
+  useEffect(() => {
+    const channel = supabase.channel("admin-versements")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "versements" }, (payload) => {
+        const v = payload.new as Versement;
+        setVersements(prev => [v, ...prev]);
+        setNewVersement(c => c + 1);
+        toast(`📲 Nouveau versement de ${v.driver_name} — ${fmt(v.montant)}`, "info");
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => { void supabase.removeChannel(channel); };
+  }, []);
+
+  // Export Excel
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      // Feuille rapport
+      const rapportData = [
+        ["RAPPORT FINANCIER SHIPIVO", ""],
+        ["Période", period === "today" ? "Aujourd'hui" : period === "semaine" ? "Semaine" : period === "mois" ? "Mois" : "Tout"],
+        ["Date export", new Date().toLocaleDateString("fr-FR")],
+        [""],
+        ["Total encaissé (FCFA)", rapport.encaisse],
+        ["Nombre de livraisons", rapport.livraisons],
+        ["Commissions livreurs (FCFA)", rapport.commDrivers],
+        ["Commissions closeurs (FCFA)", rapport.commClosers],
+        ["Versements reçus (FCFA)", rapport.versementsRecus],
+        ["Versements en attente (FCFA)", rapport.versementsAttente],
+        ["Bénéfice estimé (FCFA)", rapport.encaisse - rapport.commDrivers - rapport.commClosers],
+      ];
+      const ws1 = XLSX.utils.aoa_to_sheet(rapportData);
+      XLSX.utils.book_append_sheet(wb, ws1, "Rapport");
+
+      // Feuille versements
+      const versData = [["Livreur", "Montant", "Opérateur", "Référence", "Statut", "Date"]];
+      versements.forEach(v => versData.push([v.driver_name, String(v.montant), v.operateur, v.reference || "", v.status, fmtDate(v.created_at)]));
+      const ws2 = XLSX.utils.aoa_to_sheet(versData);
+      XLSX.utils.book_append_sheet(wb, ws2, "Versements");
+
+      // Feuille commissions
+      const commData = [["Nom", "Rôle", "Montant payé", "Type", "Date"]];
+      commPayments.forEach(c => commData.push([c.beneficiary_name, c.beneficiary_role, String(c.montant), c.type, fmtDate(c.created_at)]));
+      const ws3 = XLSX.utils.aoa_to_sheet(commData);
+      XLSX.utils.book_append_sheet(wb, ws3, "Commissions");
+
+      XLSX.writeFile(wb, `shipivo-finances-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast("✅ Export Excel téléchargé", "success");
+    } catch {
+      toast("Erreur export Excel", "error");
+    }
+  };
 
   // ─── Calculs caisse ───────────────────────────────────────
   const livrees = orders.filter(o => o.status === "Livré" && o.cash_collected);
@@ -181,9 +239,25 @@ export default function FinancesView({ orders, drivers, closers, profile, tenant
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 20, paddingBottom: 4 }}>
-        {TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={tabStyle(t.id)}>{t.label}</button>)}
+      {/* Bannière nouveau versement */}
+      {newVersement > 0 && (
+        <div style={{ background: "#0C1E3E", border: `1px solid ${S.info}`, borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: S.info }}>📲 {newVersement} nouveau(x) versement(s) reçu(s) !</p>
+          <button onClick={() => { setNewVersement(0); setTab("versements"); }}
+            style={{ padding: "6px 14px", background: S.info, border: "none", borderRadius: 20, color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Voir →
+          </button>
+        </div>
+      )}
+
+      {/* Header avec export */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+          {TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={tabStyle(t.id)}>{t.label}</button>)}
+        </div>
+        <button onClick={handleExportExcel} style={{ padding: "9px 14px", background: S.successBg, border: `1px solid ${S.success}`, borderRadius: 12, color: S.success, fontWeight: 700, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0, marginLeft: 8 }}>
+          📥 Excel
+        </button>
       </div>
 
       {/* ── Caisse livreurs ── */}
