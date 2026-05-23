@@ -59,12 +59,16 @@ interface TenantSettings {
   closer_commission: number
   driver_commission: number
   currency: string
+  at_username: string
+  at_api_key: string
+  at_sender_id: string
 }
 
 const EMPTY: TenantSettings = {
   name: "", phone: "", delivery_fee: 0,
   facebook_pixel_id: "", facebook_access_token: "", tiktok_pixel_id: "",
   closer_commission: 500, driver_commission: 2000, currency: "FCFA",
+  at_username: "", at_api_key: "", at_sender_id: "Shipivo",
 }
 
 export default function ParametresView({ tenantId }: Props) {
@@ -88,7 +92,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id")
       .eq("id", tenantId)
       .single()
 
@@ -103,6 +107,9 @@ export default function ParametresView({ tenantId }: Props) {
         closer_commission: data.closer_commission || 500,
         driver_commission: data.driver_commission || 2000,
         currency: data.currency || "FCFA",
+        at_username: data.at_username || "",
+        at_api_key: data.at_api_key || "",
+        at_sender_id: data.at_sender_id || "Shipivo",
       })
       setLienCommande(`shipivo.app/commander/${data.slug}`)
     }
@@ -156,6 +163,9 @@ export default function ParametresView({ tenantId }: Props) {
       closer_commission: settings.closer_commission,
       driver_commission: settings.driver_commission,
       currency: settings.currency,
+      at_username: settings.at_username || null,
+      at_api_key: settings.at_api_key || null,
+      at_sender_id: settings.at_sender_id || "Shipivo",
     }).eq("id", tenantId)
 
     if (err) { setError(err.message); setSaving(false); return }
@@ -327,6 +337,38 @@ export default function ParametresView({ tenantId }: Props) {
             </div>
           )
         })}
+      </Section>
+
+
+      {/* SMS Africa's Talking */}
+      <Section title="📱 SMS Africa's Talking">
+        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <p style={{ color: S.info, fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+            Connecte ton compte Africa&apos;s Talking pour envoyer des SMS automatiques à tes clients lors de la confirmation et de la livraison.
+            Crée ton compte sur <strong>africastalking.com</strong>.
+          </p>
+        </div>
+        <Field label="AT Username" value={settings.at_username} onChange={set("at_username")} inp={inp} placeholder="Ex: sandbox ou ton username" />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>AT API Key</label>
+          <input
+            type="password"
+            value={settings.at_api_key}
+            onChange={set("at_api_key")}
+            placeholder="atsk_..."
+            style={inp}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"}
+          />
+        </div>
+        <Field label="Nom expéditeur SMS (max 11 caractères)" value={settings.at_sender_id} onChange={set("at_sender_id")} inp={inp} placeholder="Ex: Shipivo" />
+        <div style={{ background: S.card2, borderRadius: 8, padding: "10px 12px", marginTop: 4 }}>
+          <p style={{ color: S.text3, fontSize: 11, margin: 0, lineHeight: 1.6 }}>
+            SMS envoyés automatiquement :<br/>
+            • ✅ Confirmation — quand la closureuse confirme la commande<br/>
+            • 🎯 Livraison — quand le livreur marque &quot;Livré + Payé&quot;
+          </p>
+        </div>
       </Section>
 
       {/* Bouton save */}
