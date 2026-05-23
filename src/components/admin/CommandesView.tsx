@@ -42,24 +42,37 @@ export default function CommandesView({
   const [driverFilter, setDriverFilter]         = useLocalState("Tous")
   const [search, setSearch]                     = useLocalState("")
 
-  const today = new Date().toDateString()
-  const enCoursOrders   = useMemo(() => orders.filter(isEnCours),   [orders])
+  const now = new Date()
+  const today = now.toDateString()
+  const enCoursOrders    = useMemo(() => orders.filter(isEnCours),    [orders])
   const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
-  // En cours : aujourd'hui en premier, puis les autres
-  const todayEnCours  = useMemo(() => enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() === today), [enCoursOrders])
-  const otherEnCours  = useMemo(() => enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() !== today), [enCoursOrders])
-  const sortedEnCours = useMemo(() => [...todayEnCours, ...otherEnCours], [todayEnCours, otherEnCours])
+  // 3 niveaux de priorité
+  const todayOrders = useMemo(() => enCoursOrders.filter(o => {
+    return new Date(o.created_at || "").toDateString() === today && o.status === "En attente"
+  }), [enCoursOrders, today])
+
+  const lateOrders = useMemo(() => enCoursOrders.filter(o => {
+    const created = new Date(o.created_at || "")
+    const hoursOld = (now.getTime() - created.getTime()) / 3600000
+    return hoursOld > 24 && o.status === "En attente"
+  }), [enCoursOrders])
+
+  const confirmedOrders = useMemo(() => enCoursOrders.filter(o => o.status === "Confirmé"), [enCoursOrders])
+
+  const applyFilters = (list: typeof orders) => list.filter(o => {
+    const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
+    const q = search.trim().toLowerCase()
+    const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product, String(o.amount || "")].join(" ").toLowerCase().includes(q)
+    return matchDriver && matchSearch
+  })
 
   const visibleOrders = useMemo(() => {
-    const base = localStatusState === "encours" ? sortedEnCours : historiqueOrders
-    return base.filter((o) => {
-      const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
-      const q = search.trim().toLowerCase()
-      const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product, String(o.amount || "")].join(" ").toLowerCase().includes(q)
-      return matchDriver && matchSearch
-    })
-  }, [orders, localStatusState, driverFilter, search, sortedEnCours, historiqueOrders])
+    const base = localStatusState === "encours"
+      ? [...todayOrders, ...lateOrders, ...confirmedOrders]
+      : historiqueOrders
+    return applyFilters(base)
+  }, [orders, localStatusState, driverFilter, search, todayOrders, lateOrders, confirmedOrders, historiqueOrders])
 
   const getActions = (order: Order) => {
     const actions = [
@@ -117,56 +130,78 @@ export default function CommandesView({
           <p style={{ fontSize: 40, marginBottom: 12 }}>📭</p>
           <p>Aucune commande</p>
         </div>
+      ) : localStatusState === "historique" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+          {visibleOrders.map(order => (
+            <OrderCard key={order.id} order={order} drivers={drivers}
+              selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
+              actions={getActions(order)} onEditClick={onEditClick}
+              onDriverChange={(id) => onDriverChange(order.id, id)}
+              onActionChange={(a) => onActionChange(order.id, a)}
+              onActionSubmit={() => onActionSubmit(order)}
+              history={history.filter(h => h.order_id === order.id)}
+              showEditButton showActions />
+          ))}
+        </div>
       ) : (
         <div>
-          {/* Commandes d'aujourd'hui */}
-          {localStatusState === "encours" && todayEnCours.length > 0 && (
-            <div>
+          {/* 1. Aujourd'hui */}
+          {applyFilters(todayOrders).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
               <p style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-                ⚡ AUJOURD&apos;HUI — {todayEnCours.length} commande(s)
+                ⚡ AUJOURD&apos;HUI — {applyFilters(todayOrders).length} commande(s)
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16, marginBottom: otherEnCours.length > 0 ? 24 : 0 }}>
-                {todayEnCours.filter(o => {
-                  const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
-                  const q = search.trim().toLowerCase()
-                  const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q)
-                  return matchDriver && matchSearch
-                }).map(order => (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+                {applyFilters(todayOrders).map(order => (
                   <OrderCard key={order.id} order={order} drivers={drivers}
                     selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
                     actions={getActions(order)} onEditClick={onEditClick}
                     onDriverChange={(id) => onDriverChange(order.id, id)}
                     onActionChange={(a) => onActionChange(order.id, a)}
                     onActionSubmit={() => onActionSubmit(order)}
-                    history={history.filter((h) => h.order_id === order.id)}
+                    history={history.filter(h => h.order_id === order.id)}
                     showEditButton showActions />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Commandes jours précédents ou historique */}
-          {(localStatusState !== "encours" || otherEnCours.length > 0) && (
-            <div>
-              {localStatusState === "encours" && otherEnCours.length > 0 && (
-                <p style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-                  JOURS PRÉCÉDENTS — {otherEnCours.length} commande(s)
-                </p>
-              )}
+          {/* 2. En retard +24h */}
+          {applyFilters(lateOrders).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 11, color: "#F87171", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+                🔴 EN RETARD +24H — {applyFilters(lateOrders).length} commande(s)
+              </p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-                {(localStatusState === "encours" ? otherEnCours : historiqueOrders).filter(o => {
-                  const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
-                  const q = search.trim().toLowerCase()
-                  const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q)
-                  return matchDriver && matchSearch
-                }).map(order => (
+                {applyFilters(lateOrders).map(order => (
                   <OrderCard key={order.id} order={order} drivers={drivers}
                     selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
                     actions={getActions(order)} onEditClick={onEditClick}
                     onDriverChange={(id) => onDriverChange(order.id, id)}
                     onActionChange={(a) => onActionChange(order.id, a)}
                     onActionSubmit={() => onActionSubmit(order)}
-                    history={history.filter((h) => h.order_id === order.id)}
+                    history={history.filter(h => h.order_id === order.id)}
+                    showEditButton showActions />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Confirmées */}
+          {applyFilters(confirmedOrders).length > 0 && (
+            <div>
+              <p style={{ fontSize: 11, color: "#60A5FA", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+                ✅ CONFIRMÉES — {applyFilters(confirmedOrders).length} commande(s)
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+                {applyFilters(confirmedOrders).map(order => (
+                  <OrderCard key={order.id} order={order} drivers={drivers}
+                    selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
+                    actions={getActions(order)} onEditClick={onEditClick}
+                    onDriverChange={(id) => onDriverChange(order.id, id)}
+                    onActionChange={(a) => onActionChange(order.id, a)}
+                    onActionSubmit={() => onActionSubmit(order)}
+                    history={history.filter(h => h.order_id === order.id)}
                     showEditButton showActions />
                 ))}
               </div>
