@@ -27,6 +27,7 @@ interface Props { tenantId: string }
 const ROLES = [
   { value: "closureuse", label: "Closureuse" },
   { value: "livreur", label: "Livreur" },
+  { value: "manager", label: "Manager (accès limité)" },
 ]
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -277,14 +278,14 @@ export default function EquipeView({ tenantId }: Props) {
           <p style={{ color: S.text3, fontSize: 14 }}>Aucun membre. Ajoute ta closureuse et tes livreurs !</p>
         </div>
       ) : (
-        ["closureuse", "livreur"].map(role => {
+        ["closureuse", "livreur", "manager"].map(role => {
           const group = byRole(role)
           if (group.length === 0) return null
           const rc = ROLE_COLORS[role] || ROLE_COLORS.livreur
           return (
             <div key={role} style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: S.text3, marginBottom: 10 }}>
-                {role === "closureuse" ? "Closureuses" : "Livreurs"}
+                {role === "closureuse" ? "Closureuses" : role === "livreur" ? "Livreurs" : "Managers"}
                 <span style={{ marginLeft: 8, background: rc.bg, color: rc.color, padding: "2px 8px", borderRadius: 20, fontSize: 10 }}>{group.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -292,7 +293,7 @@ export default function EquipeView({ tenantId }: Props) {
                   <div key={m.id} onClick={() => { setSelectedMember(m); setNewPassword(""); setPasswordSuccess("") }} style={{ background: S.card, border: `1px solid ${m.is_active ? S.border : "#2D1500"}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: m.is_active ? 1 : 0.6, cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 40, height: 40, borderRadius: "50%", background: rc.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
-                        {role === "closureuse" ? "👩‍💼" : role === "livreur" ? "🏍️" : "🌍"}
+                        {role === "closureuse" ? "👩‍💼" : role === "livreur" ? "🏍️" : "🧑‍💼"}
                       </div>
                       <div>
                         <p style={{ color: S.text, fontSize: 14, fontWeight: 600, margin: 0 }}>{m.full_name}</p>

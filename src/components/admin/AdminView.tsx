@@ -863,8 +863,9 @@ export function AdminView() {
     const { data: pd } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     if (!pd) { router.replace("/login"); return; }
     const p = pd as Profile;
-    if (normalizeRole(p.role) !== "admin") {
-      router.replace(normalizeRole(p.role) === "closureuse" ? "/closureuse" : "/livreur");
+    const role = normalizeRole(p.role);
+    if (role !== "admin" && role !== "manager") {
+      router.replace(role === "closureuse" ? "/closureuse" : "/livreur");
       return;
     }
     setProfile(p);
@@ -1038,7 +1039,8 @@ export function AdminView() {
     </div>
   );
 
-  const navItems = [
+  const isManager = normalizeRole(profile?.role) === "manager";
+  const allNavItems = [
     { id: "dashboard",   label: "📊 Dashboard" },
     { id: "commandes",   label: `📦 Commandes (${enCoursCount})` },
     { id: "creer",       label: "➕ Créer" },
@@ -1050,6 +1052,9 @@ export function AdminView() {
     { id: "clients",     label: "👥 Clients" },
     { id: "import",      label: "📥 Import" },
   ];
+  // Manager voit seulement : Dashboard, Commandes, Créer, Stock
+  const managerAllowed = ["dashboard", "commandes", "creer", "stock"];
+  const navItems = isManager ? allNavItems.filter(n => managerAllowed.includes(n.id)) : allNavItems;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
@@ -1071,7 +1076,7 @@ export function AdminView() {
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
-          <div style={{ fontSize: 11, color: S.text3 }}>Admin · {profile?.full_name}</div>
+          <div style={{ fontSize: 11, color: S.text3 }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
         </div>
         {tenantId && <NotificationBell tenantId={tenantId} />}
         <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer" }}>Déconnexion</button>

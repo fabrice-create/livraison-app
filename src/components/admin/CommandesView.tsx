@@ -42,18 +42,24 @@ export default function CommandesView({
   const [driverFilter, setDriverFilter]         = useLocalState("Tous")
   const [search, setSearch]                     = useLocalState("")
 
+  const today = new Date().toDateString()
   const enCoursOrders   = useMemo(() => orders.filter(isEnCours),   [orders])
   const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
+  // En cours : aujourd'hui en premier, puis les autres
+  const todayEnCours  = useMemo(() => enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() === today), [enCoursOrders])
+  const otherEnCours  = useMemo(() => enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() !== today), [enCoursOrders])
+  const sortedEnCours = useMemo(() => [...todayEnCours, ...otherEnCours], [todayEnCours, otherEnCours])
+
   const visibleOrders = useMemo(() => {
-    const base = localStatusState === "encours" ? enCoursOrders : historiqueOrders
+    const base = localStatusState === "encours" ? sortedEnCours : historiqueOrders
     return base.filter((o) => {
       const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
       const q = search.trim().toLowerCase()
       const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product, String(o.amount || "")].join(" ").toLowerCase().includes(q)
       return matchDriver && matchSearch
     })
-  }, [orders, localStatusState, driverFilter, search, enCoursOrders, historiqueOrders])
+  }, [orders, localStatusState, driverFilter, search, sortedEnCours, historiqueOrders])
 
   const getActions = (order: Order) => {
     const actions = [
@@ -112,11 +118,24 @@ export default function CommandesView({
           <p>Aucune commande</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-          {visibleOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
+        <div>
+          {localStatusState === "encours" && todayEnCours.length > 0 && (
+            <p style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+              ⚡ AUJOURD&apos;HUI ({todayEnCours.length})
+            </p>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+          {visibleOrders.map((order, idx) => {
+            const isFirstOther = localStatusState === "encours" && todayEnCours.length > 0 && idx === todayEnCours.length
+            return (
+              <div key={order.id}>
+                {isFirstOther && (
+                  <p style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12, gridColumn: "1 / -1" }}>
+                    JOURS PRÉCÉDENTS ({otherEnCours.length})
+                  </p>
+                )}
+                <OrderCard
+                  order={order}
               drivers={drivers}
               selectedDriver={selectedDrivers[order.id] || ""}
               selectedAction={selectedActions[order.id] || ""}
@@ -129,7 +148,10 @@ export default function CommandesView({
               showEditButton
               showActions
             />
-          ))}
+              </div>
+            )
+          })}
+          </div>
         </div>
       )}
     </div>
