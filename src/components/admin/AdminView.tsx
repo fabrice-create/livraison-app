@@ -404,7 +404,7 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
 
 // ─── Types Phase 4 ───────────────────────────────────────────
 type WarehouseStock = { id: number; product_name: string; quantity: number; alert_threshold: number; created_at?: string | null; updated_at?: string | null; };
-type StockMouvement = { id: number; created_at: string; product_name: string; mouvement_type: string; quantity: number; from_location: string; to_location: string; note?: string | null; created_by?: string | null; };
+type StockMouvement = { id: number; created_at: string; product_name: string; type: string; quantity: number; from_driver: string; to_driver: string; note?: string | null; created_by?: string | null; };
 type StockDemande = { id: number; created_at: string; driver_id: string; driver_name: string; product_name: string; quantity_requested: number; status: string; note?: string | null; };
 
 // ─── Vue Stock Phase 4 ───────────────────────────────────────
@@ -446,7 +446,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
     } else {
       await supabase.from("warehouse_stock").insert([{ product_name: name, quantity: qty, alert_threshold: threshold }]);
     }
-    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "entree_entrepot", quantity: qty, from_location: "Fournisseur", to_location: "Entrepôt", created_by: profile?.full_name || "Admin" }]);
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "entree_entrepot", quantity: qty, from_driver: "Fournisseur", to_driver: "Entrepôt" }]);
     await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); toast("✅ Stock entrepôt mis à jour"); setP4Loading(false);
   };
 
@@ -461,7 +461,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
     const existing = driverStocks.find(i => i.driver_id === driver.id && i.product_name.toLowerCase() === name.toLowerCase());
     if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + qty }).eq("id", existing.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: driver.id, driver_name: driver.full_name, product_name: name, quantity: qty }]); }
-    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_entrepot_livreur", quantity: qty, from_location: "Entrepôt", to_location: driver.full_name, created_by: profile?.full_name || "Admin" }]);
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "transfert_entrepot_livreur", quantity: qty, from_driver: "Entrepôt", to_driver: driver.full_name }]);
     await loadData(); setW2dForm({ product_name: "", driver_id: "", quantity: "1" }); toast(`✅ ${qty} unité(s) transférée(s) à ${driver.full_name}`); setP4Loading(false);
   };
 
@@ -476,7 +476,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
     const toStock = driverStocks.find(i => i.driver_id === to.id && i.product_name.toLowerCase() === name.toLowerCase());
     if (toStock) { await supabase.from("driver_stock").update({ quantity: toStock.quantity + qty }).eq("id", toStock.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: to.id, driver_name: to.full_name, product_name: name, quantity: qty }]); }
-    await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_livreur", quantity: qty, from_location: from.full_name, to_location: to.full_name, created_by: profile?.full_name || "Admin" }]);
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "transfert_livreur", quantity: qty, from_driver: from.full_name, to_driver: to.full_name }]);
     await loadData(); setTransferForm({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" }); toast(`✅ Transfert : ${from.full_name} → ${to.full_name}`); setP4Loading(false);
   };
 
@@ -490,7 +490,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
     if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
     await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
-    await supabase.from("stock_mouvements").insert([{ product_name: d.product_name, mouvement_type: "demande_approuvee", quantity: d.quantity_requested, from_location: "Entrepôt", to_location: d.driver_name, created_by: profile?.full_name || "Admin" }]);
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: d.product_name, type: "demande_approuvee", quantity: d.quantity_requested, from_driver: "Entrepôt", to_driver: d.driver_name }]);
     await loadData(); toast("✅ Demande approuvée"); setP4Loading(false);
   };
 
@@ -707,13 +707,13 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
               {stockMouvements.map(m => {
                 const colors: Record<string, string> = { entree_entrepot: S.success, transfert_entrepot_livreur: S.info, transfert_livreur: S.purple, vente_livraison: S.warning, demande_approuvee: S.success };
                 const labels: Record<string, string> = { entree_entrepot: "➕ Entrée entrepôt", transfert_entrepot_livreur: "🔄 Entrepôt→Livreur", transfert_livreur: "↔️ Livreur→Livreur", vente_livraison: "🎯 Vendu", demande_approuvee: "✅ Demande approuvée" };
-                const c = colors[m.mouvement_type] || S.text2;
+                const c = colors[m.type] || S.text2;
                 return (
                   <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12 }}>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: c, marginBottom: 2 }}>{labels[m.mouvement_type] || m.mouvement_type}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: c, marginBottom: 2 }}>{labels[m.type] || m.type}</p>
                       <p style={{ fontSize: 13, color: S.text, marginBottom: 2 }}>{m.product_name}</p>
-                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_location} → {m.to_location}</p>
+                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_driver} → {m.to_driver}</p>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
                       <p style={{ fontSize: 20, fontWeight: 700, color: c }}>{m.quantity}</p>

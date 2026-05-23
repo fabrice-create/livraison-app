@@ -17,8 +17,8 @@ const S = {
 
 type StockMouvement = {
   id: number; created_at: string; product_name: string;
-  mouvement_type: string; quantity: number;
-  from_location: string; to_location: string; note?: string | null;
+  type: string; quantity: number;
+  from_driver: string; to_driver: string; note?: string | null;
 };
 
 interface Props {
@@ -70,7 +70,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     setLoadingHistory(true);
     const { data } = await supabase.from("stock_mouvements")
       .select("*")
-      .or(`from_location.eq.${profile.full_name},to_location.eq.${profile.full_name}`)
+      .or(`from_driver.eq.${profile.full_name},to_driver.eq.${profile.full_name}`)
       .order("created_at", { ascending: false })
       .limit(50);
     setMouvements((data as StockMouvement[]) || []);
@@ -111,9 +111,9 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     }
     const fromDriver = otherDrivers.find(d => d.id === fromDriverId);
     await supabase.from("stock_mouvements").insert([{
-      product_name: productName, mouvement_type: "transfert_livreur", quantity: qty,
-      from_location: fromDriver?.full_name || "Livreur", to_location: profile.full_name,
-      created_by: profile.full_name,
+      tenant_id: profile.tenant_id,
+      product_name: productName, type: "transfert_livreur", quantity: qty,
+      from_driver: fromDriver?.full_name || "Livreur", to_driver: profile.full_name,
     }]);
     toast(`✅ ${qty} × ${productName} pris chez ${fromDriver?.full_name}`);
     setShowTransfer(false);
@@ -144,9 +144,9 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     }
     const toDriver = otherDrivers.find(d => d.id === toDriverId);
     await supabase.from("stock_mouvements").insert([{
-      product_name: giveProductName, mouvement_type: "transfert_livreur", quantity: qty,
-      from_location: profile.full_name, to_location: toDriver?.full_name || "Livreur",
-      created_by: profile.full_name,
+      tenant_id: profile.tenant_id,
+      product_name: giveProductName, type: "transfert_livreur", quantity: qty,
+      from_driver: profile.full_name, to_driver: toDriver?.full_name || "Livreur",
     }]);
     toast(`✅ ${qty} × ${giveProductName} donné(s) à ${toDriver?.full_name}`);
     setShowGive(false);
@@ -187,7 +187,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {mouvements.map(m => {
-                const isIn = m.to_location === profile?.full_name;
+                const isIn = m.to_driver === profile?.full_name;
                 const color = isIn ? S.success : S.danger;
                 const labels: Record<string, string> = {
                   entree_entrepot: "➕ Reçu de l'entrepôt",
@@ -199,9 +199,9 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
                 return (
                   <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12 }}>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>{labels[m.mouvement_type] || m.mouvement_type}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 2 }}>{labels[m.type] || m.type}</p>
                       <p style={{ fontSize: 13, color: S.text, marginBottom: 2 }}>{m.product_name}</p>
-                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_location} → {m.to_location}</p>
+                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_driver} → {m.to_driver}</p>
                       <p style={{ fontSize: 10, color: S.text3, marginTop: 2 }}>{fmtDate(m.created_at)}</p>
                     </div>
                     <p style={{ fontSize: 20, fontWeight: 700, color }}>{isIn ? "+" : "-"}{m.quantity}</p>
