@@ -13,7 +13,7 @@ import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { toast, ToastContainer } from "@/components/ui/Toast";
+import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 
 // ─── Design tokens ───────────────────────────────────────────
 const S = {
@@ -481,23 +481,35 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
   };
 
   const handleApprove = async (d: StockDemande) => {
-    if (!confirm(`Approuver ${d.quantity_requested} × ${d.product_name} pour ${d.driver_name} ?`)) return;
-    setP4Loading(true);
-    const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === d.product_name.toLowerCase());
-    if (!wStock || wStock.quantity < d.quantity_requested) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
-    await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - d.quantity_requested, updated_at: new Date().toISOString() }).eq("id", wStock.id);
-    const existing = driverStocks.find(i => i.driver_id === d.driver_id && i.product_name.toLowerCase() === d.product_name.toLowerCase());
-    if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
-    else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
-    await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
-    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: d.product_name, type: "demande_approuvee", quantity: d.quantity_requested, from_driver: "Entrepôt", to_driver: d.driver_name }]);
-    await loadData(); toast("✅ Demande approuvée"); setP4Loading(false);
+    confirm({
+      message: `Approuver ${d.quantity_requested} × ${d.product_name} pour ${d.driver_name} ?`,
+      confirmLabel: "✅ Approuver",
+      onConfirm: async () => {
+        setP4Loading(true);
+        const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === d.product_name.toLowerCase());
+        if (!wStock || wStock.quantity < d.quantity_requested) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`, "error"); setP4Loading(false); return; }
+        await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - d.quantity_requested, updated_at: new Date().toISOString() }).eq("id", wStock.id);
+        const existing = driverStocks.find(i => i.driver_id === d.driver_id && i.product_name.toLowerCase() === d.product_name.toLowerCase());
+        if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
+        else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
+        await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
+        await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: d.product_name, type: "demande_approuvee", quantity: d.quantity_requested, from_driver: "Entrepôt", to_driver: d.driver_name }]);
+        await loadData(); toast("✅ Demande approuvée", "success"); setP4Loading(false);
+      }
+    });
   };
 
-  const handleReject = async (d: StockDemande) => {
-    if (!confirm(`Refuser la demande de ${d.driver_name} ?`)) return;
-    await supabase.from("stock_demandes").update({ status: "refusée" }).eq("id", d.id);
-    setStockDemandes(prev => prev.map(x => x.id === d.id ? { ...x, status: "refusée" } : x));
+  const handleReject = (d: StockDemande) => {
+    confirm({
+      message: `Refuser la demande de ${d.driver_name} pour ${d.quantity_requested}× ${d.product_name} ?`,
+      confirmLabel: "❌ Refuser",
+      danger: true,
+      onConfirm: async () => {
+        await supabase.from("stock_demandes").update({ status: "refusée" }).eq("id", d.id);
+        setStockDemandes(prev => prev.map(x => x.id === d.id ? { ...x, status: "refusée" } : x));
+        toast("Demande refusée", "info");
+      }
+    });
   };
 
   const subTabs = [

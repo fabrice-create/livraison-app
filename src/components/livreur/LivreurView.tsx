@@ -6,7 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
 import { StockWidget } from "./StockWidget";
-import { toast, ToastContainer } from "@/components/ui/Toast";
+import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706",
@@ -106,49 +106,57 @@ export function LivreurView() {
     setRefreshing(false);
   };
 
-  const handleDeliver = useCallback(async (id: number) => {
-    if (!confirm("Confirmer la livraison et l'encaissement ?")) return;
-    const order = orders.find(o => o.id === id);
-    if (!order) return;
-    const now = new Date().toISOString();
-    // Commission closureuse seulement si commande confirmée par une closureuse
-    const closerComm = order.closer_id ? 500 : 0;
-    const payload = {
-      status: "Livré", logistic_status: "Livré", payment_status: "Payé",
-      cash_collected: true, cash_collected_at: now,
-      cash_collected_by: profile?.full_name || null,
-      driver_commission: commissionRules.driver, closer_commission: closerComm,
-      commission_calculated: true, delivered_at: now,
-    };
-    const { error } = await supabase.from("orders").update(payload).eq("id", id);
-    if (error) { toast("Erreur : " + error.message, "error"); return; }
-    // Décrémenter stock
-    if (order.product) {
-      const s = stock.find(i => i.product_name.toLowerCase() === order.product.toLowerCase());
-      if (s && s.quantity > 0) {
-        await supabase.from("driver_stock").update({ quantity: Math.max(0, s.quantity - (order.quantity || 1)) }).eq("id", s.id);
+  const handleDeliver = useCallback((id: number) => {
+    confirm({
+      message: "Confirmer la livraison et l'encaissement ?",
+      confirmLabel: "🎯 Confirmer",
+      onConfirm: async () => {
+        const order = orders.find(o => o.id === id);
+        if (!order) return;
+        const now = new Date().toISOString();
+        const closerComm = order.closer_id ? 500 : 0;
+        const payload = {
+          status: "Livré", logistic_status: "Livré", payment_status: "Payé",
+          cash_collected: true, cash_collected_at: now,
+          cash_collected_by: profile?.full_name || null,
+          driver_commission: commissionRules.driver, closer_commission: closerComm,
+          commission_calculated: true, delivered_at: now,
+        };
+        const { error } = await supabase.from("orders").update(payload).eq("id", id);
+        if (error) { toast("Erreur : " + error.message, "error"); return; }
+        if (order.product) {
+          const s = stock.find(i => i.product_name.toLowerCase() === order.product.toLowerCase());
+          if (s && s.quantity > 0) {
+            await supabase.from("driver_stock").update({ quantity: Math.max(0, s.quantity - (order.quantity || 1)) }).eq("id", s.id);
+          }
+        }
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
+        toast("✅ Livré + Payé ! Commission enregistrée.", "success");
       }
-    }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    toast("✅ Livré + Payé ! Commission enregistrée.", "success");
+    });
   }, [orders, profile, stock]);
 
-  const handleSendToGare = useCallback(async (id: number) => {
-    if (!confirm("Confirmer envoi à la gare ?")) return;
-    const order = orders.find(o => o.id === id);
-    const now = new Date().toISOString();
-    const closerComm = order?.closer_id ? 500 : 0;
-    const payload = {
-      status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
-      cash_collected: true, cash_collected_at: now,
-      cash_collected_by: profile?.full_name || null,
-      driver_commission: commissionRules.driver, closer_commission: closerComm,
-      commission_calculated: true, delivered_at: now,
-    };
-    const { error } = await supabase.from("orders").update(payload).eq("id", id);
-    if (error) { toast("Erreur : " + error.message, "error"); return; }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    toast("✅ Envoyé à la gare ! Commission enregistrée.", "success");
+  const handleSendToGare = useCallback((id: number) => {
+    confirm({
+      message: "Confirmer envoi à la gare ?",
+      confirmLabel: "🚌 Confirmer",
+      onConfirm: async () => {
+        const order = orders.find(o => o.id === id);
+        const now = new Date().toISOString();
+        const closerComm = order?.closer_id ? 500 : 0;
+        const payload = {
+          status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
+          cash_collected: true, cash_collected_at: now,
+          cash_collected_by: profile?.full_name || null,
+          driver_commission: commissionRules.driver, closer_commission: closerComm,
+          commission_calculated: true, delivered_at: now,
+        };
+        const { error } = await supabase.from("orders").update(payload).eq("id", id);
+        if (error) { toast("Erreur : " + error.message, "error"); return; }
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
+        toast("✅ Envoyé à la gare ! Commission enregistrée.", "success");
+      }
+    });
   }, [orders, profile]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
-import { toast, ToastContainer } from "@/components/ui/Toast";
+import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 const S = {
@@ -128,24 +128,35 @@ export function ClosureuseView() {
     setRefreshing(false);
   };
 
-  const handleConfirm = useCallback(async (id: number) => {
-    if (!confirm("Confirmer cette commande ?")) return;
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("orders").update({
-      status: "Confirmé",
+  const handleConfirm = useCallback((id: number) => {
+    confirm({
+      message: "Confirmer cette commande ?",
+      confirmLabel: "✅ Confirmer",
+      onConfirm: async () => {
+        const now = new Date().toISOString();
+        const { error } = await supabase.from("orders").update({
+          status: "Confirmé",
       confirmed_at: now,
       closer_id: profile?.id || null,
       closer_name: profile?.full_name || null,
     }).eq("id", id);
     if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id || null, closer_name: profile?.full_name || null } : o));
+      }
+    });
   }, [profile]);
 
-  const handleCancel = useCallback(async (id: number) => {
-    if (!confirm("Annuler cette commande ?")) return;
-    const { error } = await supabase.from("orders").update({ status: "Annulé", cancelled_at: new Date().toISOString() }).eq("id", id);
-    if (error) { toast("Erreur : " + error.message, "error"); return; }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Annulé" } : o));
+  const handleCancel = useCallback((id: number) => {
+    confirm({
+      message: "Annuler cette commande ?",
+      confirmLabel: "❌ Annuler",
+      danger: true,
+      onConfirm: async () => {
+        const { error } = await supabase.from("orders").update({ status: "Annulé", cancelled_at: new Date().toISOString() }).eq("id", id);
+        if (error) { toast("Erreur : " + error.message, "error"); return; }
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Annulé" } : o));
+      }
+    });
   }, []);
 
   const handleAssignSubmit = async () => {
