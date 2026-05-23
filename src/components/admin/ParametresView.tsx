@@ -2,6 +2,36 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/app/lib/supabase"
+import { setCurrency } from "@/lib/utils"
+
+const CURRENCIES = [
+  { code: "FCFA", name: "FCFA — Franc CFA (Afrique de l'Ouest)" },
+  { code: "XAF",  name: "XAF — Franc CFA (Afrique Centrale)" },
+  { code: "USD",  name: "USD — Dollar américain" },
+  { code: "EUR",  name: "EUR — Euro" },
+  { code: "GBP",  name: "GBP — Livre sterling" },
+  { code: "CAD",  name: "CAD — Dollar canadien" },
+  { code: "CHF",  name: "CHF — Franc suisse" },
+  { code: "NGN",  name: "NGN — Naira nigérian" },
+  { code: "GHS",  name: "GHS — Cedi ghanéen" },
+  { code: "GNF",  name: "GNF — Franc guinéen" },
+  { code: "MAD",  name: "MAD — Dirham marocain" },
+  { code: "DZD",  name: "DZD — Dinar algérien" },
+  { code: "TND",  name: "TND — Dinar tunisien" },
+  { code: "EGP",  name: "EGP — Livre égyptienne" },
+  { code: "ZAR",  name: "ZAR — Rand sud-africain" },
+  { code: "KES",  name: "KES — Shilling kényan" },
+  { code: "ETB",  name: "ETB — Birr éthiopien" },
+  { code: "AED",  name: "AED — Dirham des Émirats" },
+  { code: "SAR",  name: "SAR — Riyal saoudien" },
+  { code: "QAR",  name: "QAR — Riyal qatari" },
+  { code: "BRL",  name: "BRL — Real brésilien" },
+  { code: "MXN",  name: "MXN — Peso mexicain" },
+  { code: "INR",  name: "INR — Roupie indienne" },
+  { code: "CNY",  name: "CNY — Yuan chinois" },
+  { code: "JPY",  name: "JPY — Yen japonais" },
+  { code: "AUD",  name: "AUD — Dollar australien" },
+]
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
@@ -28,12 +58,13 @@ interface TenantSettings {
   tiktok_pixel_id: string
   closer_commission: number
   driver_commission: number
+  currency: string
 }
 
 const EMPTY: TenantSettings = {
   name: "", phone: "", delivery_fee: 0,
   facebook_pixel_id: "", facebook_access_token: "", tiktok_pixel_id: "",
-  closer_commission: 500, driver_commission: 2000,
+  closer_commission: 500, driver_commission: 2000, currency: "FCFA",
 }
 
 export default function ParametresView({ tenantId }: Props) {
@@ -57,7 +88,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency")
       .eq("id", tenantId)
       .single()
 
@@ -71,6 +102,7 @@ export default function ParametresView({ tenantId }: Props) {
         tiktok_pixel_id: data.tiktok_pixel_id || "",
         closer_commission: data.closer_commission || 500,
         driver_commission: data.driver_commission || 2000,
+        currency: data.currency || "FCFA",
       })
       setLienCommande(`shipivo.app/commander/${data.slug}`)
     }
@@ -123,15 +155,17 @@ export default function ParametresView({ tenantId }: Props) {
       tiktok_pixel_id: settings.tiktok_pixel_id || null,
       closer_commission: settings.closer_commission,
       driver_commission: settings.driver_commission,
+      currency: settings.currency,
     }).eq("id", tenantId)
 
     if (err) { setError(err.message); setSaving(false); return }
+    setCurrency(settings.currency)
     setSuccess("Paramètres enregistrés ✓")
     setSaving(false)
     setTimeout(() => setSuccess(""), 3000)
   }
 
-  const set = (k: keyof TenantSettings) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (k: keyof TenantSettings) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setSettings(p => ({ ...p, [k]: e.target.type === "number" ? Number(e.target.value) : e.target.value }))
 
   const inp = { width: "100%", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }
@@ -213,14 +247,30 @@ export default function ParametresView({ tenantId }: Props) {
       </Section>
 
       {/* Commissions */}
+      <Section title="💱 Devise">
+        <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <p style={{ color: S.gold, fontSize: 12, margin: 0 }}>
+            Tous les montants de ton espace seront affichés dans cette devise.
+          </p>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 13, marginBottom: 6 }}>Devise utilisée</label>
+          <select value={settings.currency} onChange={e => setSettings(s => ({ ...s, currency: e.target.value }))} style={inp}>
+            {CURRENCIES.map(c => (
+              <option key={c.code} value={c.code} style={{ background: "#111118" }}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </Section>
+
       <Section title="💰 Commissions équipe">
         <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
           <p style={{ color: S.info, fontSize: 12, margin: 0 }}>
             Commission fixe par livraison réussie. Tu peux configurer selon tes accords.
           </p>
         </div>
-        <Field label="Commission closureuse (FCFA par commande)" value={String(settings.closer_commission)} onChange={set("closer_commission")} inp={inp} type="number" />
-        <Field label="Commission livreur (FCFA par livraison)" value={String(settings.driver_commission)} onChange={set("driver_commission")} inp={inp} type="number" />
+        <Field label={`Commission closureuse (${settings.currency} par commande)`} value={String(settings.closer_commission)} onChange={set("closer_commission")} inp={inp} type="number" />
+        <Field label={`Commission livreur (${settings.currency} par livraison)`} value={String(settings.driver_commission)} onChange={set("driver_commission")} inp={inp} type="number" />
       </Section>
 
       {/* Pixel Facebook */}
