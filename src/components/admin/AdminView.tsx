@@ -180,106 +180,133 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
   onActionSubmit: (o: Order) => void;
   onEditClick: (o: Order) => void;
 }) {
-  const [tab, setTab] = useState<"encours" | "historique">("encours");
-  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("aujourd_hui");
+  const [search, setSearch]       = useState("");
+  const [driverFilter, setDriverFilter] = useState("Tous");
 
-  const filtered = useMemo(() => {
-    const list = tab === "encours" ? orders.filter(isEnCours) : orders.filter(isHistorique);
-    if (!search) return list;
+  const now      = new Date();
+  const todayStr = now.toDateString();
+
+  const filterFn = (o: Order) => {
+    const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter;
     const q = search.toLowerCase();
-    return list.filter(o =>
-      o.customer_name.toLowerCase().includes(q) ||
-      o.phone.includes(q) ||
-      o.city.toLowerCase().includes(q) ||
-      (o.driver_name || "").toLowerCase().includes(q)
-    );
-  }, [orders, tab, search]);
+    const matchSearch = !q || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product || ""].join(" ").toLowerCase().includes(q);
+    return matchDriver && matchSearch;
+  };
 
-  const enCoursCount    = orders.filter(isEnCours).length;
-  const historiqueCount = orders.filter(isHistorique).length;
+  const enCours    = orders.filter(isEnCours);
+  const historique = orders.filter(isHistorique);
+
+  const section1 = enCours.filter(o => new Date(o.created_at || "").toDateString() === todayStr && o.status === "En attente").filter(filterFn);
+  const section2 = enCours.filter(o => { const h = (now.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente"; }).filter(filterFn);
+  const section3 = enCours.filter(o => o.status === "Confirmé").filter(filterFn);
+  const section4 = historique.filter(filterFn);
+
+  const visible = activeTab === "aujourd_hui" ? section1
+    : activeTab === "retard"   ? section2
+    : activeTab === "confirme" ? section3
+    : section4;
+
+  const TABS = [
+    { id: "aujourd_hui", label: "⚡ Aujourd'hui", count: section1.length, color: S.gold,    bg: "#1a1200" },
+    { id: "retard",      label: "🔴 En retard",   count: section2.length, color: S.danger,  bg: "#2D0F0F" },
+    { id: "confirme",    label: "✅ Confirmées",   count: section3.length, color: S.info,    bg: "#0C1E3E" },
+    { id: "historique",  label: "📋 Historique",   count: section4.length, color: S.text2,   bg: S.card },
+  ];
 
   return (
     <div>
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 4, marginBottom: 12 }}>
-        {(["encours", "historique"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, padding: "8px 0", borderRadius: 9, fontSize: 13, fontWeight: 600,
-            border: "none", cursor: "pointer",
-            backgroundColor: tab === t ? S.gold : "transparent",
-            color: tab === t ? "#000" : S.text2,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+      {/* 4 onglets */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            padding: "9px 14px", border: `1px solid ${activeTab === tab.id ? tab.color : S.border}`,
+            borderRadius: 20, cursor: "pointer", fontSize: 13,
+            fontWeight: activeTab === tab.id ? 700 : 400,
+            whiteSpace: "nowrap" as const, flexShrink: 0,
+            background: activeTab === tab.id ? tab.bg : S.card,
+            color: activeTab === tab.id ? tab.color : S.text2,
           }}>
-            {t === "encours" ? "En cours" : "Historique"}
-            <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 20, backgroundColor: tab === t ? "rgba(0,0,0,0.2)" : S.border, color: tab === t ? "#000" : S.text3 }}>
-              {t === "encours" ? enCoursCount : historiqueCount}
-            </span>
+            {tab.label}
+            {tab.count > 0 && (
+              <span style={{ marginLeft: 6, background: activeTab === tab.id ? tab.color : S.border,
+                color: activeTab === tab.id ? "#000" : S.text3,
+                padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Search */}
-      <input type="text" placeholder="🔍  Chercher client, ville, livreur..." value={search} onChange={e => setSearch(e.target.value)}
-        style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${S.border}`, backgroundColor: S.card, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const, marginBottom: 12 }} />
+      {/* Recherche */}
+      <input type="text" placeholder="🔍 Chercher client, ville, livreur..." value={search} onChange={e => setSearch(e.target.value)}
+        style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${S.border}`, backgroundColor: S.card, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const, marginBottom: 10 }} />
 
-      {/* Liste */}
-      {filtered.length === 0 ? (
-        <div style={{ border: `1px solid ${S.border}`, borderRadius: 14, padding: "48px 0", textAlign: "center", fontSize: 13, color: S.text3 }}>Aucune commande</div>
-      ) : (
-        filtered.map(order => (
-          <div key={order.id} style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px 8px" }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: S.text }}>{order.customer_name}</div>
-                <div style={{ fontSize: 11, color: S.text3, marginTop: 2 }}>📍 {order.city} · #{order.id} · {fmtDate(order.created_at)}</div>
-                <div style={{ fontSize: 11, color: S.text2, marginTop: 2 }}>{order.address}</div>
-              </div>
-              <Badge status={order.status} />
+      {/* Filtre livreur */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
+        {["Tous", ...drivers.map(d => d.full_name)].map(name => (
+          <button key={name} onClick={() => setDriverFilter(name)} style={{
+            padding: "7px 13px", border: `1px solid ${driverFilter === name ? S.gold : S.border}`,
+            borderRadius: 20, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" as const, flexShrink: 0,
+            fontWeight: driverFilter === name ? 700 : 400,
+            background: driverFilter === name ? S.gold : S.card,
+            color:      driverFilter === name ? "#000" : S.text2,
+          }}>
+            {name === "Tous" ? "Tous livreurs" : name}
+          </button>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 13, color: S.text3, marginBottom: 12 }}>{visible.length} commande(s)</p>
+
+      {visible.length === 0 ? (
+        <div style={{ border: `1px solid ${S.border}`, borderRadius: 14, padding: "48px 0", textAlign: "center", fontSize: 13, color: S.text3 }}>Aucune commande dans cet onglet</div>
+      ) : visible.map(order => (
+        <div key={order.id} style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px 8px" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: S.text }}>{order.customer_name}</div>
+              <div style={{ fontSize: 11, color: S.text3, marginTop: 2 }}>📍 {order.city} · #{order.id} · {fmtDate(order.created_at)}</div>
+              <div style={{ fontSize: 11, color: S.text2, marginTop: 2 }}>{order.address}</div>
             </div>
-
-            {/* Produit + montant */}
-            <div style={{ margin: "0 12px 10px", backgroundColor: "#0A0A0F", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: S.text2 }}>{order.quantity ?? 1}× {order.product}</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: S.gold }}>{fmt(order.amount)}</span>
-            </div>
-
-            {/* Livreur assigné */}
-            {order.driver_name && (
-              <div style={{ padding: "0 14px 8px", fontSize: 11, color: S.info }}>🛵 {order.driver_name}</div>
-            )}
-
-            {/* Actions */}
-            <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 12px" }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <a href={callUrl(order.phone)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.success, textDecoration: "none" }}>📞 Appeler</a>
-                <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.green, textDecoration: "none" }}>💬 WhatsApp</a>
-                <button onClick={() => onEditClick(order)} style={{ flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.text2, backgroundColor: "transparent", cursor: "pointer" }}>✏️ Modifier</button>
-              </div>
-
-              {isEnCours(order) && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <select value={selectedDrivers[order.id] || ""} onChange={e => onDriverChange(order.id, e.target.value)}
-                    style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
-                    <option value="">Livreur...</option>
-                    {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                  </select>
-                  <select value={selectedActions[order.id] || ""} onChange={e => onActionChange(order.id, e.target.value)}
-                    style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
-                    <option value="">Action...</option>
-                    <option value="confirmer">✓ Confirmer</option>
-                    <option value="assigner">🛵 Assigner</option>
-                    <option value="livre_paye">🎯 Livré + Payé</option>
-                    <option value="gare">🚌 Gare</option>
-                    <option value="annuler">❌ Annuler</option>
-                  </select>
-                  <button onClick={() => onActionSubmit(order)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer" }}>OK</button>
-                </div>
-              )}
-            </div>
+            <Badge status={order.status} />
           </div>
-        ))
-      )}
+          <div style={{ margin: "0 12px 10px", backgroundColor: "#0A0A0F", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: S.text2 }}>{order.quantity ?? 1}× {order.product}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: S.gold }}>{fmt(order.amount)}</span>
+          </div>
+          {order.driver_name && (
+            <div style={{ padding: "0 14px 8px", fontSize: 11, color: S.info }}>🛵 {order.driver_name}</div>
+          )}
+          <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 12px" }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <a href={callUrl(order.phone)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.success, textDecoration: "none" }}>📞 Appeler</a>
+              <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.green, textDecoration: "none" }}>💬 WhatsApp</a>
+              <button onClick={() => onEditClick(order)} style={{ flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.text2, backgroundColor: "transparent", cursor: "pointer" }}>✏️ Modifier</button>
+            </div>
+            {isEnCours(order) && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={selectedDrivers[order.id] || ""} onChange={e => onDriverChange(order.id, e.target.value)}
+                  style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
+                  <option value="">Livreur...</option>
+                  {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+                <select value={selectedActions[order.id] || ""} onChange={e => onActionChange(order.id, e.target.value)}
+                  style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
+                  <option value="">Action...</option>
+                  <option value="confirmer">✓ Confirmer</option>
+                  <option value="assigner">🛵 Assigner</option>
+                  <option value="livre_paye">🎯 Livré + Payé</option>
+                  <option value="gare">🚌 Gare</option>
+                  <option value="annuler">❌ Annuler</option>
+                </select>
+                <button onClick={() => onActionSubmit(order)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer" }}>OK</button>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
