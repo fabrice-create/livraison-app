@@ -924,13 +924,13 @@ export function AdminView() {
         });
       }
     }
-    const { data: profiles } = await supabase.from("profiles").select("*").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("*").eq("tenant_id", tid).order("full_name");
     if (profiles) {
       const all = profiles as Profile[];
       setDrivers(all.filter(pr => normalizeRole(pr.role) === "livreur"));
       setClosers(all.filter(pr => normalizeRole(pr.role) === "closureuse"));
     }
-    const { data: od } = await supabase.from("orders").select("*").order("id", { ascending: false });
+    const { data: od } = await supabase.from("orders").select("*").eq("tenant_id", tid).order("id", { ascending: false });
     const fetched = (od as Order[]) || [];
     setOrders(fetched);
     const sel: Record<number, string> = {}; const act: Record<number, string> = {};
@@ -938,7 +938,9 @@ export function AdminView() {
     setSelectedDrivers(sel); setSelectedActions(act);
     const { data: sd } = await supabase.from("driver_stock").select("*").order("id", { ascending: false });
     setDriverStocks((sd as DriverStock[]) || []);
-    const { data: hd } = await supabase.from("order_history").select("*").order("created_at", { ascending: false });
+    const { data: hd } = await supabase.from("order_history").select("*")
+      .in("order_id", (od as Order[]).map(o => o.id))
+      .order("created_at", { ascending: false });
     setHistory((hd as OrderHistory[]) || []);
     setAuthLoading(false);
   };
@@ -1024,6 +1026,7 @@ export function AdminView() {
     e.preventDefault(); setLoading(true);
     const { data, error } = await supabase.from("orders").insert([{
       ...form, quantity: Number(form.quantity), delivery_type: normDT(form.delivery_type), amount: Number(form.amount),
+      tenant_id: tenantId,
       cash_collected: false, status: "En attente", logistic_status: "En attente", payment_status: "Non payé",
       is_assigned: false, closer_id: profile?.id || null, closer_name: profile?.full_name || null,
       closer_commission: 0, driver_commission: 0, commission_calculated: false,

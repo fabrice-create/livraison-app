@@ -106,7 +106,7 @@ export function ClosureuseView() {
   const loadData = async (tenantId: string) => {
     // Charger en parallèle pour aller plus vite
     const [ordersRes, profilesRes] = await Promise.all([
-      supabase.from("orders").select("*").order("id", { ascending: false }),
+      supabase.from("orders").select("*").eq("tenant_id", tenantId).order("id", { ascending: false }),
       supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId)
     ]);
     setOrders((ordersRes.data as Order[]) || []);
