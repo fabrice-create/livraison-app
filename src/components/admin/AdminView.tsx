@@ -61,14 +61,25 @@ function Badge({ status }: { status?: string | null }) {
 }
 
 function NavBtn({ id, label, active, onClick }: { id: string; label: string; active: boolean; onClick: () => void }) {
+  // Extraire emoji + texte court pour mobile
+  const parts = label.split(" ");
+  const emoji = parts[0];
+  const text = parts.slice(1).join(" ");
   return (
     <button onClick={onClick} style={{
-      padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-      border: "none", cursor: "pointer", whiteSpace: "nowrap" as const,
-      backgroundColor: active ? S.gold : S.card,
-      color: active ? "#000" : S.text2,
+      padding: "10px 12px", border: "none", cursor: "pointer",
+      whiteSpace: "nowrap" as const, flexShrink: 0,
+      backgroundColor: "transparent",
+      color: active ? S.gold : S.text2,
+      fontWeight: active ? 700 : 500,
+      fontSize: 12,
       borderBottom: active ? `2px solid ${S.gold}` : "2px solid transparent",
-    }}>{label}</button>
+      display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2,
+      minWidth: 52,
+    }}>
+      <span style={{ fontSize: 16 }}>{emoji}</span>
+      <span style={{ fontSize: 10 }}>{text.split(" ")[0]}</span>
+    </button>
   );
 }
 
@@ -283,9 +294,9 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
           )}
           <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 12px" }}>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <a href={callUrl(order.phone)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.success, textDecoration: "none" }}>📞 Appeler</a>
-              <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.green, textDecoration: "none" }}>💬 WhatsApp</a>
-              <button onClick={() => onEditClick(order)} style={{ flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.text2, backgroundColor: "transparent", cursor: "pointer" }}>✏️ Modifier</button>
+              <a href={callUrl(order.phone)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.success, textDecoration: "none" }}>📞 Appeler</a>
+              <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.green, textDecoration: "none" }}>💬 WhatsApp</a>
+              <button onClick={() => onEditClick(order)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.text2, backgroundColor: "transparent", cursor: "pointer" }}>✏️ Modifier</button>
             </div>
             {isEnCours(order) && (
               <div style={{ display: "flex", gap: 6 }}>
@@ -303,7 +314,7 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
                   <option value="gare">🚌 Gare</option>
                   <option value="annuler">❌ Annuler</option>
                 </select>
-                <button onClick={() => onActionSubmit(order)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer" }}>OK</button>
+                <button onClick={() => onActionSubmit(order)} style={{ padding: "10px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer" }}>OK</button>
               </div>
             )}
           </div>
@@ -1124,17 +1135,24 @@ export function AdminView() {
       )}
 
       {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
-          <div style={{ fontSize: 11, color: S.text3 }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #F59E0B, #D97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0 }}>
+            {profile?.full_name?.[0]?.toUpperCase() || "A"}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: S.gold }}>Shipivo</div>
+            <div style={{ fontSize: 10, color: S.text3, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
+          </div>
         </div>
-        {tenantId && <NotificationBell tenantId={tenantId} />}
-        <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer" }}>Déconnexion</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {tenantId && <NotificationBell tenantId={tenantId} />}
+          <button onClick={handleLogout} style={{ padding: "6px 10px", borderRadius: 8, fontSize: 11, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer", whiteSpace: "nowrap" as const }}>⏻</button>
+        </div>
       </div>
 
       {/* Nav */}
-      <div style={{ borderBottom: `1px solid ${S.border}`, padding: "0 12px", display: "flex", gap: 2, overflowX: "auto" as const, scrollbarWidth: "none" as const }}>
+      <div style={{ borderBottom: `1px solid ${S.border}`, backgroundColor: S.card, display: "flex", overflowX: "auto" as const, scrollbarWidth: "none" as const, WebkitOverflowScrolling: "touch" as unknown as undefined }}>
         {navItems.map(n => <NavBtn key={n.id} id={n.id} label={n.label} active={activeView === n.id} onClick={() => setActiveView(n.id)} />)}
       </div>
 

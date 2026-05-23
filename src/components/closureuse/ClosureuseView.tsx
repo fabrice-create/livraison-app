@@ -227,11 +227,11 @@ export function ClosureuseView() {
   });
 
   const navTabs = [
-    { id: "dashboard", label: "📊 Dashboard" },
-    { id: "commandes", label: `📦 Mes cmd (${enCours.length})` },
-    { id: "assigner", label: `👤 Assigner${nonAssigned.length > 0 ? ` (${nonAssigned.length})` : ""}` },
-    { id: "commissions", label: "💰 Commissions" },
-    { id: "stocks", label: "📦 Stocks" },
+    { id: "dashboard",   emoji: "📊", short: "Dashboard" },
+    { id: "commandes",   emoji: "📦", short: `Cmd (${enCours.length})` },
+    { id: "assigner",    emoji: "👤", short: `Assign${nonAssigned.length > 0 ? ` (${nonAssigned.length})` : ""}` },
+    { id: "commissions", emoji: "💰", short: "Commiss." },
+    { id: "stocks",      emoji: "🗄️", short: "Stocks" },
   ];
 
   if (loading) return (
@@ -308,11 +308,12 @@ export function ClosureuseView() {
       )}
 
       {/* Nav */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, background: S.card, overflowX: "auto" }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, background: S.card, overflowX: "auto" as const, scrollbarWidth: "none" as const }}>
         {navTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as Tab)}
-            style={{ flex: 1, padding: "12px 10px", border: "none", borderBottom: tab === t.id ? `2px solid ${S.gold}` : "2px solid transparent", background: "transparent", color: tab === t.id ? S.gold : S.text2, fontWeight: tab === t.id ? 700 : 400, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {t.label}
+            style={{ flex: 1, padding: "10px 8px", border: "none", borderBottom: tab === t.id ? `2px solid ${S.gold}` : "2px solid transparent", background: "transparent", color: tab === t.id ? S.gold : S.text2, fontWeight: tab === t.id ? 700 : 400, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, minWidth: 52 }}>
+            <span style={{ fontSize: 18 }}>{t.emoji}</span>
+            <span>{t.short}</span>
           </button>
         ))}
       </div>

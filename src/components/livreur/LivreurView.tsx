@@ -266,11 +266,12 @@ export function LivreurView() {
       </div>
 
       {/* Nav */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, backgroundColor: S.card, overflowX: "auto" }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, backgroundColor: S.card, overflowX: "auto" as const, scrollbarWidth: "none" as const }}>
         {navTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as Tab)}
-            style={{ flex: 1, padding: "12px 8px", border: "none", borderBottom: tab === t.id ? `2px solid ${S.gold}` : "2px solid transparent", backgroundColor: "transparent", color: tab === t.id ? S.gold : S.text2, fontWeight: tab === t.id ? 700 : 400, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {t.full}
+            style={{ flex: 1, padding: "10px 8px", border: "none", borderBottom: tab === t.id ? `2px solid ${S.gold}` : "2px solid transparent", backgroundColor: "transparent", color: tab === t.id ? S.gold : S.text2, fontWeight: tab === t.id ? 700 : 400, fontSize: 10, cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, minWidth: 52 }}>
+            <span style={{ fontSize: 18 }}>{t.label}</span>
+            <span>{t.full.split(" ")[0]}</span>
           </button>
         ))}
       </div>
