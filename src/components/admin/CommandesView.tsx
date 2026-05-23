@@ -119,39 +119,59 @@ export default function CommandesView({
         </div>
       ) : (
         <div>
+          {/* Commandes d'aujourd'hui */}
           {localStatusState === "encours" && todayEnCours.length > 0 && (
-            <p style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-              ⚡ AUJOURD&apos;HUI ({todayEnCours.length})
-            </p>
-          )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-          {visibleOrders.map((order, idx) => {
-            const isFirstOther = localStatusState === "encours" && todayEnCours.length > 0 && idx === todayEnCours.length
-            return (
-              <div key={order.id}>
-                {isFirstOther && (
-                  <p style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12, gridColumn: "1 / -1" }}>
-                    JOURS PRÉCÉDENTS ({otherEnCours.length})
-                  </p>
-                )}
-                <OrderCard
-                  order={order}
-              drivers={drivers}
-              selectedDriver={selectedDrivers[order.id] || ""}
-              selectedAction={selectedActions[order.id] || ""}
-              actions={getActions(order)}
-              onEditClick={onEditClick}
-              onDriverChange={(id) => onDriverChange(order.id, id)}
-              onActionChange={(a) => onActionChange(order.id, a)}
-              onActionSubmit={() => onActionSubmit(order)}
-              history={history.filter((h) => h.order_id === order.id)}
-              showEditButton
-              showActions
-            />
+            <div>
+              <p style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+                ⚡ AUJOURD&apos;HUI — {todayEnCours.length} commande(s)
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16, marginBottom: otherEnCours.length > 0 ? 24 : 0 }}>
+                {todayEnCours.filter(o => {
+                  const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
+                  const q = search.trim().toLowerCase()
+                  const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q)
+                  return matchDriver && matchSearch
+                }).map(order => (
+                  <OrderCard key={order.id} order={order} drivers={drivers}
+                    selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
+                    actions={getActions(order)} onEditClick={onEditClick}
+                    onDriverChange={(id) => onDriverChange(order.id, id)}
+                    onActionChange={(a) => onActionChange(order.id, a)}
+                    onActionSubmit={() => onActionSubmit(order)}
+                    history={history.filter((h) => h.order_id === order.id)}
+                    showEditButton showActions />
+                ))}
               </div>
-            )
-          })}
-          </div>
+            </div>
+          )}
+
+          {/* Commandes jours précédents ou historique */}
+          {(localStatusState !== "encours" || otherEnCours.length > 0) && (
+            <div>
+              {localStatusState === "encours" && otherEnCours.length > 0 && (
+                <p style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
+                  JOURS PRÉCÉDENTS — {otherEnCours.length} commande(s)
+                </p>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+                {(localStatusState === "encours" ? otherEnCours : historiqueOrders).filter(o => {
+                  const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
+                  const q = search.trim().toLowerCase()
+                  const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q)
+                  return matchDriver && matchSearch
+                }).map(order => (
+                  <OrderCard key={order.id} order={order} drivers={drivers}
+                    selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
+                    actions={getActions(order)} onEditClick={onEditClick}
+                    onDriverChange={(id) => onDriverChange(order.id, id)}
+                    onActionChange={(a) => onActionChange(order.id, a)}
+                    onActionSubmit={() => onActionSubmit(order)}
+                    history={history.filter((h) => h.order_id === order.id)}
+                    showEditButton showActions />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
