@@ -45,36 +45,24 @@ export default function CommandesView({
   const enCoursOrders    = useMemo(() => orders.filter(isEnCours),    [orders])
   const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
-  // 3 niveaux de priorité — calculés à chaque render pour avoir now à jour
-  const now = new Date()
-  const today = now.toDateString()
-
-  const todayOrders     = enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() === today && o.status === "En attente")
-  const lateOrders      = enCoursOrders.filter(o => { const h = (now.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente" })
-  const confirmedOrders = enCoursOrders.filter(o => o.status === "Confirmé")
-
-  const applyFilters = (list: typeof orders) => list.filter(o => {
+  const filterFn = (o: typeof orders[0]) => {
     const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
     const q = search.trim().toLowerCase()
-    const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product, String(o.amount || "")].join(" ").toLowerCase().includes(q)
+    const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q)
     return matchDriver && matchSearch
-  })
+  }
 
-  const visibleOrders = useMemo(() => {
-    const now2 = new Date()
-    const today2 = now2.toDateString()
-    const enc = orders.filter(isEnCours)
-    const t = enc.filter(o => new Date(o.created_at || "").toDateString() === today2 && o.status === "En attente")
-    const l = enc.filter(o => { const h = (now2.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente" })
-    const c = enc.filter(o => o.status === "Confirmé")
-    const base = localStatusState === "encours" ? [...t, ...l, ...c] : orders.filter(isHistorique)
-    return base.filter(o => {
-      const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
-      const q = search.trim().toLowerCase()
-      return (driverFilter === "Tous" || o.driver_name === driverFilter) &&
-        (q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q))
-    })
-  }, [orders, localStatusState, driverFilter, search])
+  const now = new Date()
+  const todayStr = now.toDateString()
+
+  const section1 = enCoursOrders.filter(o => new Date(o.created_at || "").toDateString() === todayStr && o.status === "En attente").filter(filterFn)
+  const section2 = enCoursOrders.filter(o => { const h = (now.getTime() - new Date(o.created_at || "").getTime()) / 3600000; return h > 24 && o.status === "En attente" }).filter(filterFn)
+  const section3 = enCoursOrders.filter(o => o.status === "Confirmé").filter(filterFn)
+  const sectionHist = historiqueOrders.filter(filterFn)
+
+  const visibleOrders = localStatusState === "encours"
+    ? [...section1, ...section2, ...section3]
+    : sectionHist
 
   const getActions = (order: Order) => {
     const actions = [
@@ -134,7 +122,7 @@ export default function CommandesView({
         </div>
       ) : localStatusState === "historique" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-          {visibleOrders.map(order => (
+          {sectionHist.map(order => (
             <OrderCard key={order.id} order={order} drivers={drivers}
               selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
               actions={getActions(order)} onEditClick={onEditClick}
@@ -147,14 +135,14 @@ export default function CommandesView({
         </div>
       ) : (
         <div>
-          {/* 1. Aujourd'hui */}
-          {applyFilters(todayOrders).length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <p style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-                ⚡ AUJOURD&apos;HUI — {applyFilters(todayOrders).length} commande(s)
-              </p>
+          {section1.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 14px", background: "#1a1200", borderRadius: 10, borderLeft: "3px solid #F59E0B" }}>
+                <span style={{ fontSize: 14 }}>⚡</span>
+                <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.06em" }}>AUJOURD&apos;HUI — {section1.length} commande(s)</span>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-                {applyFilters(todayOrders).map(order => (
+                {section1.map(order => (
                   <OrderCard key={order.id} order={order} drivers={drivers}
                     selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
                     actions={getActions(order)} onEditClick={onEditClick}
@@ -168,14 +156,14 @@ export default function CommandesView({
             </div>
           )}
 
-          {/* 2. En retard +24h */}
-          {applyFilters(lateOrders).length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <p style={{ fontSize: 11, color: "#F87171", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-                🔴 EN RETARD +24H — {applyFilters(lateOrders).length} commande(s)
-              </p>
+          {section2.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 14px", background: "#2D0F0F", borderRadius: 10, borderLeft: "3px solid #F87171" }}>
+                <span style={{ fontSize: 14 }}>🔴</span>
+                <span style={{ fontSize: 12, color: "#F87171", fontWeight: 700, letterSpacing: "0.06em" }}>EN RETARD +24H — {section2.length} commande(s)</span>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-                {applyFilters(lateOrders).map(order => (
+                {section2.map(order => (
                   <OrderCard key={order.id} order={order} drivers={drivers}
                     selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
                     actions={getActions(order)} onEditClick={onEditClick}
@@ -189,14 +177,14 @@ export default function CommandesView({
             </div>
           )}
 
-          {/* 3. Confirmées */}
-          {applyFilters(confirmedOrders).length > 0 && (
+          {section3.length > 0 && (
             <div>
-              <p style={{ fontSize: 11, color: "#60A5FA", fontWeight: 700, letterSpacing: "0.06em", marginBottom: 12 }}>
-                ✅ CONFIRMÉES — {applyFilters(confirmedOrders).length} commande(s)
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 14px", background: "#0C1E3E", borderRadius: 10, borderLeft: "3px solid #60A5FA" }}>
+                <span style={{ fontSize: 14 }}>✅</span>
+                <span style={{ fontSize: 12, color: "#60A5FA", fontWeight: 700, letterSpacing: "0.06em" }}>CONFIRMÉES — {section3.length} commande(s)</span>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-                {applyFilters(confirmedOrders).map(order => (
+                {section3.map(order => (
                   <OrderCard key={order.id} order={order} drivers={drivers}
                     selectedDriver={selectedDrivers[order.id] || ""} selectedAction={selectedActions[order.id] || ""}
                     actions={getActions(order)} onEditClick={onEditClick}
