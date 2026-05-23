@@ -26,16 +26,20 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
   const lowStock = stock.filter(s => Number(s.quantity) <= 2);
 
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showGive, setShowGive] = useState(false);
   const [otherDrivers, setOtherDrivers] = useState<Profile[]>([]);
   const [otherStocks, setOtherStocks] = useState<DriverStock[]>([]);
   const [fromDriverId, setFromDriverId] = useState("");
+  const [toDriverId, setToDriverId] = useState("");
   const [productName, setProductName] = useState("");
+  const [giveProductName, setGiveProductName] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [giveQuantity, setGiveQuantity] = useState("1");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (showTransfer) void loadOtherDrivers();
-  }, [showTransfer]);
+    if (showTransfer || showGive) void loadOtherDrivers();
+  }, [showTransfer, showGive]);
 
   useEffect(() => {
     if (fromDriverId) void loadOtherStock(fromDriverId);
@@ -55,7 +59,8 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     setProductName("");
   };
 
-  const handleTransfer = async (e: React.FormEvent) => {
+  // Prendre stock chez un collègue
+  const handleTake = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !fromDriverId || !productName) return;
     setLoading(true);
@@ -65,33 +70,55 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
       alert(`Stock insuffisant. Disponible : ${fromStock?.quantity || 0}`);
       setLoading(false); return;
     }
-    // Déduire du livreur source
-    const { error: e1 } = await supabase.from("driver_stock")
-      .update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
-    if (e1) { alert("Erreur : " + e1.message); setLoading(false); return; }
-
-    // Ajouter au livreur actuel
+    await supabase.from("driver_stock").update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
     const myStock = stock.find(s => s.product_name.toLowerCase() === productName.toLowerCase());
     if (myStock) {
       await supabase.from("driver_stock").update({ quantity: myStock.quantity + qty }).eq("id", myStock.id);
     } else {
-      await supabase.from("driver_stock").insert([{
-        driver_id: profile.id, driver_name: profile.full_name,
-        product_name: productName, quantity: qty,
-      }]);
+      await supabase.from("driver_stock").insert([{ driver_id: profile.id, driver_name: profile.full_name, product_name: productName, quantity: qty }]);
     }
-
-    // Log mouvement
     const fromDriver = otherDrivers.find(d => d.id === fromDriverId);
     await supabase.from("stock_mouvements").insert([{
       product_name: productName, mouvement_type: "transfert_livreur", quantity: qty,
       from_location: fromDriver?.full_name || "Livreur", to_location: profile.full_name,
       created_by: profile.full_name,
     }]);
-
-    alert(`✅ ${qty} × ${productName} transféré(s) depuis ${fromDriver?.full_name}`);
+    alert(`✅ ${qty} × ${productName} pris chez ${fromDriver?.full_name}`);
     setShowTransfer(false);
     setFromDriverId(""); setProductName(""); setQuantity("1");
+    onStockUpdated();
+    setLoading(false);
+  };
+
+  // Donner stock à un collègue
+  const handleGive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !toDriverId || !giveProductName) return;
+    setLoading(true);
+    const qty = Number(giveQuantity);
+    const myStock = stock.find(s => s.product_name.toLowerCase() === giveProductName.toLowerCase());
+    if (!myStock || myStock.quantity < qty) {
+      alert(`Stock insuffisant. Tu as : ${myStock?.quantity || 0}`);
+      setLoading(false); return;
+    }
+    await supabase.from("driver_stock").update({ quantity: myStock.quantity - qty }).eq("id", myStock.id);
+    const { data: toStockData } = await supabase.from("driver_stock").select("*").eq("driver_id", toDriverId).eq("product_name", giveProductName);
+    const toStock = toStockData?.[0];
+    if (toStock) {
+      await supabase.from("driver_stock").update({ quantity: toStock.quantity + qty }).eq("id", toStock.id);
+    } else {
+      const toDriver = otherDrivers.find(d => d.id === toDriverId);
+      await supabase.from("driver_stock").insert([{ driver_id: toDriverId, driver_name: toDriver?.full_name || "", product_name: giveProductName, quantity: qty }]);
+    }
+    const toDriver = otherDrivers.find(d => d.id === toDriverId);
+    await supabase.from("stock_mouvements").insert([{
+      product_name: giveProductName, mouvement_type: "transfert_livreur", quantity: qty,
+      from_location: profile.full_name, to_location: toDriver?.full_name || "Livreur",
+      created_by: profile.full_name,
+    }]);
+    alert(`✅ ${qty} × ${giveProductName} donné(s) à ${toDriver?.full_name}`);
+    setShowGive(false);
+    setToDriverId(""); setGiveProductName(""); setGiveQuantity("1");
     onStockUpdated();
     setLoading(false);
   };
@@ -139,38 +166,40 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
         )}
       </div>
 
-      {/* Bouton transfert */}
-      <button onClick={() => setShowTransfer(!showTransfer)}
-        style={{ width: "100%", padding: "12px 0", background: showTransfer ? S.purpleBg : S.card, border: `1px solid ${showTransfer ? S.purple : S.border}`, borderRadius: 12, color: showTransfer ? S.purple : S.text2, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: showTransfer ? 14 : 0 }}>
-        🔄 {showTransfer ? "Annuler le transfert" : "Prendre du stock chez un collègue"}
-      </button>
+      {/* Deux boutons transfert */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <button onClick={() => { setShowTransfer(!showTransfer); setShowGive(false); }}
+          style={{ padding: "11px 0", background: showTransfer ? S.purpleBg : S.card, border: `1px solid ${showTransfer ? S.purple : S.border}`, borderRadius: 12, color: showTransfer ? S.purple : S.text2, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+          📥 Prendre chez un collègue
+        </button>
+        <button onClick={() => { setShowGive(!showGive); setShowTransfer(false); }}
+          style={{ padding: "11px 0", background: showGive ? "#0c2e1e" : S.card, border: `1px solid ${showGive ? S.success : S.border}`, borderRadius: 12, color: showGive ? S.success : S.text2, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+          📤 Donner à un collègue
+        </button>
+      </div>
 
-      {/* Formulaire transfert */}
+      {/* Formulaire — Prendre */}
       {showTransfer && (
-        <div style={{ backgroundColor: S.card, border: `1px solid ${S.purple}`, borderRadius: 14, padding: 16 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: S.purple, marginBottom: 14 }}>🔄 Transfert entre livreurs</p>
-          <form onSubmit={handleTransfer} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ backgroundColor: S.card, border: `1px solid ${S.purple}`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: S.purple, marginBottom: 14 }}>📥 Prendre du stock chez un collègue</p>
+          <form onSubmit={handleTake} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Livreur source (celui qui a le stock)</label>
+              <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Collègue source</label>
               <select value={fromDriverId} onChange={e => setFromDriverId(e.target.value)} required style={inputSt}>
                 <option value="">Choisir un collègue</option>
                 {otherDrivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
               </select>
             </div>
-
             {fromDriverId && otherStocks.length === 0 && (
-              <p style={{ fontSize: 12, color: S.danger }}>Ce livreur n&apos;a pas de stock disponible.</p>
+              <p style={{ fontSize: 12, color: S.danger }}>Ce collègue n&apos;a pas de stock disponible.</p>
             )}
-
             {fromDriverId && otherStocks.length > 0 && (
               <>
                 <div>
                   <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label>
                   <select value={productName} onChange={e => setProductName(e.target.value)} required style={inputSt}>
                     <option value="">Choisir un produit</option>
-                    {otherStocks.map(s => (
-                      <option key={s.id} value={s.product_name}>{s.product_name} (dispo : {s.quantity})</option>
-                    ))}
+                    {otherStocks.map(s => <option key={s.id} value={s.product_name}>{s.product_name} (dispo : {s.quantity})</option>)}
                   </select>
                 </div>
                 <div>
@@ -178,11 +207,42 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
                   <input type="number" min="1" value={quantity} onChange={e => setQuantity(e.target.value)} required style={inputSt} />
                 </div>
                 <button type="submit" disabled={loading}
-                  style={{ padding: "12px 0", background: `linear-gradient(135deg, ${S.purple}, #6d28d9)`, border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                  {loading ? "Transfert..." : "🔄 Confirmer le transfert"}
+                  style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.purple}, #6d28d9)`, border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                  {loading ? "..." : "📥 Confirmer"}
                 </button>
               </>
             )}
+          </form>
+        </div>
+      )}
+
+      {/* Formulaire — Donner */}
+      {showGive && (
+        <div style={{ backgroundColor: S.card, border: `1px solid ${S.success}`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: S.success, marginBottom: 14 }}>📤 Donner du stock à un collègue</p>
+          <form onSubmit={handleGive} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit à donner</label>
+              <select value={giveProductName} onChange={e => setGiveProductName(e.target.value)} required style={inputSt}>
+                <option value="">Choisir un produit</option>
+                {stock.map(s => <option key={s.id} value={s.product_name}>{s.product_name} (tu as : {s.quantity})</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Collègue destinataire</label>
+              <select value={toDriverId} onChange={e => setToDriverId(e.target.value)} required style={inputSt}>
+                <option value="">Choisir un collègue</option>
+                {otherDrivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label>
+              <input type="number" min="1" value={giveQuantity} onChange={e => setGiveQuantity(e.target.value)} required style={inputSt} />
+            </div>
+            <button type="submit" disabled={loading}
+              style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.success}, #16a34a)`, border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              {loading ? "..." : "📤 Confirmer le don"}
+            </button>
           </form>
         </div>
       )}
