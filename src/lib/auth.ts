@@ -91,7 +91,9 @@ export async function createTenantAndAdmin(params: {
   const { error: profileError } = await supabase
     .from("profiles")
     .insert({
+      id: userId,
       user_id: userId,
+      email,
       tenant_id: tenant.id,
       role: "admin",
       full_name: fullName,
