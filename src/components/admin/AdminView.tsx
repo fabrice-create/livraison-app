@@ -409,12 +409,13 @@ type StockMouvement = { id: number; created_at: string; product_name: string; ty
 type StockDemande = { id: number; created_at: string; driver_id: string; driver_name: string; product_name: string; quantity_requested: number; status: string; note?: string | null; };
 
 // ─── Vue Stock Phase 4 ───────────────────────────────────────
-function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChange, onStockSubmit, profile }: {
+function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChange, onStockSubmit, profile, tenantId }: {
   drivers: Profile[]; driverStocks: DriverStock[];
   stockForm: StockFormData; stockLoading: boolean;
   onStockChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onStockSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   profile: Profile | null;
+  tenantId: string;
 }) {
   const isMobile = useIsMobile();
   const [subView, setSubView] = useState<"overview"|"warehouse"|"drivers"|"transfer"|"history"|"demandes">("overview");
@@ -429,8 +430,8 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
   useEffect(() => { void loadData(); }, []);
 
   const loadData = async () => {
-    try { const { data } = await supabase.from("warehouse_stock").select("*").order("product_name"); if (data) setWarehouseStocks(data as WarehouseStock[]); } catch (_) {}
-    try { const { data } = await supabase.from("stock_mouvements").select("*").order("created_at", { ascending: false }).limit(100); if (data) setStockMouvements(data as StockMouvement[]); } catch (_) {}
+    try { const { data } = await supabase.from("warehouse_stock").select("*").eq("tenant_id", tenantId).order("product_name"); if (data) setWarehouseStocks(data as WarehouseStock[]); } catch (_) {}
+    try { const { data } = await supabase.from("stock_mouvements").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(100); if (data) setStockMouvements(data as StockMouvement[]); } catch (_) {}
     try { const { data } = await supabase.from("stock_demandes").select("*").order("created_at", { ascending: false }); if (data) setStockDemandes(data as StockDemande[]); } catch (_) {}
   };
 
@@ -445,7 +446,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
     if (existing) {
       await supabase.from("warehouse_stock").update({ quantity: existing.quantity + qty, alert_threshold: threshold, updated_at: new Date().toISOString() }).eq("id", existing.id);
     } else {
-      await supabase.from("warehouse_stock").insert([{ product_name: name, quantity: qty, alert_threshold: threshold }]);
+      await supabase.from("warehouse_stock").insert([{ tenant_id: tenantId, product_name: name, quantity: qty, alert_threshold: threshold }]);
     }
     await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "entree_entrepot", quantity: qty, from_driver: "Fournisseur", to_driver: "Entrepôt" }]);
     await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); toast("✅ Stock entrepôt mis à jour"); setP4Loading(false);
@@ -936,7 +937,10 @@ export function AdminView() {
     const sel: Record<number, string> = {}; const act: Record<number, string> = {};
     fetched.forEach(o => { sel[o.id] = o.assigned_driver_id || ""; act[o.id] = ""; });
     setSelectedDrivers(sel); setSelectedActions(act);
-    const { data: sd } = await supabase.from("driver_stock").select("*").order("id", { ascending: false });
+    const driverIds = (profiles as Profile[])?.filter(p => normalizeRole(p.role) === "livreur").map(p => p.id) || [];
+    const { data: sd } = driverIds.length > 0
+      ? await supabase.from("driver_stock").select("*").in("driver_id", driverIds).order("id", { ascending: false })
+      : { data: [] };
     setDriverStocks((sd as DriverStock[]) || []);
     const { data: hd } = await supabase.from("order_history").select("*")
       .in("order_id", (od as Order[]).map(o => o.id))
@@ -1138,7 +1142,7 @@ export function AdminView() {
         {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
-        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} />}
+        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} tenantId={tenantId} />}
         {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
