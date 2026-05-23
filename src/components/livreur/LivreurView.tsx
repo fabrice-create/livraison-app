@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
 import { StockWidget } from "./StockWidget";
+import { toast, ToastContainer } from "@/components/ui/Toast";
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706",
@@ -120,7 +121,7 @@ export function LivreurView() {
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     // Décrémenter stock
     if (order.product) {
       const s = stock.find(i => i.product_name.toLowerCase() === order.product.toLowerCase());
@@ -129,7 +130,7 @@ export function LivreurView() {
       }
     }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    alert("✅ Livré + Payé !\nCommission : 2 000 FCFA enregistrée.");
+    toast("✅ Livré + Payé ! Commission enregistrée.", "success");
   }, [orders, profile, stock]);
 
   const handleSendToGare = useCallback(async (id: number) => {
@@ -145,9 +146,9 @@ export function LivreurView() {
       commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...payload } : o));
-    alert("✅ Envoyé à la gare !\nCommission : 2 000 FCFA enregistrée.");
+    toast("✅ Envoyé à la gare ! Commission enregistrée.", "success");
   }, [orders, profile]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
@@ -194,8 +195,7 @@ export function LivreurView() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
-
-      {/* Header */}
+      <ToastContainer />
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#000", flexShrink: 0 }}>
@@ -438,7 +438,7 @@ export function LivreurView() {
           <StockWidget
             stock={stock}
             profile={profile}
-            onRequestStock={() => alert("Demande envoyée à l'admin ✅")}
+            onRequestStock={() => toast("Demande envoyée à l'admin ✅")}
             onStockUpdated={async () => {
               if (!profile) return;
               const { data } = await supabase.from("driver_stock").select("*").eq("driver_id", profile.id);
@@ -510,7 +510,7 @@ function DeliveryCardFull({ order, onDeliver, onSendToGare }: {
             style={{ padding: "11px 0", background: S.warningBg, border: "none", borderRadius: 10, color: S.warning, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
             🚌 Gare
           </button>
-          <button onClick={() => alert("Photo — bientôt disponible")}
+          <button onClick={() => toast("Photo — bientôt disponible", "info")}
             style={{ padding: "11px 0", background: S.border, border: "none", borderRadius: 10, color: S.text2, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
             📸 Photo
           </button>

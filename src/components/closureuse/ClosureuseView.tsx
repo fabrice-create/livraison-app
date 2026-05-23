@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
+import { toast, ToastContainer } from "@/components/ui/Toast";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 const S = {
@@ -136,28 +137,28 @@ export function ClosureuseView() {
       closer_id: profile?.id || null,
       closer_name: profile?.full_name || null,
     }).eq("id", id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id || null, closer_name: profile?.full_name || null } : o));
   }, [profile]);
 
   const handleCancel = useCallback(async (id: number) => {
     if (!confirm("Annuler cette commande ?")) return;
     const { error } = await supabase.from("orders").update({ status: "Annulé", cancelled_at: new Date().toISOString() }).eq("id", id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Annulé" } : o));
   }, []);
 
   const handleAssignSubmit = async () => {
-    if (!assignModal || !selectedDriver) { alert("Choisis un livreur."); return; }
+    if (!assignModal || !selectedDriver) { toast("Choisis un livreur.", "error"); return; }
     const driver = drivers.find(d => d.id === selectedDriver);
     if (!driver) return;
     const { error } = await supabase.from("orders").update({
       assigned_driver_id: driver.id, driver_name: driver.full_name,
       is_assigned: true, assigned_at: new Date().toISOString(),
     }).eq("id", assignModal.id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === assignModal.id ? { ...o, assigned_driver_id: driver.id, driver_name: driver.full_name, is_assigned: true } : o));
-    alert(`✅ Assigné à ${driver.full_name}`);
+    toast(`✅ Assigné à ${driver.full_name}`, "success");
     setAssignModal(null); setSelectedDriver("");
   };
 
@@ -170,12 +171,12 @@ export function ClosureuseView() {
       closer_id: profile?.id, closer_name: profile?.full_name,
       closer_commission: 0, driver_commission: 0, commission_calculated: false,
     }]).select();
-    if (error) { alert("Erreur : " + error.message); setCreateLoading(false); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); setCreateLoading(false); return; }
     if (data) setOrders(prev => [...(data as Order[]), ...prev]);
     setCreateForm({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" });
     setShowCreateForm(false);
     setTab("commandes");
-    alert("✅ Commande créée !");
+    toast("✅ Commande créée !", "success");
     setCreateLoading(false);
   };
 
@@ -229,6 +230,7 @@ export function ClosureuseView() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <ToastContainer />
 
       {/* Modal assignation */}
       {assignModal && (

@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabase";
 import type { DriverStock, Profile } from "@/types";
+import { toast } from "@/components/ui/Toast";
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706", bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
@@ -98,7 +99,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     const qty = Number(quantity);
     const fromStock = otherStocks.find(s => s.product_name === productName);
     if (!fromStock || fromStock.quantity < qty) {
-      alert(`Stock insuffisant. Disponible : ${fromStock?.quantity || 0}`);
+      toast(`Stock insuffisant. Disponible : ${fromStock?.quantity || 0}`);
       setLoading(false); return;
     }
     await supabase.from("driver_stock").update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
@@ -114,7 +115,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
       from_location: fromDriver?.full_name || "Livreur", to_location: profile.full_name,
       created_by: profile.full_name,
     }]);
-    alert(`✅ ${qty} × ${productName} pris chez ${fromDriver?.full_name}`);
+    toast(`✅ ${qty} × ${productName} pris chez ${fromDriver?.full_name}`);
     setShowTransfer(false);
     setFromDriverId(""); setProductName(""); setQuantity("1");
     onStockUpdated();
@@ -129,7 +130,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
     const qty = Number(giveQuantity);
     const myStock = stock.find(s => s.product_name.toLowerCase() === giveProductName.toLowerCase());
     if (!myStock || myStock.quantity < qty) {
-      alert(`Stock insuffisant. Tu as : ${myStock?.quantity || 0}`);
+      toast(`Stock insuffisant. Tu as : ${myStock?.quantity || 0}`);
       setLoading(false); return;
     }
     await supabase.from("driver_stock").update({ quantity: myStock.quantity - qty }).eq("id", myStock.id);
@@ -147,7 +148,7 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
       from_location: profile.full_name, to_location: toDriver?.full_name || "Livreur",
       created_by: profile.full_name,
     }]);
-    alert(`✅ ${qty} × ${giveProductName} donné(s) à ${toDriver?.full_name}`);
+    toast(`✅ ${qty} × ${giveProductName} donné(s) à ${toDriver?.full_name}`);
     setShowGive(false);
     setToDriverId(""); setGiveProductName(""); setGiveQuantity("1");
     onStockUpdated();

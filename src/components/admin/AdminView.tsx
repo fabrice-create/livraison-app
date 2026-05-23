@@ -13,6 +13,7 @@ import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { toast, ToastContainer } from "@/components/ui/Toast";
 
 // ─── Design tokens ───────────────────────────────────────────
 const S = {
@@ -438,7 +439,7 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
   const handleAddWarehouse = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setP4Loading(true);
     const name = warehouseForm.product_name.trim(); const qty = Number(warehouseForm.quantity); const threshold = Number(warehouseForm.alert_threshold);
-    if (!name || qty <= 0) { alert("Données invalides."); setP4Loading(false); return; }
+    if (!name || qty <= 0) { toast("Données invalides.", "error"); setP4Loading(false); return; }
     const existing = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
     if (existing) {
       await supabase.from("warehouse_stock").update({ quantity: existing.quantity + qty, alert_threshold: threshold, updated_at: new Date().toISOString() }).eq("id", existing.id);
@@ -446,51 +447,51 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
       await supabase.from("warehouse_stock").insert([{ product_name: name, quantity: qty, alert_threshold: threshold }]);
     }
     await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "entree_entrepot", quantity: qty, from_location: "Fournisseur", to_location: "Entrepôt", created_by: profile?.full_name || "Admin" }]);
-    await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); alert("✅ Stock entrepôt mis à jour"); setP4Loading(false);
+    await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); toast("✅ Stock entrepôt mis à jour"); setP4Loading(false);
   };
 
   const handleW2D = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setP4Loading(true);
     const driver = drivers.find(d => d.id === w2dForm.driver_id);
-    if (!driver) { alert("Choisis un livreur."); setP4Loading(false); return; }
+    if (!driver) { toast("Choisis un livreur.", "error"); setP4Loading(false); return; }
     const name = w2dForm.product_name.trim(); const qty = Number(w2dForm.quantity);
     const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
-    if (!wStock || wStock.quantity < qty) { alert(`Stock entrepôt insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
+    if (!wStock || wStock.quantity < qty) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`, "error"); setP4Loading(false); return; }
     await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - qty, updated_at: new Date().toISOString() }).eq("id", wStock.id);
     const existing = driverStocks.find(i => i.driver_id === driver.id && i.product_name.toLowerCase() === name.toLowerCase());
     if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + qty }).eq("id", existing.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: driver.id, driver_name: driver.full_name, product_name: name, quantity: qty }]); }
     await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_entrepot_livreur", quantity: qty, from_location: "Entrepôt", to_location: driver.full_name, created_by: profile?.full_name || "Admin" }]);
-    await loadData(); setW2dForm({ product_name: "", driver_id: "", quantity: "1" }); alert(`✅ ${qty} unité(s) transférée(s) à ${driver.full_name}`); setP4Loading(false);
+    await loadData(); setW2dForm({ product_name: "", driver_id: "", quantity: "1" }); toast(`✅ ${qty} unité(s) transférée(s) à ${driver.full_name}`); setP4Loading(false);
   };
 
   const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setP4Loading(true);
     const from = drivers.find(d => d.id === transferForm.from_driver_id); const to = drivers.find(d => d.id === transferForm.to_driver_id);
-    if (!from || !to || from.id === to.id) { alert("Choisis deux livreurs différents."); setP4Loading(false); return; }
+    if (!from || !to || from.id === to.id) { toast("Choisis deux livreurs différents.", "error"); setP4Loading(false); return; }
     const name = transferForm.product_name.trim(); const qty = Number(transferForm.quantity);
     const fromStock = driverStocks.find(i => i.driver_id === from.id && i.product_name.toLowerCase() === name.toLowerCase());
-    if (!fromStock || fromStock.quantity < qty) { alert(`Stock insuffisant pour ${from.full_name}. Disponible : ${fromStock?.quantity || 0}`); setP4Loading(false); return; }
+    if (!fromStock || fromStock.quantity < qty) { toast(`Stock insuffisant pour ${from.full_name}. Disponible : ${fromStock?.quantity || 0}`); setP4Loading(false); return; }
     await supabase.from("driver_stock").update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
     const toStock = driverStocks.find(i => i.driver_id === to.id && i.product_name.toLowerCase() === name.toLowerCase());
     if (toStock) { await supabase.from("driver_stock").update({ quantity: toStock.quantity + qty }).eq("id", toStock.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: to.id, driver_name: to.full_name, product_name: name, quantity: qty }]); }
     await supabase.from("stock_mouvements").insert([{ product_name: name, mouvement_type: "transfert_livreur", quantity: qty, from_location: from.full_name, to_location: to.full_name, created_by: profile?.full_name || "Admin" }]);
-    await loadData(); setTransferForm({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" }); alert(`✅ Transfert : ${from.full_name} → ${to.full_name}`); setP4Loading(false);
+    await loadData(); setTransferForm({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" }); toast(`✅ Transfert : ${from.full_name} → ${to.full_name}`); setP4Loading(false);
   };
 
   const handleApprove = async (d: StockDemande) => {
     if (!confirm(`Approuver ${d.quantity_requested} × ${d.product_name} pour ${d.driver_name} ?`)) return;
     setP4Loading(true);
     const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === d.product_name.toLowerCase());
-    if (!wStock || wStock.quantity < d.quantity_requested) { alert(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
+    if (!wStock || wStock.quantity < d.quantity_requested) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`); setP4Loading(false); return; }
     await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - d.quantity_requested, updated_at: new Date().toISOString() }).eq("id", wStock.id);
     const existing = driverStocks.find(i => i.driver_id === d.driver_id && i.product_name.toLowerCase() === d.product_name.toLowerCase());
     if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
     else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
     await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
     await supabase.from("stock_mouvements").insert([{ product_name: d.product_name, mouvement_type: "demande_approuvee", quantity: d.quantity_requested, from_location: "Entrepôt", to_location: d.driver_name, created_by: profile?.full_name || "Admin" }]);
-    await loadData(); alert("✅ Demande approuvée"); setP4Loading(false);
+    await loadData(); toast("✅ Demande approuvée"); setP4Loading(false);
   };
 
   const handleReject = async (d: StockDemande) => {
@@ -940,7 +941,7 @@ export function AdminView() {
     if (newStatus === "Confirmé") extra.confirmed_at = new Date().toISOString();
     if (newStatus === "Annulé")   extra.cancelled_at = new Date().toISOString();
     const { error } = await supabase.from("orders").update({ status: newStatus, ...extra }).eq("id", id);
-    if (error) { alert("Erreur : " + error.message); return false; }
+    if (error) { toast("Erreur : " + error.message, "error"); return false; }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, ...extra } : o));
     await addHistory(id, "statut_modifie", `Statut → ${newStatus}`);
     return true;
@@ -948,12 +949,12 @@ export function AdminView() {
 
   const consumeStock = async (order: Order) => {
     const item = driverStocks.find(i => i.driver_id === order.assigned_driver_id && i.product_name.trim().toLowerCase() === (order.product || "").trim().toLowerCase());
-    if (!item) { alert("Aucun stock trouvé pour ce livreur/produit."); return false; }
+    if (!item) { toast("Aucun stock trouvé.", "error"); return false; }
     const qty = Number(order.quantity || 1);
-    if (Number(item.quantity) < qty) { alert("Stock insuffisant."); return false; }
+    if (Number(item.quantity) < qty) { toast("Stock insuffisant.", "error"); return false; }
     const newQty = Number(item.quantity) - qty;
     const { error } = await supabase.from("driver_stock").update({ quantity: newQty }).eq("id", item.id);
-    if (error) { alert("Erreur stock : " + error.message); return false; }
+    if (error) { toast("Erreur stock : " + error.message, "error"); return false; }
     setDriverStocks(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i));
     return true;
   };
@@ -971,7 +972,7 @@ export function AdminView() {
       driver_commission: commissionRules.driver, closer_commission: closerComm, commission_calculated: true, delivered_at: now,
     };
     const { error } = await supabase.from("orders").update(payload).eq("id", order.id);
-    if (error) { alert("Erreur : " + error.message); return false; }
+    if (error) { toast("Erreur : " + error.message, "error"); return false; }
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...payload } : o));
     await addHistory(order.id, isGare ? "envoye_gare" : "livraison_payee", isGare ? "Gare — commissions enregistrées" : "Livré + Payé — commissions enregistrées");
     return true;
@@ -980,10 +981,10 @@ export function AdminView() {
   const assignDriver = async (orderId: number) => {
     const driverId = selectedDrivers[orderId];
     const driver = drivers.find(d => d.id === driverId);
-    if (!driver) { alert("Livreur introuvable."); return false; }
+    if (!driver) { toast("Livreur introuvable.", "error"); return false; }
     const payload = { driver_name: driver.full_name, assigned_driver_id: driver.id, is_assigned: true, assigned_at: new Date().toISOString() };
     const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
-    if (error) { alert("Erreur : " + error.message); return false; }
+    if (error) { toast("Erreur : " + error.message, "error"); return false; }
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...payload } : o));
     await addHistory(orderId, "livreur_assigne", `Livreur : ${driver.full_name}`);
     return true;
@@ -991,17 +992,17 @@ export function AdminView() {
 
   const executeAction = async (order: Order, action: string) => {
     setConfirmAction(null);
-    if (action === "confirmer")  { const ok = await updateStatus(order.id, "Confirmé"); if (ok) alert("Confirmée ✅"); }
-    if (action === "livre_paye") { const ok = await markDelivered(order, false); if (ok) alert("Livrée et payée ✅\nCommissions enregistrées !"); }
-    if (action === "gare")       { const ok = await markDelivered(order, true);  if (ok) alert("Envoyée à la gare ✅\nCommissions enregistrées !"); }
-    if (action === "annuler")    { const ok = await updateStatus(order.id, "Annulé"); if (ok) alert("Annulée ✅"); }
-    if (action === "assigner")   { const ok = await assignDriver(order.id); if (ok) alert("Livreur assigné ✅"); }
+    if (action === "confirmer")  { const ok = await updateStatus(order.id, "Confirmé"); if (ok) toast("Confirmée ✅", "success"); }
+    if (action === "livre_paye") { const ok = await markDelivered(order, false); if (ok) toast("Livrée et payée ✅ — Commissions enregistrées !", "success"); }
+    if (action === "gare")       { const ok = await markDelivered(order, true);  if (ok) toast("Envoyée à la gare ✅ — Commissions enregistrées !", "success"); }
+    if (action === "annuler")    { const ok = await updateStatus(order.id, "Annulé"); if (ok) toast("Annulée ✅", "success"); }
+    if (action === "assigner")   { const ok = await assignDriver(order.id); if (ok) toast("Livreur assigné ✅", "success"); }
     setSelectedActions(prev => ({ ...prev, [order.id]: "" }));
   };
 
   const handleActionSubmit = (order: Order) => {
     const action = selectedActions[order.id];
-    if (!action) { alert("Choisis une action."); return; }
+    if (!action) { toast("Choisis une action.", "error"); return; }
     if (["livre_paye", "annuler", "gare"].includes(action)) setConfirmAction({ order, action });
     else void executeAction(order, action);
   };
@@ -1014,13 +1015,13 @@ export function AdminView() {
       is_assigned: false, closer_id: profile?.id || null, closer_name: profile?.full_name || null,
       closer_commission: 0, driver_commission: 0, commission_calculated: false,
     }]).select();
-    if (error) alert("Erreur : " + error.message);
+    if (error) toast("Erreur : " + error.message, "error");
     else if (data) {
       const newOrders = data as Order[];
       setOrders([...newOrders, ...orders]);
       if (newOrders[0]) await addHistory(newOrders[0].id, "commande_creee", `Créée pour ${newOrders[0].customer_name}`);
       setForm(EMPTY_FORM);
-      alert("Commande créée ✅");
+      toast("Commande créée ✅", "success");
     }
     setLoading(false);
   };
@@ -1030,11 +1031,11 @@ export function AdminView() {
     if (!editingOrder) return;
     const payload = { ...editForm, quantity: Number(editForm.quantity), amount: Number(editForm.amount), delivery_type: normDT(editForm.delivery_type) };
     const { error } = await supabase.from("orders").update(payload).eq("id", editingOrder.id);
-    if (error) { alert("Erreur : " + error.message); return; }
+    if (error) { toast("Erreur : " + error.message, "error"); return; }
     setOrders(prev => prev.map(o => o.id === editingOrder.id ? { ...o, ...payload } : o));
     await addHistory(editingOrder.id, "commande_modifiee", `Modifiée par ${profile?.full_name}`);
     setEditingOrder(null);
-    alert("Commande modifiée ✅");
+    toast("Commande modifiée ✅", "success");
   };
 
   const handleStockChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -1044,7 +1045,7 @@ export function AdminView() {
   const handleAddStock = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setStockLoading(true);
     const driver = drivers.find(d => d.id === stockForm.driver_id);
-    if (!driver) { alert("Choisis un livreur."); setStockLoading(false); return; }
+    if (!driver) { toast("Choisis un livreur.", "error"); setStockLoading(false); return; }
     const productName = stockForm.product_name.trim(); const qty = Number(stockForm.quantity);
     const existing = driverStocks.find(i => i.driver_id === driver.id && i.product_name.trim().toLowerCase() === productName.toLowerCase());
     if (existing) {
@@ -1055,7 +1056,7 @@ export function AdminView() {
       const { data } = await supabase.from("driver_stock").insert([{ driver_id: driver.id, driver_name: driver.full_name, product_name: productName, quantity: qty }]).select();
       if (data) setDriverStocks([...(data as DriverStock[]), ...driverStocks]);
     }
-    setStockForm(EMPTY_STOCK); alert("Stock ajouté ✅"); setStockLoading(false);
+    setStockForm(EMPTY_STOCK); toast("Stock ajouté ✅", "success"); setStockLoading(false);
   };
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
@@ -1085,6 +1086,7 @@ export function AdminView() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <ToastContainer />
 
       {/* Modals */}
       {editingOrder && <EditModal form={editForm} onClose={() => setEditingOrder(null)} onSubmit={handleEditSubmit} onChange={e => setEditForm(f => ({ ...f, [e.target.name]: e.target.value }))} />}
