@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/app/lib/supabase"
+import { toast } from "@/components/ui/Toast"
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
@@ -276,7 +277,21 @@ export default function EquipeView({ tenantId }: Props) {
                   {inviteLink}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <button onClick={() => { navigator.clipboard.writeText(inviteLink); }}
+                  <button onClick={() => {
+                    try {
+                      navigator.clipboard.writeText(inviteLink);
+                      toast("✅ Lien copié !", "success");
+                    } catch {
+                      // Fallback
+                      const el = document.createElement("textarea");
+                      el.value = inviteLink;
+                      document.body.appendChild(el);
+                      el.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(el);
+                      toast("✅ Lien copié !", "success");
+                    }
+                  }}
                     style={{ padding: "11px 0", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text2, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
                     📋 Copier
                   </button>
