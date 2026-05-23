@@ -8,6 +8,7 @@ import { normalizeRole, fmt, fmtDate, callUrl, waUrl, setCurrency } from "@/lib/
 import { StockWidget } from "./StockWidget";
 import VersementForm from "./VersementForm";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
+import ProfileMenu from "@/components/ui/ProfileMenu";
 
 const S = {
   gold: "#F59E0B", goldDark: "#D97706",
@@ -250,19 +251,17 @@ export function LivreurView() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
       <ToastContainer />
-      <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#000", flexShrink: 0 }}>
-            {profile?.full_name?.[0]?.toUpperCase() || "L"}
-          </div>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{profile?.full_name}</p>
-            <p style={{ fontSize: 11, color: S.text3 }}>🚴 Livreur</p>
-          </div>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>🏍️ Livreur</div>
         </div>
-        <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 12, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer" }}>
-          Déconnexion
-        </button>
+        <ProfileMenu
+          name={profile?.full_name || "Livreur"}
+          email={profile?.email}
+          role="livreur"
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* Nav */}

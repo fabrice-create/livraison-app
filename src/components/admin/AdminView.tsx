@@ -15,6 +15,7 @@ import FinancesView from "@/components/admin/FinancesView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
+import ProfileMenu from "@/components/ui/ProfileMenu";
 
 // ─── Design tokens ───────────────────────────────────────────
 const S = {
@@ -1136,18 +1137,19 @@ export function AdminView() {
 
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #F59E0B, #D97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#000", flexShrink: 0 }}>
-            {profile?.full_name?.[0]?.toUpperCase() || "A"}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: S.gold }}>Shipivo</div>
-            <div style={{ fontSize: 10, color: S.text3, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
-          </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {tenantId && <NotificationBell tenantId={tenantId} />}
-          <button onClick={handleLogout} style={{ padding: "6px 10px", borderRadius: 8, fontSize: 11, border: `1px solid ${S.border}`, color: S.text3, backgroundColor: "transparent", cursor: "pointer", whiteSpace: "nowrap" as const }}>⏻</button>
+          <ProfileMenu
+            name={profile?.full_name || "Admin"}
+            email={profile?.email}
+            role={isManager ? "manager" : "admin"}
+            onLogout={handleLogout}
+            onSettings={() => setActiveView("parametres")}
+          />
         </div>
       </div>
 

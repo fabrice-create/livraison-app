@@ -6,6 +6,7 @@ import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
 import { normalizeRole, fmt, fmtDate, callUrl, waUrl, setCurrency } from "@/lib/utils";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
+import ProfileMenu from "@/components/ui/ProfileMenu";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 const S = {
@@ -271,26 +272,24 @@ export function ClosureuseView() {
       )}
 
       {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: S.card, borderBottom: `1px solid ${S.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#000" }}>
-            {profile?.full_name?.[0]?.toUpperCase() || "C"}
-          </div>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{profile?.full_name}</p>
-            <p style={{ fontSize: 11, color: S.text3 }}>💼 Closureuse</p>
-          </div>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>👩‍💼 Closeur(se)</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {nonAssigned.length > 0 && (
             <button onClick={() => setTab("assigner")}
-              style={{ padding: "6px 12px", background: S.warningBg, border: `1px solid ${S.warning}`, borderRadius: 20, color: S.warning, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-              ⚡ {nonAssigned.length} à assigner
+              style={{ padding: "6px 10px", background: S.warningBg, border: `1px solid ${S.warning}`, borderRadius: 20, color: S.warning, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              ⚡ {nonAssigned.length}
             </button>
           )}
-          <button onClick={handleLogout} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 12, border: `1px solid ${S.border}`, color: S.text3, background: "transparent", cursor: "pointer" }}>
-            Déconnexion
-          </button>
+          <ProfileMenu
+            name={profile?.full_name || "Closureuse"}
+            email={profile?.email}
+            role="closureuse"
+            onLogout={handleLogout}
+          />
         </div>
       </div>
 
