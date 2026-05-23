@@ -277,16 +277,25 @@ export function LivreurView() {
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div>
-            {/* Bannière montant dû */}
+            {/* Bannière montant dû + formulaire inline */}
             {profile && (
               montantDu > 0 ? (
-                <div onClick={() => setTab("commissions")} style={{ background: "linear-gradient(135deg, #1a0e00, #2d1a00)", border: `1px solid #FB923C60`, borderRadius: 14, padding: 16, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                  <div>
-                    <p style={{ fontSize: 12, color: S.text2, marginBottom: 4 }}>💼 Tu dois remettre</p>
-                    <p style={{ fontSize: 22, fontWeight: 800, color: "#FB923C" }}>{fmt(montantDu)}</p>
-                  </div>
-                  <p style={{ fontSize: 12, color: "#FB923C", fontWeight: 600 }}>📲 Verser →</p>
-                </div>
+                <VersementForm
+                  profile={profile}
+                  montantDu={montantDu}
+                  onSuccess={async () => {
+                    const { data } = await supabase.from("orders").select("*")
+                      .eq("assigned_driver_id", profile.id)
+                      .in("status", ["Confirmé", "Livré", "Annulé"])
+                      .order("id", { ascending: false });
+                    if (data) setOrders(data as Order[]);
+                    const { data: vData } = await supabase.from("versements")
+                      .select("montant").eq("driver_id", profile.id).eq("status", "confirmé");
+                    const total = (vData || []).reduce((s: number, v: {montant: number}) => s + Number(v.montant), 0);
+                    setTotalVerse(total);
+                  }}
+                  showHistorique={false}
+                />
               ) : (
                 <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 14, padding: 14, marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 20 }}>✅</span>
@@ -503,13 +512,7 @@ export function LivreurView() {
             {/* Versements */}
             <div style={{ marginTop: 20 }}>
               <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>📲 MES VERSEMENTS</p>
-              {profile && <VersementForm profile={profile} montantDu={montantDu} onSuccess={async () => {
-                const { data } = await supabase.from("orders").select("*").eq("assigned_driver_id", profile.id).in("status", ["Confirmé", "Livré", "Annulé"]).order("id", { ascending: false });
-                if (data) setOrders(data as Order[]);
-                const { data: vData } = await supabase.from("versements").select("montant").eq("driver_id", profile.id).eq("status", "confirmé");
-                const total = (vData || []).reduce((s: number, v: {montant: number}) => s + Number(v.montant), 0);
-                setTotalVerse(total);
-              }} />}
+              {profile && <VersementForm profile={profile} montantDu={0} onSuccess={async () => {}} showHistorique={true} showForm={false} />}
             </div>
           </div>
         )}
