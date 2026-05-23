@@ -26,6 +26,7 @@ interface Props {
   profile: Profile | null;
   onRequestStock: () => void;
   onStockUpdated: () => void;
+  products?: string[];
 }
 
 const fmtDate = (d?: string | null) => {
@@ -33,11 +34,44 @@ const fmtDate = (d?: string | null) => {
   return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
-export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: Props) {
+export function StockWidget({ stock, profile, onStockUpdated, products = [] }: Props) {
   const total = stock.reduce((sum, s) => sum + Number(s.quantity), 0);
   const lowStock = stock.filter(s => Number(s.quantity) <= 2);
 
   const [activeTab, setActiveTab] = useState<"stock" | "historique">("stock");
+  const [showDemande, setShowDemande]   = useState(false);
+  const [demandeProduct, setDemandeProduct] = useState("");
+  const [demandeQty, setDemandeQty]     = useState("1");
+  const [demandeNote, setDemandeNote]   = useState("");
+  const [demandeLoading, setDemandeLoading] = useState(false);
+
+  const handleDemande = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !demandeProduct) return;
+    setDemandeLoading(true);
+    const { error } = await supabase.from("stock_demandes").insert([{
+      driver_id: profile.id,
+      driver_name: profile.full_name,
+      product_name: demandeProduct,
+      quantity_requested: Number(demandeQty),
+      status: "en_attente",
+      note: demandeNote || null,
+    }]);
+    if (error) {
+      toast("Erreur : " + error.message, "error");
+    } else {
+      toast(`✅ Demande envoyée : ${demandeQty}× ${demandeProduct}`, "success");
+      setShowDemande(false);
+      setDemandeProduct(""); setDemandeQty("1"); setDemandeNote("");
+    }
+    setDemandeLoading(false);
+  };
+
+  // Produits disponibles = produits du stock actuel + produits passés en props
+  const availableProducts = Array.from(new Set([
+    ...stock.map(s => s.product_name),
+    ...products,
+  ])).filter(Boolean);
   const [mouvements, setMouvements] = useState<StockMouvement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -224,10 +258,46 @@ export function StockWidget({ stock, profile, onRequestStock, onStockUpdated }: 
             <span style={{ fontSize: 14, fontWeight: 700, color: S.text }}>Mon stock</span>
             <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, backgroundColor: S.border, color: S.text3 }}>{total} unités</span>
           </div>
-          <button onClick={onRequestStock} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, backgroundColor: S.infoBg, color: S.info, border: "none", cursor: "pointer" }}>
-            + Demander
+          <button onClick={() => setShowDemande(!showDemande)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, backgroundColor: showDemande ? S.infoBg : S.card, color: S.info, border: `1px solid ${S.info}`, cursor: "pointer" }}>
+            {showDemande ? "Annuler" : "+ Demander"}
           </button>
         </div>
+
+        {/* Formulaire de demande */}
+        {showDemande && (
+          <div style={{ background: S.infoBg, border: `1px solid ${S.info}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: S.info, marginBottom: 12 }}>📋 Demander du stock à l&apos;admin</p>
+            <form onSubmit={handleDemande} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label>
+                {availableProducts.length > 0 ? (
+                  <select value={demandeProduct} onChange={e => setDemandeProduct(e.target.value)} required
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none" }}>
+                    <option value="">Choisir un produit</option>
+                    {availableProducts.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                ) : (
+                  <input value={demandeProduct} onChange={e => setDemandeProduct(e.target.value)} required
+                    placeholder="Nom du produit" style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                )}
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label>
+                <input type="number" min="1" value={demandeQty} onChange={e => setDemandeQty(e.target.value)} required
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Note (optionnel)</label>
+                <input value={demandeNote} onChange={e => setDemandeNote(e.target.value)}
+                  placeholder="Ex: urgent pour demain..." style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+              </div>
+              <button type="submit" disabled={demandeLoading}
+                style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.info}, #2563eb)`, border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                {demandeLoading ? "Envoi..." : "📤 Envoyer la demande"}
+              </button>
+            </form>
+          </div>
+        )}
 
         {lowStock.length > 0 && (
           <div style={{ backgroundColor: S.dangerBg, color: S.danger, borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 10 }}>

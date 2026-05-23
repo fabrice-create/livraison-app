@@ -438,7 +438,7 @@ export function LivreurView() {
           <StockWidget
             stock={stock}
             profile={profile}
-            onRequestStock={() => toast("Demande envoyée à l'admin ✅")}
+            onRequestStock={() => {}}
             onStockUpdated={async () => {
               if (!profile) return;
               const { data } = await supabase.from("driver_stock").select("*").eq("driver_id", profile.id);
