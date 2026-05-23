@@ -78,7 +78,9 @@ export default function EquipeView({ tenantId }: Props) {
 
       // Créer profil
       const { error: profileError } = await supabase.from("profiles").insert({
+        id: authData.user.id,
         user_id: authData.user.id,
+        email: form.email.trim(),
         tenant_id: tenantId,
         role: form.role,
         full_name: form.full_name.trim(),
