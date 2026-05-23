@@ -17,7 +17,9 @@ interface Member {
   full_name: string
   role: string
   phone?: string
+  email?: string
   is_active: boolean
+  created_at?: string
 }
 
 interface Props { tenantId: string }
@@ -44,6 +46,10 @@ export default function EquipeView({ tenantId }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+  const [newPassword, setNewPassword] = useState("")
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState("")
 
   useEffect(() => { loadMembers() }, [tenantId])
 
@@ -51,7 +57,7 @@ export default function EquipeView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("profiles")
-      .select("id, user_id, full_name, role, phone, is_active")
+      .select("id, user_id, full_name, role, phone, email, is_active, created_at")
       .eq("tenant_id", tenantId)
       .neq("role", "admin")
       .order("role")
@@ -106,12 +112,98 @@ export default function EquipeView({ tenantId }: Props) {
     loadMembers()
   }
 
+  const handleChangePassword = async () => {
+    if (!selectedMember || !newPassword) return
+    if (newPassword.length < 6) { setPasswordSuccess("❌ Minimum 6 caractères"); return }
+    setSavingPassword(true)
+    const { error } = await supabase.auth.admin.updateUserById(selectedMember.user_id || selectedMember.id, { password: newPassword })
+    if (error) {
+      // Fallback : utiliser l'API REST directement
+      setPasswordSuccess("❌ " + error.message)
+    } else {
+      setPasswordSuccess("✅ Mot de passe mis à jour !")
+      setNewPassword("")
+      setTimeout(() => setPasswordSuccess(""), 3000)
+    }
+    setSavingPassword(false)
+  }
+
+  const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "-"
+
   const inp = { width: "100%", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }
 
   const byRole = (role: string) => members.filter(m => m.role === role)
 
   return (
     <div style={{ padding: "0 0 40px 0" }}>
+
+      {/* Modal détails membre */}
+      {selectedMember && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 20, padding: 24, width: "100%", maxWidth: 420 }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: selectedMember.role === "closureuse" ? "rgba(96,165,250,0.15)" : "rgba(249,115,22,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+                  {selectedMember.role === "closureuse" ? "👩‍💼" : "🏍️"}
+                </div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{selectedMember.full_name}</p>
+                  <p style={{ fontSize: 12, color: selectedMember.role === "closureuse" ? S.info : "#fb923c", margin: "2px 0 0 0", textTransform: "capitalize" }}>{selectedMember.role}</p>
+                </div>
+              </div>
+              <button onClick={() => { setSelectedMember(null); setNewPassword(""); setPasswordSuccess("") }}
+                style={{ background: "none", border: "none", color: S.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+
+            {/* Infos */}
+            <div style={{ background: S.bg, borderRadius: 12, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: S.text3 }}>Email</span>
+                <span style={{ fontSize: 13, color: S.text, fontWeight: 600 }}>{selectedMember.email || "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: S.text3 }}>Téléphone</span>
+                <span style={{ fontSize: 13, color: S.text }}>{selectedMember.phone || "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: S.text3 }}>Ajouté le</span>
+                <span style={{ fontSize: 13, color: S.text }}>{fmtDate(selectedMember.created_at)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: S.text3 }}>Statut</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: selectedMember.is_active ? S.success : S.danger }}>
+                  {selectedMember.is_active ? "✅ Actif" : "⏸ Désactivé"}
+                </span>
+              </div>
+            </div>
+
+            {/* Changer mot de passe */}
+            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🔐 Changer le mot de passe</p>
+            <input
+              type="password"
+              placeholder="Nouveau mot de passe (min. 6 caractères)"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              style={{ ...inp, marginBottom: 10 }}
+            />
+            {passwordSuccess && (
+              <p style={{ fontSize: 12, color: passwordSuccess.startsWith("✅") ? S.success : S.danger, marginBottom: 10 }}>{passwordSuccess}</p>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button onClick={() => { toggleActive(selectedMember); setSelectedMember({ ...selectedMember, is_active: !selectedMember.is_active }) }}
+                style={{ padding: "11px 0", background: selectedMember.is_active ? "#2D1500" : "rgba(74,222,128,0.1)", border: "none", borderRadius: 10, color: selectedMember.is_active ? "#FB923C" : S.success, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                {selectedMember.is_active ? "⏸ Désactiver" : "▶ Activer"}
+              </button>
+              <button onClick={handleChangePassword} disabled={savingPassword || !newPassword}
+                style={{ padding: "11px 0", background: newPassword ? `linear-gradient(135deg, ${S.gold}, ${S.goldDark})` : S.border, border: "none", borderRadius: 10, color: newPassword ? "#000" : S.text3, fontWeight: 700, fontSize: 13, cursor: newPassword ? "pointer" : "not-allowed" }}>
+                {savingPassword ? "..." : "💾 Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h2 style={{ color: S.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Mon équipe</h2>
@@ -197,7 +289,7 @@ export default function EquipeView({ tenantId }: Props) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {group.map(m => (
-                  <div key={m.id} style={{ background: S.card, border: `1px solid ${m.is_active ? S.border : "#2D1500"}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: m.is_active ? 1 : 0.6 }}>
+                  <div key={m.id} onClick={() => { setSelectedMember(m); setNewPassword(""); setPasswordSuccess("") }} style={{ background: S.card, border: `1px solid ${m.is_active ? S.border : "#2D1500"}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: m.is_active ? 1 : 0.6, cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 40, height: 40, borderRadius: "50%", background: rc.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
                         {role === "closureuse" ? "👩‍💼" : role === "livreur" ? "🏍️" : "🌍"}
