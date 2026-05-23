@@ -25,7 +25,6 @@ interface Props { tenantId: string }
 const ROLES = [
   { value: "closureuse", label: "Closureuse" },
   { value: "livreur", label: "Livreur" },
-  { value: "partenaire", label: "Partenaire pays" },
 ]
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -184,14 +183,14 @@ export default function EquipeView({ tenantId }: Props) {
           <p style={{ color: S.text3, fontSize: 14 }}>Aucun membre. Ajoute ta closureuse et tes livreurs !</p>
         </div>
       ) : (
-        ["closureuse", "livreur", "partenaire"].map(role => {
+        ["closureuse", "livreur"].map(role => {
           const group = byRole(role)
           if (group.length === 0) return null
           const rc = ROLE_COLORS[role] || ROLE_COLORS.livreur
           return (
             <div key={role} style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: S.text3, marginBottom: 10 }}>
-                {role === "closureuse" ? "Closureuses" : role === "livreur" ? "Livreurs" : "Partenaires"}
+                {role === "closureuse" ? "Closureuses" : "Livreurs"}
                 <span style={{ marginLeft: 8, background: rc.bg, color: rc.color, padding: "2px 8px", borderRadius: 20, fontSize: 10 }}>{group.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
