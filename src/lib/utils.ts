@@ -4,11 +4,23 @@
 
 import type { Order } from "@/types"
 
+// ---------- Devises par pays ----------
+export const COUNTRY_CURRENCY: Record<string, string> = {
+  TG: "FCFA", SN: "FCFA", CI: "FCFA", ML: "FCFA", BF: "FCFA",
+  BJ: "FCFA", NE: "FCFA", CM: "FCFA XAF", GN: "GNF",
+  NG: "NGN", GH: "GHS", FR: "EUR", BE: "EUR", CA: "CAD", OTHER: "FCFA",
+}
+
+// Devise globale — initialisée depuis le profil admin
+let _currency = "FCFA"
+export const setCurrency = (c: string) => { _currency = c || "FCFA" }
+export const getCurrency = () => _currency
+
 // ---------- Formatage ----------
 
-export const fmt = (v?: number | string | null): string => {
+export const fmt = (v?: number | string | null, currency?: string): string => {
   if (v === null || v === undefined || v === "") return "-"
-  return `${Number(v).toLocaleString()} FCFA`
+  return `${Number(v).toLocaleString("fr-FR")} ${currency || _currency}`
 }
 
 export const fmtDate = (d?: string | null): string => {

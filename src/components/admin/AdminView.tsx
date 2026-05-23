@@ -12,7 +12,7 @@ import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import FinancesView from "@/components/admin/FinancesView";
-import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle } from "@/lib/utils";
+import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
 
@@ -916,13 +916,14 @@ export function AdminView() {
     // Charger les règles de commission depuis les paramètres de la boutique
     if (tid) {
       const { data: tenantData } = await supabase.from("tenants")
-        .select("driver_commission, closer_commission")
+        .select("driver_commission, closer_commission, currency")
         .eq("id", tid).single();
       if (tenantData) {
         setCommissionRules({
           driver: Number(tenantData.driver_commission) || 2000,
           closer: Number(tenantData.closer_commission) || 500,
         });
+        setCurrency(tenantData.currency || "FCFA");
       }
     }
     const { data: profiles } = await supabase.from("profiles").select("*").eq("tenant_id", tid).order("full_name");

@@ -1,4 +1,5 @@
 import { supabase } from "@/app/lib/supabase"
+import { COUNTRY_CURRENCY } from "@/lib/utils"
 
 export type UserRole = "super_admin" | "admin" | "closureuse" | "livreur" | "partenaire"
 
@@ -69,6 +70,8 @@ export async function createTenantAndAdmin(params: {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
 
+  const currency = COUNTRY_CURRENCY[country] || "FCFA"
+
   const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
     .insert({
@@ -77,6 +80,7 @@ export async function createTenantAndAdmin(params: {
       email,
       phone,
       country,
+      currency,
       is_active: true,
       plan: "trial",
       trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),

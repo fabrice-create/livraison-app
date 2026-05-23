@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
-import { normalizeRole, fmt, fmtDate, callUrl, waUrl } from "@/lib/utils";
+import { normalizeRole, fmt, fmtDate, callUrl, waUrl, setCurrency } from "@/lib/utils";
 import { StockWidget } from "./StockWidget";
 import VersementForm from "./VersementForm";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
@@ -95,8 +95,11 @@ export function LivreurView() {
     // Charger règles de commission
     if (p.tenant_id) {
       const { data: td } = await supabase.from("tenants")
-        .select("driver_commission, closer_commission").eq("id", p.tenant_id).single();
-      if (td) setCommissionRules({ driver: Number(td.driver_commission) || 2000, closer: Number(td.closer_commission) || 500 });
+        .select("driver_commission, closer_commission, currency").eq("id", p.tenant_id).single();
+      if (td) {
+        setCommissionRules({ driver: Number(td.driver_commission) || 2000, closer: Number(td.closer_commission) || 500 });
+        setCurrency(td.currency || "FCFA");
+      }
     }
     // Charger en parallèle pour aller plus vite
     const [ordersRes, stockRes] = await Promise.all([
