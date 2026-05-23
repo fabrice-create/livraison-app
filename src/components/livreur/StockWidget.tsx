@@ -44,6 +44,28 @@ export function StockWidget({ stock, profile, onStockUpdated, products = [] }: P
   const [demandeQty, setDemandeQty]     = useState("1");
   const [demandeNote, setDemandeNote]   = useState("");
   const [demandeLoading, setDemandeLoading] = useState(false);
+  const [mesDemandes, setMesDemandes]   = useState<MesDemande[]>([]);
+
+  type MesDemande = { id: number; product_name: string; quantity_requested: number; status: string; created_at: string; note?: string | null; };
+
+  // Charger mes demandes
+  const loadMesDemandes = async () => {
+    if (!profile) return;
+    const { data } = await supabase.from("stock_demandes")
+      .select("id, product_name, quantity_requested, status, created_at, note")
+      .eq("driver_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setMesDemandes((data as MesDemande[]) || []);
+  };
+
+  useEffect(() => { void loadMesDemandes(); }, [profile]);
+
+  const handleAnnulerDemande = async (id: number) => {
+    await supabase.from("stock_demandes").delete().eq("id", id);
+    setMesDemandes(prev => prev.filter(d => d.id !== id));
+    toast("Demande annulée", "info");
+  };
 
   const handleDemande = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +85,7 @@ export function StockWidget({ stock, profile, onStockUpdated, products = [] }: P
       toast(`✅ Demande envoyée : ${demandeQty}× ${demandeProduct}`, "success");
       setShowDemande(false);
       setDemandeProduct(""); setDemandeQty("1"); setDemandeNote("");
+      void loadMesDemandes();
     }
     setDemandeLoading(false);
   };
@@ -302,6 +325,38 @@ export function StockWidget({ stock, profile, onStockUpdated, products = [] }: P
         {lowStock.length > 0 && (
           <div style={{ backgroundColor: S.dangerBg, color: S.danger, borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 10 }}>
             ⚠️ Stock bas : {lowStock.map(s => s.product_name).join(", ")}
+          </div>
+        )}
+
+        {/* Mes demandes */}
+        {mesDemandes.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: S.text2, marginBottom: 8 }}>📋 Mes demandes</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {mesDemandes.map(d => {
+                const statusConfig = {
+                  en_attente: { color: "#FB923C", bg: "#1a0e00", label: "⏳ En attente" },
+                  approuvée:  { color: S.success, bg: "#052E16", label: "✅ Approuvée" },
+                  refusée:    { color: S.danger,  bg: "#2D0F0F", label: "❌ Refusée" },
+                }[d.status] || { color: S.text2, bg: S.card, label: d.status };
+
+                return (
+                  <div key={d.id} style={{ background: statusConfig.bg, border: `1px solid ${statusConfig.color}40`, borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: statusConfig.color, marginBottom: 2 }}>{statusConfig.label}</p>
+                      <p style={{ fontSize: 13, color: S.text }}>{d.quantity_requested}× {d.product_name}</p>
+                      <p style={{ fontSize: 10, color: S.text3 }}>{fmtDate(d.created_at)}</p>
+                    </div>
+                    {d.status === "en_attente" && (
+                      <button onClick={() => handleAnnulerDemande(d.id)}
+                        style={{ padding: "5px 10px", background: "transparent", border: `1px solid ${S.danger}`, borderRadius: 8, color: S.danger, fontSize: 11, cursor: "pointer" }}>
+                        Annuler
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

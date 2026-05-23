@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
@@ -54,6 +54,31 @@ export function LivreurView() {
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
 
   useEffect(() => { void init(); }, []);
+
+  // Notification temps réel quand demande approuvée
+  useEffect(() => {
+    if (!profile) return;
+    const channel = supabase
+      .channel("livreur-demandes-" + profile.id)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "stock_demandes",
+        filter: `driver_id=eq.${profile.id}`,
+      }, (payload) => {
+        const d = payload.new as { status: string; product_name: string; quantity_requested: number };
+        if (d.status === "approuvée") {
+          toast(`✅ Demande approuvée : ${d.quantity_requested}× ${d.product_name}`, "success");
+          // Recharger le stock
+          void supabase.from("driver_stock").select("*").eq("driver_id", profile.id)
+            .then(({ data }) => { if (data) setStock(data as DriverStock[]); });
+        } else if (d.status === "refusée") {
+          toast(`❌ Demande refusée : ${d.product_name}`, "error");
+        }
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [profile]);
 
   const init = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
