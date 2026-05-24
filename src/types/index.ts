@@ -31,6 +31,9 @@ export type Order = {
   confirmed_at?: string | null
   delivered_at?: string | null
   cancelled_at?: string | null
+  source?: string | null
+  note?: string | null
+  tenant_id?: string | null
 }
 
 export type Profile = {
