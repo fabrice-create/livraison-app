@@ -314,7 +314,7 @@ export function LivreurView() {
             {/* Bouton disponibilité */}
             <div style={{ marginBottom: 16 }}>
               <button onClick={toggleAvailability} disabled={togglingAvail}
-                style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", cursor: togglingAvail ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                style={{ width: "100%", padding: "16px", borderRadius: 14, cursor: togglingAvail ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                   background: isAvailable ? "linear-gradient(135deg,#052E16,#065F46)" : "linear-gradient(135deg,#2D0F0F,#450A0A)",
                   color: isAvailable ? S.success : S.danger,
                   border: `2px solid ${isAvailable ? S.success + "50" : S.danger + "50"}` }}>
