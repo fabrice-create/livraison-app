@@ -20,6 +20,9 @@ const S = {
   purple: "#C084FC", purpleBg: "#2E1065",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
   green: "#25D366",
+  blue: "#60A5FA", blueBg: "#0C1E3E",
+  red: "#F87171", redBg: "#450A0A",
+  gold: "#F59E0B",
 };
 
 type Tab = "dashboard" | "commandes" | "assigner" | "creer" | "commissions" | "stocks";
@@ -272,7 +275,7 @@ export function ClosureuseView() {
             <p style={{ fontSize: 13, color: S.text2, marginBottom: 16 }}>{assignModal.customer_name} — {assignModal.city}</p>
             <select value={selectedDriver} onChange={e => setSelectedDriver(e.target.value)} style={{ ...inp, marginBottom: 16 }}>
               <option value="">Choisir un livreur</option>
-              {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              {drivers.map(d => <option key={d.id} value={d.id}>{d.is_available ? "🟢" : "🔴"} {d.full_name}</option>)}
             </select>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => { setAssignModal(null); setSelectedDriver(""); }}
@@ -337,15 +340,64 @@ export function ClosureuseView() {
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 18, textAlign: "center" }}>
-                <p style={{ fontSize: 12, color: S.text2, marginBottom: 8 }}>📝 Créées aujourd&apos;hui</p>
-                <p style={{ fontSize: 40, fontWeight: 800 }}>{todayCreated.length}</p>
+            {/* Stats aujourd'hui */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16, textAlign: "center" }}>
+                <p style={{ fontSize: 11, color: S.text2, marginBottom: 6 }}>📝 Créées aujourd&apos;hui</p>
+                <p style={{ fontSize: 36, fontWeight: 800, margin: 0 }}>{todayCreated.length}</p>
               </div>
-              <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 16, padding: 18, textAlign: "center" }}>
-                <p style={{ fontSize: 12, color: S.text2, marginBottom: 8 }}>🎯 Livrées aujourd&apos;hui</p>
-                <p style={{ fontSize: 40, fontWeight: 800, color: S.success }}>{todayDelivered.length}</p>
+              <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 14, padding: 16, textAlign: "center" }}>
+                <p style={{ fontSize: 11, color: S.text2, marginBottom: 6 }}>🎯 Livrées aujourd&apos;hui</p>
+                <p style={{ fontSize: 36, fontWeight: 800, color: S.success, margin: 0 }}>{todayDelivered.length}</p>
               </div>
+            </div>
+
+            {/* Taux confirmation perso */}
+            {(() => {
+              const myOrders = orders.filter(o => o.closer_id === profile?.id);
+              const myConfirmed = myOrders.filter(o => ["Confirmé","Livré","Assigné","En livraison"].includes(o.status ?? "")).length;
+              const myRate = myOrders.length > 0 ? Math.round((myConfirmed / myOrders.length) * 100) : 0;
+              const myCommissions = myOrders.filter(o => o.status === "Livré" && o.closer_commission).reduce((s, o) => s + Number(o.closer_commission || 0), 0);
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                  <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14 }}>
+                    <p style={{ color: S.text2, fontSize: 11, margin: "0 0 6px 0" }}>📊 Mon taux confirmation</p>
+                    <p style={{ color: myRate >= 70 ? S.success : myRate >= 50 ? S.warning : S.danger, fontSize: 26, fontWeight: 800, margin: "0 0 6px 0" }}>{myRate}%</p>
+                    <div style={{ background: S.border, borderRadius: 4, height: 6 }}>
+                      <div style={{ width: `${myRate}%`, background: myRate >= 70 ? S.success : myRate >= 50 ? S.warning : S.danger, borderRadius: 4, height: "100%" }} />
+                    </div>
+                  </div>
+                  <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                    <p style={{ color: S.text2, fontSize: 11, margin: "0 0 6px 0" }}>💰 Mes commissions</p>
+                    <p style={{ color: S.gold, fontSize: 18, fontWeight: 800, margin: 0 }}>{fmt(myCommissions)}</p>
+                    <p style={{ color: S.text3, fontSize: 10, margin: "4px 0 0 0" }}>{myOrders.length} commandes traitées</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Livreurs disponibles en temps réel */}
+            <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 8 }}>🚚 LIVREURS DISPONIBLES</p>
+            <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              {drivers.length === 0 ? (
+                <p style={{ color: S.text3, fontSize: 13, textAlign: "center", margin: 0 }}>Aucun livreur enregistré</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[...drivers].sort((a, b) => (b.is_available ? 1 : 0) - (a.is_available ? 1 : 0)).map(d => (
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: d.is_available ? "rgba(37,211,102,0.06)" : "transparent", borderRadius: 10, border: `1px solid ${d.is_available ? S.success + "30" : S.border}` }}>
+                      <span style={{ fontSize: 18 }}>{d.is_available ? "🟢" : "🔴"}</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{d.full_name}</p>
+                        <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>
+                          {d.is_available ? "Disponible" : "Indisponible"}
+                          {d.last_seen ? ` · vu ${new Date(d.last_seen).toLocaleTimeString("fr-FR", {hour:"2-digit",minute:"2-digit"})}` : ""}
+                        </p>
+                      </div>
+                      {d.is_available && <span style={{ color: S.success, fontSize: 11, fontWeight: 600 }}>✓ Disponible</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
