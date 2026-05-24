@@ -172,11 +172,24 @@ stock_demandes, warehouse_stock, versements, commission_payments, invitations
 - Migration SQL : supabase/migrations/phase7_sms.sql
 - ⚠️ Test sandbox AT en cours — à valider en production
 
-### Phase 8 — Boutique intégrée ← PROCHAINE
-- Page publique de commande améliorée
-- Catalogue produits visible
+### Phase 8 — Boutique intégrée ✅ COMPLÈTE
+- Devise dynamique selon pays du client (détection IP + conversion taux de change)
+- Table exchange_rates — cache taux de change 24h
+- Route API /api/rates — taux de change via exchangerate-api.com
+- Hook useClientCurrency — détection pays + conversion automatique
+- Ville — champ texte libre (tous les pays)
+- Galerie multi-photos produit (jusqu'à 10 photos)
+- Table product_images en base
+- ProduitsView — upload multi-photos avec compression
+- Page produit — galerie swipeable + miniatures cliquables
+- Page produit — 2 boutons: Ajouter au panier + Commander maintenant
+- Catalogue — bouton "Voir le panier" après ajout
+- Page confirmation — numéro de commande, récap, infos livraison, WhatsApp
+- Formulaire — sélecteur indicatif téléphonique avec détection pays auto
+- SEO/Meta dynamique par boutique (Open Graph, titre, description)
+- Layout /commander/[boutique]/layout.tsx
 
-### Phase 9 — Intégrations externes
+### Phase 9 — Intégrations externes ← PROCHAINE
 - Facebook Pixel (déjà partiel dans Paramètres)
 - TikTok Pixel (déjà partiel dans Paramètres)
 - Google Analytics
@@ -196,6 +209,13 @@ stock_demandes, warehouse_stock, versements, commission_payments, invitations
 - App Android (après PWA validée)
 
 ## JOURNAL DES SESSIONS
+
+### Session 6 — 24 Mai 2026
+- Phase 8 Boutique intégrée complète
+- Devise dynamique, galerie photos, page confirmation
+- Sélecteur indicatif téléphonique, SEO Meta
+- Fix RLS sur products et product_images
+- DELIVIO.md mis à jour
 
 ### Session 5 — 23 Mai 2026
 - Phase 7 SMS Africa's Talking codée complète
