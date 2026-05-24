@@ -56,6 +56,7 @@ export function LivreurView() {
   const [period, setPeriod] = useState<PeriodFilter>("today");
   const [refreshing, setRefreshing] = useState(false);
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
+  const [tenantName, setTenantName] = useState("Shipivo");
   const [isAvailable, setIsAvailable] = useState(false);
   const [togglingAvail, setTogglingAvail] = useState(false);
 
@@ -111,6 +112,10 @@ export function LivreurView() {
     }
     setProfile(p);
     setIsAvailable(p.is_available === true);
+    if (p.tenant_id) {
+      const { data: td } = await supabase.from("tenants").select("name").eq("id", p.tenant_id).single();
+      if (td?.name) setTenantName(td.name);
+    }
     // Charger règles de commission
     if (p.tenant_id) {
       const { data: td } = await supabase.from("tenants")
@@ -284,8 +289,8 @@ export function LivreurView() {
       <ToastContainer />
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
-          <div style={{ fontSize: 10, color: S.text3 }}>🏍️ Livreur</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>🏍️ Livreur · {profile?.full_name}</div>
         </div>
         <ProfileMenu
           name={profile?.full_name || "Livreur"}
