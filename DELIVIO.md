@@ -161,14 +161,18 @@ stock_demandes, warehouse_stock, versements, commission_payments, invitations
 
 ## PROCHAINES ÉTAPES
 
-### Phase 7 — Communication SMS ← PROCHAINE
-- SMS automatique au client (confirmation commande)
-- SMS au client (livraison en cours)
-- SMS au livreur (commande assignée)
-- Résumé journalier WhatsApp admin
-- Provider : Africa's Talking (sandbox configuré)
+### Phase 7 — Communication SMS ✅ COMPLÈTE
+- SMS automatique au client à la confirmation (ClosureuseView)
+- SMS automatique au client à la livraison (LivreurView)
+- Provider : Africa's Talking (Option B — chaque tenant connecte son propre compte)
+- Champs AT dans tenants : at_username, at_api_key, at_sender_id
+- Section SMS dans ParametresView
+- Route API : /api/sms
+- Helper : src/lib/sendSms.ts
+- Migration SQL : supabase/migrations/phase7_sms.sql
+- ⚠️ Test sandbox AT en cours — à valider en production
 
-### Phase 8 — Boutique intégrée
+### Phase 8 — Boutique intégrée ← PROCHAINE
 - Page publique de commande améliorée
 - Catalogue produits visible
 
@@ -190,6 +194,16 @@ stock_demandes, warehouse_stock, versements, commission_payments, invitations
 
 ### Phase 13 — Play Store
 - App Android (après PWA validée)
+
+## JOURNAL DES SESSIONS
+
+### Session 5 — 23 Mai 2026
+- Phase 7 SMS Africa's Talking codée complète
+- Option B : chaque tenant connecte son propre compte AT
+- 2 SMS automatiques : confirmation + livraison
+- Route /api/sms + helper sendSms + migration SQL
+- Debug sandbox AT en cours (à finaliser en production)
+- DELIVIO.md mis à jour
 
 ## DÉCISIONS ARCHITECTURE
 - CommandesView interne dans AdminView.tsx
