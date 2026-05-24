@@ -285,7 +285,7 @@ export default function CommanderPage() {
   )
 
   if (success) return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#080810", fontFamily: "Inter, sans-serif" }}>
       {/* Header */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", textAlign: "center" }}>
         <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>{boutique?.name}</p>
@@ -388,36 +388,37 @@ export default function CommanderPage() {
   const inp = { width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
-      {/* Header dynamique avec couleur boutique */}
-      <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {boutique?.logo_url && (
-              <img src={boutique.logo_url} alt={boutique.name}
-                style={{ width: 36, height: 36, borderRadius: 8, objectFit: "contain", background: "#16161F", padding: 2 }} />
-            )}
-            <div>
-              <h1 style={{ color: C.white, fontSize: 17, fontWeight: 800, margin: 0 }}>{boutique?.name}</h1>
-              <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
-                {fraisLivraison === 0 ? "🚚 Livraison gratuite" : `🚚 Livraison : ${fmt(fraisLivraison)}`}
-              </p>
-            </div>
-          </div>
-          {totalItems > 0 && (
-            <button onClick={() => setStep("form")} style={{ background: boutique?.brand_color || C.gold, border: "none", borderRadius: 10, padding: "10px 14px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-              🛒 {totalItems} · {fmt(totalProduits)}
+    <div style={{ minHeight: "100vh", background: "#080810", fontFamily: "Inter, sans-serif" }}>
+      {/* Header premium */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#080810" }}>
+        {/* Barre panier si items */}
+        {totalItems > 0 && (
+          <div style={{ background: boutique?.brand_color || C.gold, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "#000", fontSize: 13, fontWeight: 700 }}>🛒 {totalItems} article{totalItems > 1 ? "s" : ""} dans le panier</span>
+            <button onClick={() => setStep("form")}
+              style={{ background: "rgba(0,0,0,0.2)", border: "none", borderRadius: 20, padding: "5px 14px", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+              Commander · {fmt(totalProduits)} →
             </button>
+          </div>
+        )}
+        {/* Hero boutique */}
+        <div style={{ padding: "20px 16px 16px", textAlign: "center", borderBottom: `1px solid #ffffff08` }}>
+          {boutique?.logo_url && (
+            <img src={boutique.logo_url} alt={boutique.name}
+              style={{ width: 64, height: 64, borderRadius: 16, objectFit: "contain", background: "#16161F", padding: 4, marginBottom: 10, display: "block", margin: "0 auto 10px" }} />
           )}
+          <h1 style={{ color: C.white, fontSize: 22, fontWeight: 800, margin: "0 0 4px 0", letterSpacing: "-0.3px" }}>{boutique?.name}</h1>
+          {boutique?.boutique_description && (
+            <p style={{ color: C.muted, fontSize: 13, margin: "0 0 8px 0", lineHeight: 1.5 }}>{boutique.boutique_description}</p>
+          )}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: fraisLivraison === 0 ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.06)", borderRadius: 20, padding: "4px 12px" }}>
+            <span style={{ fontSize: 14 }}>{fraisLivraison === 0 ? "🚚" : "📦"}</span>
+            <span style={{ color: fraisLivraison === 0 ? "#4ADE80" : C.muted, fontSize: 12, fontWeight: 600 }}>
+              {fraisLivraison === 0 ? "Livraison gratuite" : `Livraison : ${fmt(fraisLivraison)}`}
+            </span>
+          </div>
         </div>
       </div>
-
-      {/* Hero section */}
-      {boutique?.boutique_description && (
-        <div style={{ background: `linear-gradient(135deg, ${boutique.brand_color}22, ${boutique.brand_color}11)`, borderBottom: `1px solid ${boutique.brand_color}33`, padding: "12px 16px", textAlign: "center" }}>
-          <p style={{ color: C.white, fontSize: 13, margin: 0, opacity: 0.85 }}>{boutique.boutique_description}</p>
-        </div>
-      )}
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 12px 100px" }}>
 
@@ -432,48 +433,55 @@ export default function CommanderPage() {
                 <p style={{ color: C.muted }}>Aucun produit disponible.</p>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
                 {products.map(product => {
                   const qty = getQty(product.id)
+                  const bc = boutique?.brand_color || "#F59E0B"
                   return (
-                    <div key={product.id} style={{ background: C.card, border: `1px solid ${qty > 0 ? (boutique?.brand_color || C.gold) : C.border}`, borderRadius: 16, overflow: "hidden", transition: "border-color 0.2s", boxShadow: qty > 0 ? `0 0 0 1px ${boutique?.brand_color || C.gold}22` : "none" }}>
-                      {/* Photo produit */}
+                    <div key={product.id}
+                      style={{ borderRadius: 20, overflow: "hidden", position: "relative", background: "#111118", border: `1px solid ${qty > 0 ? bc : "#ffffff0a"}` }}>
+                      {/* Photo grande */}
                       <div onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
-                        style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", cursor: "pointer", background: "#16161F" }}>
+                        style={{ position: "relative", aspectRatio: "4/5", overflow: "hidden", cursor: "pointer", background: "#16161F" }}>
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          <img src={product.image_url} alt={product.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         ) : (
                           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>📦</div>
                         )}
+                        {/* Overlay gradient en bas */}
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "45%", background: "linear-gradient(transparent, rgba(0,0,0,0.85))" }} />
+                        {/* Prix en overlay */}
+                        <div style={{ position: "absolute", bottom: 8, left: 10 }}>
+                          <p style={{ color: "#fff", fontSize: 15, fontWeight: 800, margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{fmt(product.price)}</p>
+                        </div>
+                        {/* Badge quantité */}
                         {qty > 0 && (
-                          <div style={{ position: "absolute", top: 8, right: 8, background: boutique?.brand_color || C.gold, color: "#000", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
+                          <div style={{ position: "absolute", top: 8, right: 8, background: bc, color: "#000", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800 }}>
                             {qty}
                           </div>
                         )}
                       </div>
-                      {/* Infos produit */}
-                      <div style={{ padding: "12px 12px 14px" }}>
+                      {/* Infos + bouton */}
+                      <div style={{ padding: "10px 10px 12px" }}>
                         <p onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
-                          style={{ color: C.white, fontSize: 13, fontWeight: 600, margin: "0 0 2px 0", lineHeight: 1.4, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                          style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 600, margin: "0 0 8px 0", lineHeight: 1.4, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
                           {product.name}
-                        </p>
-                        <p style={{ color: boutique?.brand_color || C.gold, fontSize: 16, fontWeight: 800, margin: "4px 0 10px 0" }}>
-                          {fmt(product.price)}
                         </p>
                         {qty === 0 ? (
                           <button onClick={() => addToCart(product)}
-                            style={{ width: "100%", background: boutique?.brand_color || C.gold, border: "none", borderRadius: 10, padding: "9px 0", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                            style={{ width: "100%", background: bc, border: "none", borderRadius: 10, padding: "8px 0", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                             + Ajouter
                           </button>
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.bg, borderRadius: 10, padding: "4px 8px" }}>
-                              <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: 30, height: 30, borderRadius: 8, background: C.border, border: "none", color: C.white, fontSize: 16, cursor: "pointer", fontWeight: 700 }}>−</button>
-                              <span style={{ color: C.white, fontSize: 15, fontWeight: 800 }}>{qty}</span>
-                              <button onClick={() => updateQty(product.id, qty + 1)} style={{ width: 30, height: 30, borderRadius: 8, background: boutique?.brand_color || C.gold, border: "none", color: "#000", fontSize: 16, cursor: "pointer", fontWeight: 700 }}>+</button>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0A0A0F", borderRadius: 10, padding: "3px 6px" }}>
+                              <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: 28, height: 28, borderRadius: 7, background: "#1E1E2E", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", fontWeight: 700 }}>−</button>
+                              <span style={{ color: "#fff", fontSize: 14, fontWeight: 800 }}>{qty}</span>
+                              <button onClick={() => updateQty(product.id, qty + 1)} style={{ width: 28, height: 28, borderRadius: 7, background: bc, border: "none", color: "#000", fontSize: 16, cursor: "pointer", fontWeight: 700 }}>+</button>
                             </div>
                             <button onClick={() => setStep("form")}
-                              style={{ width: "100%", background: "transparent", border: `1.5px solid ${boutique?.brand_color || C.gold}`, borderRadius: 10, padding: "6px 0", color: boutique?.brand_color || C.gold, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              style={{ width: "100%", background: "transparent", border: `1.5px solid ${bc}`, borderRadius: 10, padding: "5px 0", color: bc, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                               🛒 Voir le panier
                             </button>
                           </div>
