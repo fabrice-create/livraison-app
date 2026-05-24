@@ -128,7 +128,7 @@ export default function VersementForm({ profile, montantDu, onSuccess, showHisto
               <label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>📸 Capture d&apos;écran *</label>
               <label style={{ display: "block", padding: "12px 0", background: S.bg, border: `2px dashed ${capture ? S.success : S.border}`, borderRadius: 10, textAlign: "center", cursor: "pointer", color: capture ? S.success : S.text3, fontSize: 13 }}>
                 {capture ? `✅ ${capture.name}` : "📷 Choisir une photo"}
-                <input type="file" accept="image/*" capture="environment" onChange={handleCapture} style={{ display: "none" }} />
+                <input type="file" accept="image/*" onChange={handleCapture} style={{ display: "none" }} />
               </label>
               {capturePreview && <img src={capturePreview} alt="Preview" style={{ width: "100%", borderRadius: 10, marginTop: 8, maxHeight: 200, objectFit: "cover" }} />}
             </div>
