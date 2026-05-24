@@ -72,6 +72,9 @@ interface BoutiqueInfo {
   phone?: string
   delivery_fee: number
   currency: string
+  brand_color: string
+  logo_url?: string
+  boutique_description?: string
   facebook_pixel_id?: string
   facebook_access_token?: string
   tiktok_pixel_id?: string
@@ -138,7 +141,7 @@ export default function CommanderPage() {
     setLoading(true)
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, slug, phone, delivery_fee, currency, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
+      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
 
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
@@ -147,6 +150,9 @@ export default function CommanderPage() {
       id: tenant.id, name: tenant.name, slug: tenant.slug,
       phone: tenant.phone, delivery_fee: tenant.delivery_fee || 0,
       currency: tenant.currency || "FCFA",
+      brand_color: tenant.brand_color || "#F59E0B",
+      logo_url: tenant.logo_url || "",
+      boutique_description: tenant.boutique_description || "",
       facebook_pixel_id: tenant.facebook_pixel_id,
       facebook_access_token: tenant.facebook_access_token,
       tiktok_pixel_id: tenant.tiktok_pixel_id,
@@ -383,21 +389,35 @@ export default function CommanderPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+      {/* Header dynamique avec couleur boutique */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h1 style={{ color: C.white, fontSize: 17, fontWeight: 800, margin: 0 }}>{boutique?.name}</h1>
-            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
-              {fraisLivraison === 0 ? "🚚 Livraison gratuite" : `🚚 Livraison : ${fmt(fraisLivraison)}`}
-            </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {boutique?.logo_url && (
+              <img src={boutique.logo_url} alt={boutique.name}
+                style={{ width: 36, height: 36, borderRadius: 8, objectFit: "contain", background: "#16161F", padding: 2 }} />
+            )}
+            <div>
+              <h1 style={{ color: C.white, fontSize: 17, fontWeight: 800, margin: 0 }}>{boutique?.name}</h1>
+              <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+                {fraisLivraison === 0 ? "🚚 Livraison gratuite" : `🚚 Livraison : ${fmt(fraisLivraison)}`}
+              </p>
+            </div>
           </div>
           {totalItems > 0 && (
-            <button onClick={() => setStep("form")} style={{ background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 10, padding: "10px 14px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => setStep("form")} style={{ background: boutique?.brand_color || C.gold, border: "none", borderRadius: 10, padding: "10px 14px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               🛒 {totalItems} · {fmt(totalProduits)}
             </button>
           )}
         </div>
       </div>
+
+      {/* Hero section */}
+      {boutique?.boutique_description && (
+        <div style={{ background: `linear-gradient(135deg, ${boutique.brand_color}22, ${boutique.brand_color}11)`, borderBottom: `1px solid ${boutique.brand_color}33`, padding: "12px 16px", textAlign: "center" }}>
+          <p style={{ color: C.white, fontSize: 13, margin: 0, opacity: 0.85 }}>{boutique.boutique_description}</p>
+        </div>
+      )}
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 12px 100px" }}>
 
@@ -439,7 +459,7 @@ export default function CommanderPage() {
                           {fmt(product.price)}
                         </p>
                         {qty === 0 ? (
-                          <button onClick={() => addToCart(product)} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 8, padding: "8px 0", color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          <button onClick={() => addToCart(product)} style={{ width: "100%", background: boutique?.brand_color || C.gold, border: "none", borderRadius: 8, padding: "8px 0", color: "#000", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                             + Ajouter
                           </button>
                         ) : (
@@ -463,7 +483,7 @@ export default function CommanderPage() {
             {totalItems > 0 && (
               <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 16px", background: C.bg, borderTop: `1px solid ${C.border}`, zIndex: 40 }}>
                 <div style={{ maxWidth: 700, margin: "0 auto" }}>
-                  <button onClick={() => setStep("form")} style={{ width: "100%", background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "15px", color: "#000", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+                  <button onClick={() => setStep("form")} style={{ width: "100%", background: boutique?.brand_color || C.gold, border: "none", borderRadius: 12, padding: "15px", color: "#000", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
                     Commander · {fmt(totalFinal)} →
                   </button>
                 </div>
