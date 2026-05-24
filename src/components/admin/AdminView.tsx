@@ -1129,6 +1129,10 @@ export function AdminView() {
       return;
     }
     setProfile(p);
+    if (p.tenant_id) {
+      const { data: td } = await supabase.from("tenants").select("name").eq("id", p.tenant_id).single();
+      if (td?.name) setTenantName(td.name);
+    }
     const tid = (p as any).tenant_id || "";
     setTenantId(tid);
     // Charger les règles de commission depuis les paramètres de la boutique
@@ -1344,7 +1348,7 @@ export function AdminView() {
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.bg, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
           <div style={{ fontSize: 10, color: S.text3 }}>{isManager ? "Manager" : "Admin"} · {profile?.full_name}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
