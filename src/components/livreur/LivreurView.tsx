@@ -97,7 +97,7 @@ export function LivreurView() {
       return;
     }
     setProfile(p);
-    setIsAvailable((p as Profile & { is_available?: boolean }).is_available === true);
+    setIsAvailable(p.is_available === true);
     // Charger règles de commission
     if (p.tenant_id) {
       const { data: td } = await supabase.from("tenants")
