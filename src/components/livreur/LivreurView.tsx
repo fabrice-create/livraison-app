@@ -59,6 +59,19 @@ export function LivreurView() {
   const [isAvailable, setIsAvailable] = useState(false);
   const [togglingAvail, setTogglingAvail] = useState(false);
 
+  const toggleAvailability = async () => {
+    if (!profile) return;
+    setTogglingAvail(true);
+    const newVal = !isAvailable;
+    await supabase.from("profiles").update({
+      is_available: newVal,
+      last_seen: new Date().toISOString()
+    }).eq("id", profile.id);
+    setIsAvailable(newVal);
+    setTogglingAvail(false);
+    toast(newVal ? "🟢 Tu es maintenant disponible" : "🔴 Tu es maintenant indisponible", newVal ? "success" : "error");
+  };
+
   useEffect(() => { void init(); }, []);
 
   // Notification temps réel quand demande approuvée
