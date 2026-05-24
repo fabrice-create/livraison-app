@@ -19,7 +19,7 @@ import ProfileMenu from "@/components/ui/ProfileMenu";
 
 // ─── Design tokens ───────────────────────────────────────────
 const S = {
-  gold: "#F59E0B", goldDark: "#D97706",
+  gold: "#F59E0B", goldDark: "#D97706", goldBg: "#1A1200", goldBorder: "#F59E0B30",
   bg: "#0A0A0F", card: "#111118", card2: "#16161F", border: "#1E1E2E",
   success: "#4ADE80", successBg: "#052E16",
   info: "#60A5FA", infoBg: "#0C1E3E",
@@ -27,7 +27,9 @@ const S = {
   warning: "#FB923C", warningBg: "#2D1500",
   purple: "#C084FC", purpleBg: "#2E1065",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
-  green: "#25D366",
+  green: "#4ADE80", greenBg: "#052E16", greenBorder: "#4ADE8030",
+  blue: "#60A5FA", blueBg: "#0C1A2E", blueBorder: "#60A5FA30",
+  red: "#F87171", redBg: "#450A0A", redBorder: "#F8717130",
 };
 
 // ─── Composants UI partagés ──────────────────────────────────
@@ -115,67 +117,270 @@ function Select({ label, name, value, onChange, options }: {
   );
 }
 
-// ─── Vue Dashboard ───────────────────────────────────────────
+// ─── Vue Dashboard — Phase 10 Analytics Pro ──────────────────
 function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks: DriverStock[] }) {
-  const isMobile = useIsMobile();
+  const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
+  const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total");
+
+  function inPeriod(dateStr: string | null | undefined, p: string): boolean {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (p === "today") return d.toDateString() === now.toDateString();
+    if (p === "7d") return d >= new Date(now.getTime() - 7 * 86400000);
+    if (p === "30d") return d >= new Date(now.getTime() - 30 * 86400000);
+    return true;
+  }
+
+  const periodOrders = useMemo(() =>
+    orders.filter(o => inPeriod(o.created_at, period)),
+    [orders, period]
+  );
+
   const today = useMemo(() => ({
     created:   orders.filter(o => isToday(o.created_at)).length,
     delivered: orders.filter(o => isToday(o.delivered_at)).length,
     amount:    orders.filter(o => isToday(o.delivered_at) && o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0),
   }), [orders]);
 
-  const global = useMemo(() => ({
-    total:     orders.length,
-    enCours:   orders.filter(isEnCours).length,
-    confirmed: orders.filter(o => o.status === "Confirmé").length,
-    delivered: orders.filter(o => o.status === "Livré").length,
-    gare:      orders.filter(o => o.logistic_status === "Envoyé à la gare").length,
-    collected: orders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0),
-    pending:   orders.filter(o => !o.cash_collected && isEnCours(o)).reduce((s, o) => s + Number(o.amount || 0), 0),
-    driverCommissions: orders.reduce((s, o) => s + Number(o.driver_commission || 0), 0),
-    closerCommissions: orders.reduce((s, o) => s + Number(o.closer_commission || 0), 0),
-  }), [orders]);
+  const stats = useMemo(() => {
+    const total = periodOrders.length;
+    const confirmed = periodOrders.filter(o => ["Confirmé","Assigné","En livraison","Livré"].includes(o.status ?? "")).length;
+    const delivered = periodOrders.filter(o => (o.status ?? "") === "Livré").length;
+    const cancelled = periodOrders.filter(o => (o.status ?? "") === "Annulé").length;
+    const ca = periodOrders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
+    const pending = periodOrders.filter(o => !o.cash_collected && isEnCours(o)).reduce((s, o) => s + Number(o.amount || 0), 0);
+    const confirmRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+    const deliveryRate = confirmed > 0 ? Math.round((delivered / confirmed) * 100) : 0;
+    return { total, confirmed, delivered, cancelled, ca, pending, confirmRate, deliveryRate };
+  }, [periodOrders]);
 
-  const stockByDriver = useMemo(() =>
-    driverStocks.reduce((acc: Record<string, number>, i) => {
-      acc[i.driver_name] = (acc[i.driver_name] || 0) + Number(i.quantity || 0);
-      return acc;
-    }, {}), [driverStocks]);
+  // Graphique 7 jours
+  const chartData = useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const ds = d.toDateString();
+      const label = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
+      const dayOrders = orders.filter(o => o.created_at && new Date(o.created_at).toDateString() === ds);
+      const livrees = orders.filter(o => o.delivered_at && new Date(o.delivered_at).toDateString() === ds);
+      const ca = livrees.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
+      days.push({ label, total: dayOrders.length, livrees: livrees.length, ca });
+    }
+    return days;
+  }, [orders]);
+
+  const chartMax = useMemo(() => {
+    const vals = chartData.map(d => chartMetric === "ca" ? d.ca : chartMetric === "livrees" ? d.livrees : d.total);
+    return Math.max(...vals, 1);
+  }, [chartData, chartMetric]);
+
+  // Top produits
+  const topProducts = useMemo(() => {
+    const map: Record<string, { count: number; ca: number }> = {};
+    periodOrders.forEach(o => {
+      const name = o.product || "Inconnu";
+      if (!map[name]) map[name] = { count: 0, ca: 0 };
+      map[name].count++;
+      if (o.cash_collected) map[name].ca += Number(o.amount || 0);
+    });
+    return Object.entries(map).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
+  }, [periodOrders]);
+
+  // Performance closureuses
+  const closeuseStats = useMemo(() => {
+    const map: Record<string, { confirmed: number; cancelled: number; total: number }> = {};
+    periodOrders.forEach(o => {
+      const name = o.closer_name || "Non assigné";
+      if (!map[name]) map[name] = { confirmed: 0, cancelled: 0, total: 0 };
+      map[name].total++;
+      if (["Confirmé","Livré","Assigné","En livraison"].includes(o.status ?? "")) map[name].confirmed++;
+      if ((o.status ?? "") === "Annulé") map[name].cancelled++;
+    });
+    return Object.entries(map).filter(([n]) => n !== "Non assigné").sort((a, b) => b[1].confirmed - a[1].confirmed);
+  }, [periodOrders]);
+
+  // Performance livreurs
+  const livreurStats = useMemo(() => {
+    const map: Record<string, { delivered: number; total: number; ca: number }> = {};
+    periodOrders.forEach(o => {
+      if (!o.driver_name) return;
+      if (!map[o.driver_name]) map[o.driver_name] = { delivered: 0, total: 0, ca: 0 };
+      map[o.driver_name].total++;
+      if ((o.status ?? "") === "Livré") {
+        map[o.driver_name].delivered++;
+        if (o.cash_collected) map[o.driver_name].ca += Number(o.amount || 0);
+      }
+    });
+    return Object.entries(map).sort((a, b) => b[1].delivered - a[1].delivered);
+  }, [periodOrders]);
+
+  const periodLabel: Record<string, string> = { today: "Aujourd'hui", "7d": "7 jours", "30d": "30 jours", all: "Tout" };
 
   return (
-    <div>
-      <SectionTitle>Aujourd&apos;hui</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
-        <StatCard icon="📝" label="Créées"   value={today.created} />
-        <StatCard icon="🎯" label="Livrées"  value={today.delivered} color={S.success} bg={S.successBg} border={S.success + "30"} />
-        <StatCard icon="💵" label="Encaissé" value={fmt(today.amount)} color={S.gold} bg="#1A1200" border={S.gold + "30"} small />
+    <div style={{ fontFamily: "Inter, sans-serif" }}>
+
+      {/* Filtre période */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {(["today","7d","30d","all"] as const).map(p => (
+          <button key={p} onClick={() => setPeriod(p)}
+            style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${period === p ? S.gold : S.border}`, background: period === p ? "rgba(245,158,11,0.12)" : S.card, color: period === p ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {periodLabel[p]}
+          </button>
+        ))}
       </div>
 
-      <SectionTitle>Global</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 4 }}>
-        <StatCard icon="📦" label="Total"     value={global.total} />
-        <StatCard icon="⚡" label="En cours"  value={global.enCours} color={S.warning} />
-        <StatCard icon="✅" label="Confirmées" value={global.confirmed} color={S.info} />
-        <StatCard icon="🏁" label="Livrées"   value={global.delivered} color={S.success} />
-        <StatCard icon="🚌" label="Gare"      value={global.gare} color={S.purple} />
-        <StatCard icon="💰" label="Encaissé"  value={fmt(global.collected)} color={S.gold} bg="#1A1200" small />
+      {/* Stats aujourd'hui */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>AUJOURD&apos;HUI</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <StatCard icon="📝" label="Créées" value={today.created} />
+        <StatCard icon="🎯" label="Livrées" value={today.delivered} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon="💵" label="Encaissé" value={fmt(today.amount)} color={S.gold} bg={S.goldBg} border={S.goldBorder} small />
       </div>
 
-      <SectionTitle>Finances</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 4 }}>
-        <StatCard icon="⏳" label="À encaisser"   value={fmt(global.pending)} color={S.warning} small />
-        <StatCard icon="🛵" label="Comm. livreurs" value={fmt(global.driverCommissions)} color={S.info} small />
-        <StatCard icon="👩" label="Comm. closeurs" value={fmt(global.closerCommissions)} color={S.purple} small />
+      {/* KPIs période */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>PÉRIODE — {periodLabel[period]}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 10 }}>
+        <StatCard icon="📥" label="Reçues" value={stats.total} color={S.blue} bg={S.blueBg} border={S.blueBorder} />
+        <StatCard icon="✅" label="Confirmées" value={stats.confirmed} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon="🎯" label="Livrées" value={stats.delivered} color={S.gold} bg={S.goldBg} border={S.goldBorder} />
+        <StatCard icon="❌" label="Annulées" value={stats.cancelled} color={S.red} bg={S.redBg} border={S.redBorder} />
       </div>
 
-      {Object.keys(stockByDriver).length > 0 && (
+      {/* Taux */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        {[
+          { label: "Taux confirmation", rate: stats.confirmRate, color: S.blue },
+          { label: "Taux livraison", rate: stats.deliveryRate, color: S.green },
+        ].map(({ label, rate, color }) => (
+          <div key={label} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14 }}>
+            <p style={{ color: S.text2, fontSize: 11, margin: "0 0 8px 0" }}>{label}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <p style={{ color, fontSize: 22, fontWeight: 800, margin: 0 }}>{rate}%</p>
+              <div style={{ flex: 1, background: S.border, borderRadius: 4, height: 8 }}>
+                <div style={{ width: `${rate}%`, background: color, borderRadius: 4, height: "100%" }} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Montants */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        <div style={{ background: "linear-gradient(135deg,#052E16,#065F46)", border: `1px solid ${S.greenBorder}`, borderRadius: 14, padding: 16 }}>
+          <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0" }}>💵 Chiffre d&apos;affaires</p>
+          <p style={{ color: S.green, fontSize: 20, fontWeight: 800, margin: 0 }}>{fmt(stats.ca)}</p>
+        </div>
+        <div style={{ background: "linear-gradient(135deg,#450A0A,#7F1D1D)", border: `1px solid ${S.redBorder}`, borderRadius: 14, padding: 16 }}>
+          <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0" }}>⏳ En attente</p>
+          <p style={{ color: S.red, fontSize: 20, fontWeight: 800, margin: 0 }}>{fmt(stats.pending)}</p>
+        </div>
+      </div>
+
+      {/* Graphique */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📈 ÉVOLUTION 7 JOURS</p>
+      <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {([["total","Commandes"],["livrees","Livrées"],["ca","CA"]] as const).map(([m, label]) => (
+            <button key={m} onClick={() => setChartMetric(m)}
+              style={{ padding: "3px 10px", borderRadius: 10, border: `1px solid ${chartMetric === m ? S.gold : S.border}`, background: chartMetric === m ? "rgba(245,158,11,0.1)" : "transparent", color: chartMetric === m ? S.gold : S.text3, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+          {chartData.map((d, i) => {
+            const val = chartMetric === "ca" ? d.ca : chartMetric === "livrees" ? d.livrees : d.total;
+            const h = Math.max(Math.round((val / chartMax) * 100), val > 0 ? 8 : 2);
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <span style={{ color: S.text3, fontSize: 9, fontWeight: 600 }}>{val > 0 ? (chartMetric === "ca" ? `${Math.round(val/1000)}k` : val) : ""}</span>
+                <div style={{ width: "100%", height: `${h}%`, background: val > 0 ? `linear-gradient(to top, ${S.gold}, ${S.gold}88)` : S.border, borderRadius: "4px 4px 0 0", minHeight: 3 }} />
+                <span style={{ color: S.text3, fontSize: 9, textAlign: "center", lineHeight: 1.2 }}>{d.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top produits */}
+      {topProducts.length > 0 && (
         <>
-          <SectionTitle>Stock par livreur</SectionTitle>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {Object.entries(stockByDriver).map(([name, qty]) => (
-              <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 10, padding: "10px 14px" }}>
-                <span style={{ fontSize: 13, color: S.text2 }}>🛵 {name}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: Number(qty) <= 3 ? S.danger : S.success }}>{qty} unités</span>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>🏆 TOP PRODUITS</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, marginBottom: 20 }}>
+            {topProducts.map(([name, data], i) => (
+              <div key={name} style={{ marginBottom: i < topProducts.length - 1 ? 12 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ color: S.text, fontSize: 13, fontWeight: 600 }}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  "} {name}
+                  </span>
+                  <span style={{ color: S.gold, fontSize: 12, fontWeight: 700 }}>{data.count} ventes</span>
+                </div>
+                <div style={{ background: S.border, borderRadius: 4, height: 5 }}>
+                  <div style={{ width: `${Math.round((data.count / topProducts[0][1].count) * 100)}%`, background: S.gold, borderRadius: 4, height: "100%" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Performance closureuses */}
+      {closeuseStats.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📞 CLOSUREUSES</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+            {closeuseStats.map(([name, data], i) => {
+              const rate = data.total > 0 ? Math.round((data.confirmed / data.total) * 100) : 0;
+              return (
+                <div key={name} style={{ padding: "10px 14px", borderBottom: i < closeuseStats.length - 1 ? `1px solid ${S.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>👩</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{name}</p>
+                    <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>{data.confirmed} conf. · {data.cancelled} ann.</p>
+                  </div>
+                  <p style={{ color: rate >= 70 ? S.green : rate >= 50 ? S.gold : S.red, fontSize: 18, fontWeight: 800, margin: 0 }}>{rate}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Performance livreurs */}
+      {livreurStats.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>🚚 LIVREURS</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+            {livreurStats.map(([name, data], i) => {
+              const rate = data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0;
+              return (
+                <div key={name} style={{ padding: "10px 14px", borderBottom: i < livreurStats.length - 1 ? `1px solid ${S.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🛵</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{name}</p>
+                    <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>{data.delivered}/{data.total} liv. · {fmt(data.ca)}</p>
+                  </div>
+                  <p style={{ color: rate >= 80 ? S.green : rate >= 60 ? S.gold : S.red, fontSize: 18, fontWeight: 800, margin: 0 }}>{rate}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Stock par livreur */}
+      {driverStocks.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📦 STOCK PAR LIVREUR</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8 }}>
+            {Object.entries(driverStocks.reduce((acc: Record<string, number>, i) => {
+              acc[i.driver_name] = (acc[i.driver_name] || 0) + Number(i.quantity || 0); return acc;
+            }, {})).map(([driver, qty]) => (
+              <div key={driver} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ fontSize: 11, color: S.text2, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{driver}</p>
+                <p style={{ fontSize: 26, fontWeight: 700, color: S.gold, margin: 0 }}>{qty}</p>
               </div>
             ))}
           </div>
@@ -184,6 +389,7 @@ function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks
     </div>
   );
 }
+
 
 // ─── Vue Commandes ───────────────────────────────────────────
 function CommandesView({ orders, drivers, history, selectedDrivers, selectedActions, onDriverChange, onActionChange, onActionSubmit, onEditClick }: {
