@@ -6,8 +6,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
-import { COUNTRY_DIALCODES } from "@/app/commander/[boutique]/page"
-
 const C = {
   bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
   white: "#F8F8FC", muted: "#55556A", mutedLight: "#9898B0",
