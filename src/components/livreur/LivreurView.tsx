@@ -101,44 +101,47 @@ export function LivreurView() {
     return () => { void supabase.removeChannel(channel); };
   }, [profile]);
 
-  const init = async () => {
+  async function init() {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) { router.replace("/login"); return; }
-    const { data: pd } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data: pd } = await supabase.from("profiles")
+      .select("*").eq("id", user.id).single();
     if (!pd) { router.replace("/login"); return; }
     const p = pd as Profile;
     if (normalizeRole(p.role) !== "livreur") {
-      router.replace(normalizeRole(p.role) === "admin" ? "/admin" : "/closureuse");
-      return;
+      router.replace("/login"); return;
     }
     setProfile(p);
     setIsAvailable(p.is_available === true);
-    if (p.tenant_id) {
-      const { data: td } = await supabase.from("tenants").select("name").eq("id", p.tenant_id).single();
-      if (td?.name) setTenantName(td.name);
-    }
-    // Charger règles de commission
-    if (p.tenant_id) {
-      const { data: td } = await supabase.from("tenants")
-        .select("driver_commission, closer_commission, currency").eq("id", p.tenant_id).single();
-      if (td) {
-        setCommissionRules({ driver: Number(td.driver_commission) || 2000, closer: Number(td.closer_commission) || 500 });
-        setCurrency(td.currency || "FCFA");
-      }
-    }
-    // Charger en parallèle pour aller plus vite
-    const [ordersRes, stockRes] = await Promise.all([
+
+    // Tout en parallèle
+    const [tenantRes, ordersRes, stockRes] = await Promise.all([
+      p.tenant_id ? supabase.from("tenants")
+        .select("currency, name, driver_commission, closer_commission, at_username, at_api_key, at_sender_id")
+        .eq("id", p.tenant_id).single()
+        : Promise.resolve({ data: null }),
       supabase.from("orders")
-        .select("*")
+        .select("id, customer_name, phone, city, address, product, quantity, amount, status, driver_name, assigned_driver_id, cash_collected, created_at, delivered_at, driver_commission, closer_commission, note, tenant_id")
         .eq("assigned_driver_id", user.id)
         .in("status", ["Confirmé", "Livré", "Annulé"])
-        .order("id", { ascending: false }),
-      supabase.from("driver_stock").select("*").eq("driver_id", user.id)
+        .order("id", { ascending: false }).limit(200),
+      supabase.from("driver_stock")
+        .select("id, driver_id, driver_name, product_name, quantity")
+        .eq("driver_id", user.id),
     ]);
-    setOrders((ordersRes.data as Order[]) || []);
-    setStock((stockRes.data as DriverStock[]) || []);
-    setLoading(false);
-  };
+
+    if (tenantRes.data) {
+      const td = tenantRes.data as any;
+      if (td.name) setTenantName(td.name);
+      if (td.currency) setCurrency(td.currency);
+      setCommissionRules({
+        driver: td.driver_commission || 2000,
+        closer: td.closer_commission || 500,
+      });
+    }
+    setOrders((ordersRes.data || []) as Order[]);
+    setStock((stockRes.data || []) as DriverStock[]);
+  }
 
   const loadData = async (driverId: string) => {
     const [ordersRes, stockRes] = await Promise.all([
