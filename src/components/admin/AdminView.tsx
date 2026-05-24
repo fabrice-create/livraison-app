@@ -1130,18 +1130,15 @@ export function AdminView() {
       return;
     }
     setProfile(p);
-    if (p.tenant_id) {
-      const { data: td } = await supabase.from("tenants").select("name").eq("id", p.tenant_id).single();
-      if (td?.name) setTenantName(td.name);
-    }
     const tid = (p as any).tenant_id || "";
     setTenantId(tid);
     // Charger les règles de commission depuis les paramètres de la boutique
     if (tid) {
       const { data: tenantData } = await supabase.from("tenants")
-        .select("driver_commission, closer_commission, currency")
+        .select("driver_commission, closer_commission, currency, name")
         .eq("id", tid).single();
       if (tenantData) {
+        if (tenantData.name) setTenantName(tenantData.name);
         setCommissionRules({
           driver: Number(tenantData.driver_commission) || 2000,
           closer: Number(tenantData.closer_commission) || 500,
