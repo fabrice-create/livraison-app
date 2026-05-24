@@ -3,7 +3,7 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
 const C = {
@@ -29,7 +29,7 @@ interface BoutiqueInfo {
   brand_color: string
 }
 
-export default function WidgetPage() {
+function WidgetContent() {
   const searchParams = useSearchParams()
   const slug = searchParams?.get("boutique") || ""
   const produitId = searchParams?.get("produit") || ""
@@ -268,5 +268,17 @@ export default function WidgetPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function WidgetPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ background: "#0A0A0F", padding: 24, textAlign: "center", color: "#55556A", fontFamily: "Inter, sans-serif", borderRadius: 12 }}>
+        Chargement...
+      </div>
+    }>
+      <WidgetContent />
+    </Suspense>
   )
 }
