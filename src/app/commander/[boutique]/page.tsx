@@ -306,7 +306,7 @@ export default function CommanderPage() {
         {/* Message rassurant */}
         <div style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, textAlign: "center" }}>
           <p style={{ color: C.success, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
-            📞 Notre livreur va vous appeler bientôt au <strong>{form.phone}</strong> pour confirmer la livraison.
+            📞 Notre équipe va vous appeler bientôt au <strong>{form.phone}</strong> pour confirmer votre commande.
           </p>
         </div>
 
