@@ -67,6 +67,8 @@ interface TenantSettings {
   boutique_description: string
   banner_text: string
   countdown_end: string
+  banner_on_boutique: boolean
+  banner_on_produit: boolean
 }
 
 const EMPTY: TenantSettings = {
@@ -76,6 +78,7 @@ const EMPTY: TenantSettings = {
   at_username: "", at_api_key: "", at_sender_id: "Shipivo",
   brand_color: "#F59E0B", logo_url: "", boutique_description: "",
   banner_text: "", countdown_end: "",
+  banner_on_boutique: true, banner_on_produit: false,
 }
 
 export default function ParametresView({ tenantId }: Props) {
@@ -114,7 +117,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description, banner_text, countdown_end")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit")
       .eq("id", tenantId)
       .single()
 
@@ -137,6 +140,8 @@ export default function ParametresView({ tenantId }: Props) {
         boutique_description: data.boutique_description || "",
         banner_text: data.banner_text || "",
         countdown_end: data.countdown_end || "",
+        banner_on_boutique: data.banner_on_boutique !== false,
+        banner_on_produit: data.banner_on_produit === true,
       })
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
       setLienCommande(`${baseUrl}/commander/${data.slug}`)
@@ -199,6 +204,8 @@ export default function ParametresView({ tenantId }: Props) {
       boutique_description: settings.boutique_description || null,
       banner_text: settings.banner_text || null,
       countdown_end: settings.countdown_end || null,
+      banner_on_boutique: settings.banner_on_boutique,
+      banner_on_produit: settings.banner_on_produit,
     }).eq("id", tenantId)
 
     if (err) { setError(err.message); setSaving(false); return }
@@ -435,6 +442,23 @@ export default function ParametresView({ tenantId }: Props) {
             onFocus={e => e.target.style.borderColor = "#F59E0B"}
             onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
           <p style={{ color: S.text3, fontSize: 11, margin: "4px 0 0 0" }}>Sépare les messages avec • pour un défilement fluide</p>
+          {/* Toggles affichage */}
+          {settings.banner_text && (
+            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={settings.banner_on_boutique}
+                  onChange={e => setSettings(p => ({ ...p, banner_on_boutique: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: S.gold, cursor: "pointer" }} />
+                <span style={{ color: S.text2, fontSize: 12 }}>Afficher sur la boutique</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={settings.banner_on_produit}
+                  onChange={e => setSettings(p => ({ ...p, banner_on_produit: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: S.gold, cursor: "pointer" }} />
+                <span style={{ color: S.text2, fontSize: 12 }}>Afficher sur les pages produit</span>
+              </label>
+            </div>
+          )}
         </div>
 
         {/* Compte à rebours */}
