@@ -45,15 +45,25 @@ export default function LoginPage() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const profile = await getUserProfile(user.id)
-        if (profile) { router.replace(getRedirectByRole(profile.role)); return }
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const profile = await getUserProfile(user.id)
+          if (profile && profile.is_active) {
+            window.location.href = getRedirectByRole(profile.role)
+            return
+          } else {
+            // Session active mais profil invalide — nettoyer
+            await supabase.auth.signOut()
+          }
+        }
+      } catch {
+        await supabase.auth.signOut()
       }
       setChecking(false)
     }
     checkSession()
-  }, [router])
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
