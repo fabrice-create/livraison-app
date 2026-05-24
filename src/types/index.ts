@@ -34,8 +34,6 @@ export type Order = {
   source?: string | null
   note?: string | null
   tenant_id?: string | null
-  is_available?: boolean | null
-  last_seen?: string | null
 }
 
 export type Profile = {
@@ -46,6 +44,8 @@ export type Profile = {
   phone?: string | null
   tenant_id?: string | null
   is_active?: boolean
+  is_available?: boolean | null
+  last_seen?: string | null
 }
 
 export type DriverStock = {
