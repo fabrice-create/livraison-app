@@ -21,6 +21,12 @@ interface Product {
   tenant_id?: string
 }
 
+interface ProductImage {
+  id: number
+  image_url: string
+  position: number
+}
+
 export default function ProduitDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -28,6 +34,8 @@ export default function ProduitDetailPage() {
   const id = params?.id as string
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [images, setImages] = useState<string[]>([])
+  const [activeImg, setActiveImg] = useState(0)
   const [tenantCurrency, setTenantCurrency] = useState("FCFA")
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
@@ -43,9 +51,23 @@ export default function ProduitDetailPage() {
         .select("id, name, price, description, image_url, tenant_id")
         .eq("id", id)
         .single()
+
+      if (!data) { setLoading(false); return }
       setProduct(data)
+
+      // Charger toutes les images
+      const allImgs: string[] = []
+      if (data.image_url) allImgs.push(data.image_url)
+      const { data: extraImgs } = await supabase
+        .from("product_images")
+        .select("image_url, position")
+        .eq("product_id", data.id)
+        .order("position")
+      if (extraImgs) allImgs.push(...extraImgs.map((i: ProductImage) => i.image_url))
+      setImages(allImgs)
+
       // Charger devise du tenant
-      if (data?.tenant_id) {
+      if (data.tenant_id) {
         const { data: tenant } = await supabase
           .from("tenants")
           .select("currency")
@@ -60,17 +82,40 @@ export default function ProduitDetailPage() {
 
   const fmt = (n: number) => formatPrice(n, tenantCurrency)
 
-  const handleAdd = () => {
+  const handleAddToCart = () => {
     const cart = JSON.parse(sessionStorage.getItem(`cart_${boutique}`) || "[]")
     const existing = cart.find((i: {id: number}) => i.id === product?.id)
     if (existing) {
       existing.quantity += quantity
     } else {
-      cart.push({ id: product?.id, name: product?.name, price: product?.price, image_url: product?.image_url, quantity })
+      cart.push({
+        id: product?.id,
+        name: product?.name,
+        price: product?.price,
+        image_url: product?.image_url,
+        quantity
+      })
     }
     sessionStorage.setItem(`cart_${boutique}`, JSON.stringify(cart))
     setAdded(true)
-    setTimeout(() => router.push(`/commander/${boutique}`), 1000)
+  }
+
+  const handleOrderNow = () => {
+    const cart = JSON.parse(sessionStorage.getItem(`cart_${boutique}`) || "[]")
+    const existing = cart.find((i: {id: number}) => i.id === product?.id)
+    if (existing) {
+      existing.quantity += quantity
+    } else {
+      cart.push({
+        id: product?.id,
+        name: product?.name,
+        price: product?.price,
+        image_url: product?.image_url,
+        quantity
+      })
+    }
+    sessionStorage.setItem(`cart_${boutique}`, JSON.stringify(cart))
+    router.push(`/commander/${boutique}?step=form`)
   }
 
   if (loading) return (
@@ -81,97 +126,121 @@ export default function ProduitDetailPage() {
 
   if (!product) return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Produit introuvable.</p>
+      <p style={{ color: C.muted, fontFamily: "Inter, sans-serif" }}>Produit introuvable</p>
     </div>
   )
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
 
       {/* Header */}
-      <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 20px", position: "sticky", top: 0, zIndex: 50 }}>
-        <button onClick={() => router.back()} style={{ background: "none", border: "none", color: C.gold, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>
-          ← Retour
-        </button>
+      <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => router.push(`/commander/${boutique}`)}
+            style={{ background: "none", border: "none", color: C.gold, fontSize: 20, cursor: "pointer", padding: 0, lineHeight: 1 }}>
+            ←
+          </button>
+          <h1 style={{ color: C.white, fontSize: 16, fontWeight: 700, margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {product.name}
+          </h1>
+        </div>
       </div>
 
-      <div style={{ maxWidth: 500, margin: "0 auto", padding: "20px 16px 40px" }}>
+      <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: 120 }}>
 
-        {/* Photo carrée 1:1 */}
-        <div style={{
-          width: "100%",
-          aspectRatio: "1 / 1",
-          borderRadius: 16,
-          overflow: "hidden",
-          background: C.card,
-          marginBottom: 20,
-          border: `1px solid ${C.border}`,
-        }}>
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 64 }}>
-              📦
+        {/* Galerie photos */}
+        <div style={{ position: "relative" }}>
+          {/* Photo principale */}
+          <div style={{ width: "100%", aspectRatio: "1/1", background: C.card, overflow: "hidden" }}>
+            {images.length > 0 ? (
+              <img
+                src={images[activeImg]}
+                alt={product.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 80 }}>
+                📦
+              </div>
+            )}
+          </div>
+
+          {/* Indicateur photos */}
+          {images.length > 1 && (
+            <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.6)", borderRadius: 12, padding: "3px 10px" }}>
+              <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{activeImg + 1}/{images.length}</span>
             </div>
           )}
         </div>
 
-        {/* Nom + Prix */}
-        <h1 style={{ color: C.white, fontSize: 22, fontWeight: 800, margin: "0 0 6px 0", letterSpacing: "-0.3px" }}>
-          {product.name}
-        </h1>
-        <p style={{ color: C.gold, fontSize: 26, fontWeight: 800, margin: "0 0 20px 0" }}>
-          {fmt(product.price)}
-        </p>
-
-        {/* Description */}
-        {product.description && (
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
-            <p style={{ color: C.mutedLight, fontSize: 11, fontWeight: 700, margin: "0 0 8px 0", textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>
-              Description
-            </p>
-            <p style={{ color: C.white, fontSize: 14, margin: 0, lineHeight: 1.7 }}>
-              {product.description}
-            </p>
+        {/* Miniatures */}
+        {images.length > 1 && (
+          <div style={{ display: "flex", gap: 8, padding: "10px 12px", overflowX: "auto" }}>
+            {images.map((img, i) => (
+              <div key={i} onClick={() => setActiveImg(i)}
+                style={{ flexShrink: 0, width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: `2px solid ${activeImg === i ? C.gold : C.border}`, cursor: "pointer" }}>
+                <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Quantité */}
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ color: C.mutedLight, fontSize: 11, fontWeight: 700, margin: "0 0 12px 0", textTransform: "uppercase" as const, letterSpacing: "0.1em" }}>
-            Quantité
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <button onClick={() => setQuantity(q => Math.max(1, q - 1))} style={{ width: 44, height: 44, borderRadius: 10, background: C.card, border: `1px solid ${C.border}`, color: C.white, fontSize: 20, cursor: "pointer", fontWeight: 700 }}>−</button>
-            <span style={{ color: C.white, fontSize: 22, fontWeight: 800, minWidth: 40, textAlign: "center" as const }}>{quantity}</span>
-            <button onClick={() => setQuantity(q => q + 1)} style={{ width: 44, height: 44, borderRadius: 10, background: C.gold, border: "none", color: "#000", fontSize: 20, cursor: "pointer", fontWeight: 700 }}>+</button>
+        {/* Infos produit */}
+        <div style={{ padding: "16px 16px 0" }}>
+          <h2 style={{ color: C.white, fontSize: 20, fontWeight: 800, margin: "0 0 6px 0" }}>{product.name}</h2>
+          <p style={{ color: C.gold, fontSize: 24, fontWeight: 800, margin: "0 0 16px 0" }}>{fmt(product.price)}</p>
+
+          {product.description && (
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+              <p style={{ color: C.mutedLight, fontSize: 13, fontWeight: 600, margin: "0 0 8px 0" }}>Description</p>
+              <p style={{ color: C.white, fontSize: 14, margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{product.description}</p>
+            </div>
+          )}
+
+          {/* Sélecteur quantité */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+            <span style={{ color: C.mutedLight, fontSize: 14, fontWeight: 500 }}>Quantité</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                style={{ width: 36, height: 36, borderRadius: 8, background: C.border, border: "none", color: C.white, fontSize: 18, cursor: "pointer", fontWeight: 700 }}>−</button>
+              <span style={{ color: C.white, fontSize: 18, fontWeight: 800, minWidth: 24, textAlign: "center" }}>{quantity}</span>
+              <button onClick={() => setQuantity(q => q + 1)}
+                style={{ width: 36, height: 36, borderRadius: 8, background: C.gold, border: "none", color: "#000", fontSize: 18, cursor: "pointer", fontWeight: 700 }}>+</button>
+            </div>
+            {quantity > 1 && (
+              <span style={{ color: C.muted, fontSize: 13 }}>= {fmt(product.price * quantity)}</span>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Total */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
-          <span style={{ color: C.mutedLight, fontSize: 14 }}>Total</span>
-          <span style={{ color: C.gold, fontSize: 22, fontWeight: 800 }}>{fmt(product.price * quantity)}</span>
+      {/* Boutons fixes en bas */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.bg, borderTop: `1px solid ${C.border}`, padding: "12px 16px", zIndex: 50 }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", gap: 10 }}>
+          {!added ? (
+            <>
+              <button onClick={handleAddToCart}
+                style={{ flex: 1, background: "transparent", border: `2px solid ${C.gold}`, borderRadius: 12, padding: "14px", color: C.gold, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                🛒 Ajouter
+              </button>
+              <button onClick={handleOrderNow}
+                style={{ flex: 2, background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "14px", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                ⚡ Commander maintenant
+              </button>
+            </>
+          ) : (
+            <div style={{ display: "flex", gap: 10, width: "100%" }}>
+              <button onClick={() => router.push(`/commander/${boutique}`)}
+                style={{ flex: 1, background: C.border, border: "none", borderRadius: 12, padding: "14px", color: C.white, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                ← Continuer
+              </button>
+              <button onClick={() => router.push(`/commander/${boutique}?step=form`)}
+                style={{ flex: 2, background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "14px", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                🛒 Voir le panier →
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Bouton ajouter au panier */}
-        <button onClick={handleAdd} disabled={added} style={{
-          width: "100%",
-          background: added ? "rgba(74,222,128,0.15)" : `linear-gradient(135deg,${C.gold},${C.goldDark})`,
-          border: added ? "1px solid rgba(74,222,128,0.3)" : "none",
-          borderRadius: 14, padding: "16px",
-          color: added ? C.success : "#000",
-          fontSize: 16, fontWeight: 800,
-          cursor: added ? "default" : "pointer",
-          minHeight: 54,
-          transition: "all 0.2s",
-        }}>
-          {added ? "✓ Ajouté ! Retour au catalogue..." : `🛒 Ajouter au panier · ${fmt(product.price * quantity)}`}
-        </button>
       </div>
     </div>
   )
