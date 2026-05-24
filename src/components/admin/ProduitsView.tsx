@@ -243,7 +243,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setSaving(false)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Supprimer ce produit ?")) return
     await supabase.from("product_images").delete().eq("product_id", id)
     await supabase.from("products").delete().eq("id", id)
