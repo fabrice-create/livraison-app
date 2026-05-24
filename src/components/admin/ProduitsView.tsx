@@ -20,6 +20,13 @@ interface Product {
   image_url?: string
   is_active: boolean
   created_at: string
+  images?: ProductImage[]
+}
+
+interface ProductImage {
+  id: number
+  image_url: string
+  position: number
 }
 
 interface Props {
@@ -36,21 +43,26 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState(EMPTY)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState("")
-  const [imageInfo, setImageInfo] = useState("")
+
+  // Images multiples
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null)
+  const [mainImagePreview, setMainImagePreview] = useState("")
+  const [mainImageInfo, setMainImageInfo] = useState("")
+  const [extraImages, setExtraImages] = useState<{ file: File; preview: string }[]>([])
+  const [existingImages, setExistingImages] = useState<ProductImage[]>([])
+
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [copied, setCopied] = useState<string>("")
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const mainFileRef = useRef<HTMLInputElement>(null)
+  const extraFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadData() }, [tenantId])
 
   const loadData = async () => {
     setLoading(true)
-    // Charger slug si pas fourni
     if (!slug) {
       const { data: tenant } = await supabase
         .from("tenants").select("slug").eq("id", tenantId).single()
@@ -60,7 +72,22 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       .from("products").select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
-    setProducts(data || [])
+
+    if (data) {
+      // Charger les images pour chaque produit
+      const productIds = data.map(p => p.id)
+      const { data: imgs } = await supabase
+        .from("product_images")
+        .select("*")
+        .in("product_id", productIds)
+        .order("position")
+
+      const productsWithImages = data.map(p => ({
+        ...p,
+        images: imgs?.filter(i => i.product_id === p.id) || []
+      }))
+      setProducts(productsWithImages)
+    }
     setLoading(false)
   }
 
@@ -77,185 +104,277 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       await navigator.clipboard.writeText(text)
       setCopied(key)
       setTimeout(() => setCopied(""), 2000)
-    } catch {
-      // fallback
-      const el = document.createElement("textarea")
-      el.value = text
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand("copy")
-      document.body.removeChild(el)
-      setCopied(key)
-      setTimeout(() => setCopied(""), 2000)
+    } catch { setError("Impossible de copier") }
+  }
+
+  const resetForm = () => {
+    setForm(EMPTY)
+    setEditing(null)
+    setMainImageFile(null)
+    setMainImagePreview("")
+    setMainImageInfo("")
+    setExtraImages([])
+    setExistingImages([])
+    setError("")
+    setShowForm(false)
+  }
+
+  const startEdit = async (p: Product) => {
+    setEditing(p)
+    setForm({ name: p.name, price: String(p.price), description: p.description || "" })
+    setMainImagePreview(p.image_url || "")
+    setMainImageFile(null)
+    setMainImageInfo("")
+    setExtraImages([])
+    // Charger images existantes
+    const { data: imgs } = await supabase
+      .from("product_images")
+      .select("*")
+      .eq("product_id", p.id)
+      .order("position")
+    setExistingImages(imgs || [])
+    setShowForm(true)
+  }
+
+  const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setMainImagePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    setMainImageInfo("Compression en cours...")
+    const compressed = await compressImage(file, 800, 0.82)
+    setMainImageFile(compressed)
+    setMainImageInfo(`✓ Optimisé : ${formatFileSize(compressed.size)}`)
+  }
+
+  const handleExtraImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const remaining = 9 - existingImages.length - extraImages.length
+    const toAdd = files.slice(0, remaining)
+    for (const file of toAdd) {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setExtraImages(prev => [...prev, { file, preview: ev.target?.result as string }])
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const openAdd = () => {
-    setEditing(null); setForm(EMPTY)
-    setImageFile(null); setImagePreview(""); setImageInfo("")
-    setError(""); setShowForm(true)
+  const removeExtraImage = (index: number) => {
+    setExtraImages(prev => prev.filter((_, i) => i !== index))
   }
 
-  const openEdit = (p: Product) => {
-    setEditing(p)
-    setForm({ name: p.name, price: String(p.price), description: p.description || "" })
-    setImageFile(null); setImagePreview(p.image_url || ""); setImageInfo("")
-    setError(""); setShowForm(true)
-  }
-
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setError("")
-    if (file.size > 10 * 1024 * 1024) { setError("Photo trop lourde. Max 10 MB."); return }
-    const reader = new FileReader()
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-    setImageInfo("Compression en cours...")
-    const compressed = await compressImage(file, 800, 0.82)
-    setImageFile(compressed)
-    setImageInfo(`✓ Optimisé : ${formatFileSize(compressed.size)} (était ${formatFileSize(file.size)})`)
+  const removeExistingImage = async (img: ProductImage) => {
+    await supabase.from("product_images").delete().eq("id", img.id)
+    setExistingImages(prev => prev.filter(i => i.id !== img.id))
   }
 
   const uploadImage = async (file: File): Promise<string | null> => {
-    setUploading(true)
-    const fileName = `${tenantId}/${Date.now()}.jpg`
+    const fileName = `products/${tenantId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
     const { error: err } = await supabase.storage
       .from("shipivo-images").upload(fileName, file, { contentType: "image/jpeg", upsert: false })
-    setUploading(false)
     if (err) { setError("Erreur upload : " + err.message); return null }
     const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
     return data.publicUrl
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError("Le nom est requis"); return }
-    if (!form.price || isNaN(Number(form.price))) { setError("Le prix est requis"); return }
-    setError(""); setSaving(true)
+    if (!form.name.trim()) { setError("Nom requis"); return }
+    if (!form.price || isNaN(Number(form.price))) { setError("Prix invalide"); return }
+    setSaving(true); setError("")
+
+    // Upload image principale
     let imageUrl = editing?.image_url || null
-    if (imageFile) {
-      const url = await uploadImage(imageFile)
+    if (mainImageFile) {
+      setUploading(true)
+      const url = await uploadImage(mainImageFile)
+      setUploading(false)
       if (!url) { setSaving(false); return }
       imageUrl = url
     }
-    const payload = {
-      tenant_id: tenantId, name: form.name.trim(),
-      price: Number(form.price), description: form.description.trim() || null,
-      image_url: imageUrl, is_active: true,
-    }
+
+    let productId = editing?.id
+
     if (editing) {
-      await supabase.from("products").update(payload).eq("id", editing.id)
-      setSuccess("Produit modifié ✓")
+      const { error: err } = await supabase.from("products").update({
+        name: form.name.trim(),
+        price: Number(form.price),
+        description: form.description.trim() || null,
+        image_url: imageUrl,
+      }).eq("id", editing.id)
+      if (err) { setError(err.message); setSaving(false); return }
     } else {
-      await supabase.from("products").insert(payload)
-      setSuccess("Produit ajouté ✓")
+      const { data, error: err } = await supabase.from("products").insert({
+        tenant_id: tenantId,
+        name: form.name.trim(),
+        price: Number(form.price),
+        description: form.description.trim() || null,
+        image_url: imageUrl,
+        is_active: true,
+      }).select().single()
+      if (err || !data) { setError(err?.message || "Erreur"); setSaving(false); return }
+      productId = data.id
     }
-    setSaving(false); setShowForm(false); loadData()
+
+    // Upload images supplémentaires
+    if (extraImages.length > 0 && productId) {
+      setUploading(true)
+      const lastPosition = existingImages.length
+      for (let i = 0; i < extraImages.length; i++) {
+        const compressed = await compressImage(extraImages[i].file, 800, 0.82)
+        const url = await uploadImage(compressed)
+        if (url) {
+          await supabase.from("product_images").insert({
+            product_id: productId,
+            tenant_id: tenantId,
+            image_url: url,
+            position: lastPosition + i,
+          })
+        }
+      }
+      setUploading(false)
+    }
+
+    setSuccess(editing ? "Produit modifié ✓" : "Produit ajouté ✓")
     setTimeout(() => setSuccess(""), 3000)
-  }
-
-  const toggleActive = async (p: Product) => {
-    await supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id)
+    resetForm()
     loadData()
+    setSaving(false)
   }
 
-  const deleteProduct = async (id: number) => {
-    if (!confirm("Supprimer ce produit ?")) return
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Supprimer ce produit ?")) return
+    await supabase.from("product_images").delete().eq("product_id", id)
     await supabase.from("products").delete().eq("id", id)
-    loadData()
+    setProducts(prev => prev.filter(p => p.id !== id))
   }
 
-  const inp = { width: "100%", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }
+  const inp = {
+    width: "100%", background: S.bg, border: `1px solid ${S.border}`,
+    borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 14,
+    outline: "none", boxSizing: "border-box" as const,
+  }
+
+  if (loading) return (
+    <div style={{ padding: 32, textAlign: "center", color: S.text2 }}>Chargement...</div>
+  )
 
   return (
-    <div style={{ padding: "0 0 40px 0" }}>
-
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
-          <h2 style={{ color: S.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Mes produits</h2>
-          <p style={{ color: S.text3, fontSize: 13, margin: "4px 0 0 0" }}>{products.length} produit{products.length > 1 ? "s" : ""}</p>
-        </div>
-        <button onClick={openAdd} style={{ background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "10px 16px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          + Ajouter
-        </button>
-      </div>
+    <div style={{ fontFamily: "Inter, sans-serif", color: S.text }}>
 
       {/* Lien boutique */}
       {slug && (
-        <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "12px 14px", marginBottom: 20 }}>
-          <p style={{ color: S.text3, fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", margin: "0 0 6px 0" }}>🔗 Lien de ta boutique</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <p style={{ color: S.gold, fontSize: 13, fontWeight: 600, margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-              {getLienBoutique()}
-            </p>
-            <button onClick={() => copyToClipboard(getLienBoutique(), "boutique")}
-              style={{ background: copied === "boutique" ? "rgba(74,222,128,0.1)" : S.card2, border: `1px solid ${S.border}`, borderRadius: 6, padding: "6px 10px", color: copied === "boutique" ? S.success : S.text2, fontSize: 12, cursor: "pointer", flexShrink: 0 }}>
-              {copied === "boutique" ? "✓ Copié !" : "📋 Copier"}
-            </button>
+        <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <div>
+            <p style={{ color: S.text3, fontSize: 11, margin: "0 0 2px 0", fontWeight: 600 }}>LIEN DE TA BOUTIQUE</p>
+            <p style={{ color: S.info, fontSize: 12, margin: 0, wordBreak: "break-all" }}>{getLienBoutique()}</p>
           </div>
+          <button onClick={() => copyToClipboard(getLienBoutique(), "boutique")}
+            style={{ background: copied === "boutique" ? S.success : S.border, border: "none", borderRadius: 6, padding: "6px 12px", color: copied === "boutique" ? "#000" : S.text, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+            {copied === "boutique" ? "✓ Copié" : "📋 Copier"}
+          </button>
         </div>
       )}
 
-      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: S.success, fontSize: 13 }}>{success}</div>}
+      {/* Messages */}
+      {error && <div style={{ background: S.dangerBg, border: `1px solid rgba(248,113,113,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
+      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: `1px solid rgba(74,222,128,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.success, fontSize: 13 }}>✅ {success}</div>}
+
+      {/* Bouton ajouter */}
+      {!showForm && (
+        <button onClick={() => { setShowForm(true); setEditing(null); setForm(EMPTY); setMainImagePreview(""); setExtraImages([]); setExistingImages([]) }}
+          style={{ width: "100%", background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "12px", color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>
+          + Nouveau produit
+        </button>
+      )}
 
       {/* Formulaire */}
       {showForm && (
-        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, marginBottom: 20 }}>
+        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <h3 style={{ color: S.text, fontSize: 15, fontWeight: 700, margin: "0 0 16px 0" }}>
-            {editing ? "Modifier le produit" : "Nouveau produit"}
+            {editing ? "✏️ Modifier le produit" : "➕ Nouveau produit"}
           </h3>
 
-          {/* Upload photo */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>Photo du produit (format carré 1:1)</label>
-            <div onClick={() => fileInputRef.current?.click()} style={{
-              width: "100%", height: 160, borderRadius: 12,
-              border: `2px dashed ${imagePreview ? S.gold : S.border}`,
-              background: S.bg, cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              overflow: "hidden",
-            }}>
-              {imagePreview ? (
-                <img src={imagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <>
-                  <span style={{ fontSize: 36, marginBottom: 8 }}>📷</span>
-                  <span style={{ color: S.text2, fontSize: 13, fontWeight: 500 }}>Appuie pour choisir une photo</span>
-                  <span style={{ color: S.text3, fontSize: 11, marginTop: 4 }}>Format carré · Auto-compressé · 2G/3G compatible</span>
-                </>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} style={{ display: "none" }} />
-            {imageInfo && <p style={{ color: S.success, fontSize: 11, margin: "6px 0 0 0" }}>{imageInfo}</p>}
-            {imagePreview && (
-              <button onClick={() => { setImageFile(null); setImagePreview(""); setImageInfo("") }}
-                style={{ marginTop: 6, background: "transparent", border: "none", color: S.danger, fontSize: 12, cursor: "pointer", padding: 0 }}>
-                ✕ Supprimer la photo
-              </button>
-            )}
+          {/* Nom */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nom du produit *</label>
+            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Crème visage hydratante" style={inp}
+              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
           </div>
 
-          {[
-            { label: "Nom du produit *", key: "name", placeholder: "Ex: THERAWOLF Balm 50ml" },
-            { label: "Prix (FCFA) *", key: "price", placeholder: "Ex: 15000", type: "number" },
-            { label: "Description", key: "description", placeholder: "Description courte du produit" },
-          ].map(f => (
-            <div key={f.key} style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>{f.label}</label>
-              <input type={f.type || "text"} value={(form as Record<string, string>)[f.key]}
-                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                placeholder={f.placeholder} style={inp}
-                onFocus={e => e.target.style.borderColor = S.gold}
-                onBlur={e => e.target.style.borderColor = S.border} />
+          {/* Prix */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Prix *</label>
+            <input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="Ex: 5000" style={inp}
+              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Description</label>
+            <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Décris ton produit..." rows={3}
+              style={{ ...inp, resize: "none", fontFamily: "Inter, sans-serif" }}
+              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
+          </div>
+
+          {/* Photo principale */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>📸 Photo principale *</label>
+            <div onClick={() => mainFileRef.current?.click()} style={{ width: 120, height: 120, border: `2px dashed ${mainImagePreview ? S.gold : S.border}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: S.bg }}>
+              {mainImagePreview ? (
+                <img src={mainImagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: 32 }}>📷</span>
+              )}
             </div>
-          ))}
+            <input ref={mainFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleMainImageChange} style={{ display: "none" }} />
+            {mainImageInfo && <p style={{ color: S.success, fontSize: 11, margin: "6px 0 0 0" }}>{mainImageInfo}</p>}
+          </div>
 
-          {error && <div style={{ color: S.danger, fontSize: 13, marginBottom: 12 }}>⚠️ {error}</div>}
+          {/* Photos supplémentaires */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+              📸 Photos supplémentaires ({existingImages.length + extraImages.length}/9)
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button onClick={() => setShowForm(false)} style={{ flex: 1, background: "transparent", border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Annuler</button>
-            <button onClick={handleSave} disabled={saving || uploading} style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
+              {/* Images existantes */}
+              {existingImages.map(img => (
+                <div key={img.id} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.border}` }}>
+                  <img src={img.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <button onClick={() => removeExistingImage(img)}
+                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
+                </div>
+              ))}
+
+              {/* Nouvelles images */}
+              {extraImages.map((img, i) => (
+                <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.gold}` }}>
+                  <img src={img.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <button onClick={() => removeExtraImage(i)}
+                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
+                </div>
+              ))}
+
+              {/* Bouton ajouter photo */}
+              {existingImages.length + extraImages.length < 9 && (
+                <div onClick={() => extraFileRef.current?.click()}
+                  style={{ width: 72, height: 72, border: `2px dashed ${S.border}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: S.text3 }}>
+                  +
+                </div>
+              )}
+            </div>
+            <input ref={extraFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleExtraImagesChange} style={{ display: "none" }} />
+          </div>
+
+          {/* Boutons */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={resetForm} style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Annuler
+            </button>
+            <button onClick={handleSave} disabled={saving || uploading}
+              style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
               {uploading ? "⬆️ Upload..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
             </button>
           </div>
@@ -263,64 +382,65 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       )}
 
       {/* Liste produits */}
-      {loading ? (
-        <p style={{ color: S.text3, fontSize: 14, textAlign: "center", padding: "40px 0" }}>Chargement...</p>
-      ) : products.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
-          <p style={{ color: S.text3, fontSize: 14 }}>Aucun produit. Ajoute ton premier produit !</p>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {products.map(p => (
-            <div key={p.id} style={{ background: S.card, border: `1px solid ${p.is_active ? S.border : "#2D1500"}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ display: "flex", gap: 0 }}>
-                {/* Photo carré */}
-                <div style={{ width: 90, height: 90, flexShrink: 0 }}>
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} style={{ width: 90, height: 90, objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ width: 90, height: 90, background: S.card2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>
-                  )}
-                </div>
-                {/* Infos */}
-                <div style={{ flex: 1, padding: "12px 14px", minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                    <h4 style={{ color: p.is_active ? S.text : S.text3, fontSize: 14, fontWeight: 700, margin: 0 }}>{p.name}</h4>
-                    <span style={{ color: S.gold, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{Number(p.price).toLocaleString("fr-FR")} F</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {products.length === 0 && !showForm && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: S.text3 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+            <p>Aucun produit. Crée ton premier produit !</p>
+          </div>
+        )}
+
+        {products.map(p => {
+          const allImages = [p.image_url, ...(p.images?.map(i => i.image_url) || [])].filter(Boolean)
+          return (
+            <div key={p.id} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 12, display: "flex", gap: 12, alignItems: "flex-start" }}>
+
+              {/* Photo + galerie */}
+              <div style={{ flexShrink: 0 }}>
+                {p.image_url ? (
+                  <div style={{ position: "relative" }}>
+                    <img src={p.image_url} alt={p.name} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
+                    {allImages.length > 1 && (
+                      <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.7)", borderRadius: 4, padding: "1px 5px", fontSize: 10, color: "#fff", fontWeight: 700 }}>
+                        +{allImages.length - 1}
+                      </div>
+                    )}
                   </div>
-                  {p.description && <p style={{ color: S.text3, fontSize: 12, margin: "4px 0 0 0", lineHeight: 1.4 }}>{p.description}</p>}
-                </div>
+                ) : (
+                  <div style={{ width: 80, height: 80, background: S.card2, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>
+                )}
+              </div>
+
+              {/* Infos */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: "0 0 2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
+                <p style={{ color: S.gold, fontSize: 15, fontWeight: 800, margin: "0 0 4px 0" }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</p>
+                {p.description && <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>}
+
+                {/* Lien produit */}
+                {slug && (
+                  <button onClick={() => copyToClipboard(getLienProduit(p), `p_${p.id}`)}
+                    style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: copied === `p_${p.id}` ? S.success : S.info, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
+                    {copied === `p_${p.id}` ? "✓ Copié" : "🔗 Lien produit"}
+                  </button>
+                )}
               </div>
 
               {/* Actions */}
-              <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", gap: 6, flexWrap: "wrap" as const, background: S.card2 }}>
-                <button onClick={() => openEdit(p)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, border: `1px solid ${S.border}`, background: "transparent", color: S.text2, cursor: "pointer" }}>
-                  ✏️ Modifier
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                <button onClick={() => startEdit(p)}
+                  style={{ background: S.border, border: "none", borderRadius: 6, padding: "6px 10px", color: S.text2, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
+                  ✏️
                 </button>
-                <button onClick={() => toggleActive(p)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "none", background: p.is_active ? "#2D1500" : "rgba(74,222,128,0.1)", color: p.is_active ? "#FB923C" : S.success, cursor: "pointer" }}>
-                  {p.is_active ? "⏸ Dépublier" : "▶ Publier"}
-                </button>
-                {slug && (
-                  <>
-                    <button onClick={() => copyToClipboard(getLienBoutique(), `boutique-${p.id}`)}
-                      style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "none", background: copied === `boutique-${p.id}` ? "rgba(74,222,128,0.1)" : "rgba(96,165,250,0.1)", color: copied === `boutique-${p.id}` ? S.success : S.info, cursor: "pointer" }}>
-                      {copied === `boutique-${p.id}` ? "✓ Copié !" : "🔗 Lien boutique"}
-                    </button>
-                    <button onClick={() => copyToClipboard(getLienProduit(p), `produit-${p.id}`)}
-                      style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "none", background: copied === `produit-${p.id}` ? "rgba(74,222,128,0.1)" : "rgba(245,158,11,0.1)", color: copied === `produit-${p.id}` ? S.success : S.gold, cursor: "pointer" }}>
-                      {copied === `produit-${p.id}` ? "✓ Copié !" : "🛒 Lien produit"}
-                    </button>
-                  </>
-                )}
-                <button onClick={() => deleteProduct(p.id)} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "none", background: S.dangerBg, color: S.danger, cursor: "pointer" }}>
-                  🗑
+                <button onClick={() => handleDelete(p.id)}
+                  style={{ background: S.dangerBg, border: "none", borderRadius: 6, padding: "6px 10px", color: S.danger, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
+                  🗑️
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
