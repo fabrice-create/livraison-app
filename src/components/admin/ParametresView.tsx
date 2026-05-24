@@ -118,7 +118,8 @@ export default function ParametresView({ tenantId }: Props) {
         logo_url: data.logo_url || "",
         boutique_description: data.boutique_description || "",
       })
-      setLienCommande(`shipivo.app/commander/${data.slug}`)
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
+      setLienCommande(`${baseUrl}/commander/${data.slug}`)
     }
 
     // Charger profil admin
@@ -244,9 +245,9 @@ export default function ParametresView({ tenantId }: Props) {
       <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "14px 16px", marginBottom: 24 }}>
         <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0", fontWeight: 600 }}>🔗 TON LIEN DE COMMANDE</p>
         <p style={{ color: S.gold, fontSize: 14, fontWeight: 700, margin: 0, wordBreak: "break-all" as const }}>{lienCommande}</p>
-        <button onClick={() => navigator.clipboard.writeText(`https://${lienCommande}`)}
+        <button onClick={() => { navigator.clipboard.writeText(lienCommande); setCopied("lien") }}
           style={{ marginTop: 10, background: "transparent", border: `1px solid ${S.border}`, borderRadius: 6, padding: "6px 12px", color: S.text2, fontSize: 12, cursor: "pointer" }}>
-          📋 Copier le lien
+          {copied === "lien" ? "✓ Copié !" : "📋 Copier le lien"}
         </button>
       </div>
 
