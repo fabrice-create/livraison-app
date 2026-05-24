@@ -539,6 +539,45 @@ export default function ParametresView({ tenantId }: Props) {
         <Field label="GA4 Measurement ID" value={settings.ga_measurement_id} onChange={set("ga_measurement_id")} inp={inp} placeholder="Ex: G-XXXXXXXXXX" />
       </Section>
 
+      {/* Widget Embed */}
+      <Section title="🔌 Widget de commande">
+        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
+          <p style={{ color: S.info, fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+            Intègre le formulaire de commande Shipivo sur n&apos;importe quel site — Shopify, WordPress, YouCan...
+          </p>
+        </div>
+
+        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>📋 Widget général (toute ta boutique)</p>
+        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 12, marginBottom: 8, overflowX: "auto" }}>
+          <pre style={{ color: S.info, fontSize: 11, margin: 0, whiteSpace: "pre", fontFamily: "monospace" }}>{`<script src="${typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"}/widget.js"
+  data-boutique="${tenantSlug}"
+  data-mode="form">
+</script>`}</pre>
+        </div>
+        <button onClick={() => {
+          const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
+          navigator.clipboard.writeText(`<script src="${base}/widget.js"\n  data-boutique="${tenantSlug}"\n  data-mode="form">\n</script>`)
+          setSuccess("Widget copié ✓")
+          setTimeout(() => setSuccess(""), 2000)
+        }} style={{ background: S.border, border: "none", borderRadius: 8, padding: "8px 16px", color: S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}>
+          📋 Copier le code
+        </button>
+
+        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>🛍️ Widget avec produit depuis ton site externe</p>
+        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 12, marginBottom: 8, overflowX: "auto" }}>
+          <pre style={{ color: S.info, fontSize: 11, margin: 0, whiteSpace: "pre", fontFamily: "monospace" }}>{`<script src="shipivo.app/widget.js"
+  data-boutique="${tenantSlug}"
+  data-produit-nom="Nom du produit"
+  data-produit-prix="5000"
+  data-mode="full">
+</script>`}</pre>
+        </div>
+        <p style={{ color: S.text3, fontSize: 11, margin: 0, lineHeight: 1.7 }}>
+          Remplace <strong style={{ color: S.text2 }}>Nom du produit</strong> et <strong style={{ color: S.text2 }}>5000</strong> par les vraies valeurs de ton site.
+          Les commandes arrivent directement dans Shipivo — closureuse et livreur reçoivent normalement.
+        </p>
+      </Section>
+
       {/* Bouton save */}
       <button onClick={handleSave} disabled={saving} style={{ width: "100%", marginTop: 8, background: saving ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 12, padding: "14px", color: "#000", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", minHeight: 48 }}>
         {saving ? "Enregistrement..." : "💾 Enregistrer les paramètres"}
