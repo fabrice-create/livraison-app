@@ -9,6 +9,38 @@ import {
 import { initTiktokPixel, tiktokTrackAddToCart, tiktokTrackPurchase } from "@/lib/tiktokPixel"
 import { useClientCurrency } from "@/hooks/useClientCurrency"
 
+// Indicatifs téléphoniques par pays
+const COUNTRY_DIALCODES: Record<string, { code: string; flag: string; dial: string }> = {
+  TG: { code: "TG", flag: "🇹🇬", dial: "+228" },
+  SN: { code: "SN", flag: "🇸🇳", dial: "+221" },
+  CI: { code: "CI", flag: "🇨🇮", dial: "+225" },
+  ML: { code: "ML", flag: "🇲🇱", dial: "+223" },
+  BF: { code: "BF", flag: "🇧🇫", dial: "+226" },
+  BJ: { code: "BJ", flag: "🇧🇯", dial: "+229" },
+  NE: { code: "NE", flag: "🇳🇪", dial: "+227" },
+  GN: { code: "GN", flag: "🇬🇳", dial: "+224" },
+  NG: { code: "NG", flag: "🇳🇬", dial: "+234" },
+  GH: { code: "GH", flag: "🇬🇭", dial: "+233" },
+  CM: { code: "CM", flag: "🇨🇲", dial: "+237" },
+  CD: { code: "CD", flag: "🇨🇩", dial: "+243" },
+  CG: { code: "CG", flag: "🇨🇬", dial: "+242" },
+  MA: { code: "MA", flag: "🇲🇦", dial: "+212" },
+  DZ: { code: "DZ", flag: "🇩🇿", dial: "+213" },
+  TN: { code: "TN", flag: "🇹🇳", dial: "+216" },
+  EG: { code: "EG", flag: "🇪🇬", dial: "+20" },
+  KE: { code: "KE", flag: "🇰🇪", dial: "+254" },
+  ZA: { code: "ZA", flag: "🇿🇦", dial: "+27" },
+  FR: { code: "FR", flag: "🇫🇷", dial: "+33" },
+  BE: { code: "BE", flag: "🇧🇪", dial: "+32" },
+  CH: { code: "CH", flag: "🇨🇭", dial: "+41" },
+  DE: { code: "DE", flag: "🇩🇪", dial: "+49" },
+  GB: { code: "GB", flag: "🇬🇧", dial: "+44" },
+  US: { code: "US", flag: "🇺🇸", dial: "+1" },
+  CA: { code: "CA", flag: "🇨🇦", dial: "+1" },
+  OTHER: { code: "OTHER", flag: "🌍", dial: "+" },
+}
+const DEFAULT_COUNTRY = COUNTRY_DIALCODES["TG"]
+
 const C = {
   bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
   gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
@@ -62,6 +94,8 @@ export default function CommanderPage() {
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
   const [source, setSource] = useState("direct")
   const { formatPrice, clientCurrency, ready: currencyReady } = useClientCurrency(boutique?.currency || "FCFA")
+  const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY)
+  const [showCountryPicker, setShowCountryPicker] = useState(false)
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "",
     address: "", delivery_type: "Livraison directe", note: "",
@@ -73,6 +107,16 @@ export default function CommanderPage() {
     // Détecter la source
     const src = searchParams?.get("src") || detectSource()
     setSource(src)
+
+    // Détecter pays du client pour indicatif téléphonique
+    try {
+      const geoRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+      if (geoRes.ok) {
+        const geo = await geoRes.json()
+        const country = COUNTRY_DIALCODES[geo.country_code]
+        if (country) setSelectedCountry(country)
+      }
+    } catch { /* silencieux */ }
 
     const saved = sessionStorage.getItem(`cart_${slug}`)
     if (saved) setCart(JSON.parse(saved))
@@ -159,6 +203,9 @@ export default function CommanderPage() {
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) { setError("Ton nom est requis"); return }
     if (!form.phone.trim()) { setError("Ton numéro est requis"); return }
+    // Combiner indicatif + numéro
+    const fullPhone = selectedCountry.dial + form.phone.trim().replace(/^0/, "")
+    setForm(p => ({ ...p, phone: fullPhone }))
     if (!form.city.trim()) { setError("Ta ville est requise"); return }
     if (cart.length === 0) { setError("Ajoute au moins un produit"); return }
     setError(""); setSubmitting(true)
@@ -451,17 +498,52 @@ export default function CommanderPage() {
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {[
-                { label: "Ton prénom et nom", key: "customer_name", placeholder: "Ex: Kofi Mensah", type: "text" },
-                { label: "Ton numéro WhatsApp", key: "phone", placeholder: "Ex: +228 90 00 00 00", type: "tel" },
-                { label: "Ton adresse / quartier", key: "address", placeholder: "Ex: Adidogomé, près du carrefour", type: "text" },
-              ].map(f => (
-                <div key={f.key}>
-                  <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{f.label} <span style={{ color: C.gold }}>*</span></label>
-                  <input type={f.type} value={(form as Record<string,string>)[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder}
-                    style={inp} onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
+              {/* Nom */}
+              <div>
+                <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ton prénom et nom <span style={{ color: C.gold }}>*</span></label>
+                <input type="text" value={form.customer_name} onChange={e => setForm(p => ({ ...p, customer_name: e.target.value }))} placeholder="Ex: Kofi Mensah"
+                  style={inp} onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
+              </div>
+
+              {/* Téléphone avec indicatif */}
+              <div>
+                <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ton numéro WhatsApp <span style={{ color: C.gold }}>*</span></label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {/* Sélecteur pays */}
+                  <div style={{ position: "relative" }}>
+                    <button type="button" onClick={() => setShowCountryPicker(p => !p)}
+                      style={{ height: 46, padding: "0 10px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 18 }}>{selectedCountry.flag}</span>
+                      <span style={{ color: C.mutedLight, fontSize: 13 }}>{selectedCountry.dial}</span>
+                      <span style={{ color: C.muted, fontSize: 10 }}>▼</span>
+                    </button>
+                    {showCountryPicker && (
+                      <div style={{ position: "absolute", top: 50, left: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 100, maxHeight: 200, overflowY: "auto", minWidth: 160, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+                        {Object.values(COUNTRY_DIALCODES).filter(c => c.code !== "OTHER").map(c => (
+                          <div key={c.code} onClick={() => { setSelectedCountry(c); setShowCountryPicker(false) }}
+                            style={{ padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${C.border}`,
+                              background: selectedCountry.code === c.code ? "rgba(245,158,11,0.1)" : "transparent" }}>
+                            <span style={{ fontSize: 18 }}>{c.flag}</span>
+                            <span style={{ color: C.white, fontSize: 13 }}>{c.dial}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Numéro */}
+                  <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="90 00 00 00"
+                    style={{ ...inp, flex: 1 }}
+                    onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
                 </div>
-              ))}
+              </div>
+
+              {/* Adresse */}
+              <div>
+                <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ton adresse / quartier <span style={{ color: C.gold }}>*</span></label>
+                <input type="text" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} placeholder="Ex: Adidogomé, près du carrefour"
+                  style={inp} onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
+              </div>
               <div>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ville <span style={{ color: C.gold }}>*</span></label>
                 <input type="text" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
