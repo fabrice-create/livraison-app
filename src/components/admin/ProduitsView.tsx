@@ -59,6 +59,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [copied, setCopied] = useState<string>("")
   const [widgetProduct, setWidgetProduct] = useState<Product | null>(null)
   const [widgetMode, setWidgetMode] = useState<"form" | "full">("form")
+  const [widgetType, setWidgetType] = useState<"script" | "iframe">("iframe")
   const mainFileRef = useRef<HTMLInputElement>(null)
   const extraFileRef = useRef<HTMLInputElement>(null)
 
@@ -99,8 +100,16 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     return window.location.origin
   }
 
-  const getWidgetCode = (p: Product, mode: "form" | "full") => {
+  const getWidgetCode = (p: Product, mode: "form" | "full", type: "script" | "iframe") => {
     const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
+    if (type === "iframe") {
+      return `<iframe
+  src="${base}/widget?boutique=${slug}&produit=${p.id}&mode=${mode}"
+  style="width:100%;min-height:500px;border:none;border-radius:12px;"
+  frameborder="0"
+  scrolling="no">
+</iframe>`
+    }
     return `<script src="${base}/widget.js"
   data-boutique="${slug}"
   data-produit="${p.id}"
@@ -491,9 +500,25 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
                 style={{ background: "none", border: "none", color: S.text2, fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
 
+            {/* Choix type intégration */}
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Méthode d&apos;intégration :</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["iframe", "script"] as const).map(t => (
+                  <button key={t} onClick={() => setWidgetType(t)}
+                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetType === t ? S.gold : S.border}`, background: widgetType === t ? "rgba(245,158,11,0.1)" : "transparent", color: widgetType === t ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    {t === "iframe" ? "🖼️ iframe (Elementor, Wix)" : "⚡ Script (WordPress, Shopify)"}
+                  </button>
+                ))}
+              </div>
+              <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>
+                {widgetType === "iframe" ? "✅ Recommandé pour Elementor, Wix, et la plupart des sites." : "Pour les sites qui acceptent les scripts externes."}
+              </p>
+            </div>
+
             {/* Choix mode */}
             <div style={{ marginBottom: 16 }}>
-              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Type de widget :</p>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Contenu affiché :</p>
               <div style={{ display: "flex", gap: 8 }}>
                 {(["form", "full"] as const).map(m => (
                   <button key={m} onClick={() => setWidgetMode(m)}
@@ -502,20 +527,17 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
                   </button>
                 ))}
               </div>
-              <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>
-                {widgetMode === "form" ? "Le formulaire seul s'intègre sous ta page produit existante." : "Affiche la photo, le prix et le formulaire — idéal pour un blog ou email."}
-              </p>
             </div>
 
             {/* Code à copier */}
-            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 14, marginBottom: 12 }}>
+            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 14, marginBottom: 12, overflowX: "auto" }}>
               <pre style={{ color: S.info, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
-                {getWidgetCode(widgetProduct, widgetMode)}
+                {getWidgetCode(widgetProduct, widgetMode, widgetType)}
               </pre>
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => copyToClipboard(getWidgetCode(widgetProduct, widgetMode), "widget")}
+              <button onClick={() => copyToClipboard(getWidgetCode(widgetProduct, widgetMode, widgetType), "widget")}
                 style={{ flex: 1, background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {copied === "widget" ? "✓ Copié !" : "📋 Copier le code"}
               </button>
