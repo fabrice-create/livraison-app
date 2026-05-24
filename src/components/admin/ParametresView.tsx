@@ -62,6 +62,9 @@ interface TenantSettings {
   at_username: string
   at_api_key: string
   at_sender_id: string
+  brand_color: string
+  logo_url: string
+  boutique_description: string
 }
 
 const EMPTY: TenantSettings = {
@@ -69,6 +72,7 @@ const EMPTY: TenantSettings = {
   facebook_pixel_id: "", facebook_access_token: "", tiktok_pixel_id: "",
   closer_commission: 500, driver_commission: 2000, currency: "FCFA",
   at_username: "", at_api_key: "", at_sender_id: "Shipivo",
+  brand_color: "#F59E0B", logo_url: "", boutique_description: "",
 }
 
 export default function ParametresView({ tenantId }: Props) {
@@ -92,7 +96,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description")
       .eq("id", tenantId)
       .single()
 
@@ -110,6 +114,9 @@ export default function ParametresView({ tenantId }: Props) {
         at_username: data.at_username || "",
         at_api_key: data.at_api_key || "",
         at_sender_id: data.at_sender_id || "Shipivo",
+        brand_color: data.brand_color || "#F59E0B",
+        logo_url: data.logo_url || "",
+        boutique_description: data.boutique_description || "",
       })
       setLienCommande(`shipivo.app/commander/${data.slug}`)
     }
@@ -166,6 +173,9 @@ export default function ParametresView({ tenantId }: Props) {
       at_username: settings.at_username || null,
       at_api_key: settings.at_api_key || null,
       at_sender_id: settings.at_sender_id || "Shipivo",
+      brand_color: settings.brand_color || "#F59E0B",
+      logo_url: settings.logo_url || null,
+      boutique_description: settings.boutique_description || null,
     }).eq("id", tenantId)
 
     if (err) { setError(err.message); setSaving(false); return }
@@ -339,6 +349,43 @@ export default function ParametresView({ tenantId }: Props) {
         })}
       </Section>
 
+
+      {/* Design Boutique */}
+      <Section title="🎨 Design de ta boutique">
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Slogan / Description courte</label>
+          <input value={settings.boutique_description} onChange={set("boutique_description")} inp={inp}
+            placeholder="Ex: Livraison rapide à Lomé. Paiement à la livraison."
+            style={inp}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Couleur principale de ta boutique</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input type="color" value={settings.brand_color} onChange={e => setSettings(p => ({ ...p, brand_color: e.target.value }))}
+              style={{ width: 48, height: 40, borderRadius: 8, border: "none", cursor: "pointer", background: "none" }} />
+            <input value={settings.brand_color} onChange={set("brand_color")}
+              placeholder="#F59E0B"
+              style={{ ...inp, width: 120 }}
+              onFocus={e => e.target.style.borderColor = "#F59E0B"}
+              onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+            <div style={{ width: 40, height: 40, borderRadius: 8, background: settings.brand_color, border: "1px solid #1E1E2E", flexShrink: 0 }} />
+          </div>
+          <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>Cette couleur s&apos;applique aux boutons et éléments de ta boutique publique.</p>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>URL du logo</label>
+          <input value={settings.logo_url} onChange={set("logo_url")}
+            placeholder="https://... (lien vers ton logo)"
+            style={inp}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+          {settings.logo_url && (
+            <img src={settings.logo_url} alt="Logo preview" style={{ width: 80, height: 80, objectFit: "contain", marginTop: 8, borderRadius: 8, background: "#16161F", padding: 4 }} />
+          )}
+        </div>
+      </Section>
 
       {/* SMS Africa's Talking */}
       <Section title="📱 SMS Africa's Talking">
