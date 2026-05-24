@@ -18,7 +18,7 @@ const C = {
 }
 
 interface Product {
-  id: number
+  id: string
   name: string
   price: number
   description?: string
@@ -26,7 +26,7 @@ interface Product {
 }
 
 interface CartItem {
-  id: number
+  id: string
   name: string
   price: number
   image_url?: string
@@ -126,12 +126,12 @@ export default function CommanderPage() {
     if (boutique?.tiktok_pixel_id) tiktokTrackAddToCart(boutique.tiktok_pixel_id, product.name, product.price)
   }
 
-  const updateQty = (id: number, qty: number) => {
+  const updateQty = (id: string, qty: number) => {
     if (qty <= 0) { setCart(prev => prev.filter(i => i.id !== id)); return }
     setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i))
   }
 
-  const getQty = (id: number) => cart.find(i => i.id === id)?.quantity || 0
+  const getQty = (id: string) => cart.find(i => i.id === id)?.quantity || 0
 
   const fraisLivraison = boutique?.delivery_fee || 0
   const totalProduits = cart.reduce((s, i) => s + i.price * i.quantity, 0)
