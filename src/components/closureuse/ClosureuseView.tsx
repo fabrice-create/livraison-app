@@ -95,47 +95,60 @@ export function ClosureuseView() {
   }, [profile]);
 
   const init = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) { router.replace("/login"); return; }
-    const { data: pd } = await supabase.from("profiles")
-      .select("*").eq("id", user.id).single();
-    if (!pd) { router.replace("/login"); return; }
-    const p = pd as Profile;
-    if (normalizeRole(p.role) !== "closureuse") {
-      router.replace(normalizeRole(p.role) === "admin" ? "/admin" : "/livreur");
-      return;
-    }
-    setProfile(p);
-    setTenantName(p.tenant_id ? "Chargement..." : "Shipivo");
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) { router.replace("/login"); return; }
 
-    // Tout en parallèle
-    const [tenantRes, driversRes, ordersRes, stockRes] = await Promise.all([
-      p.tenant_id ? supabase.from("tenants")
-        .select("currency, name, at_username, at_api_key, at_sender_id")
-        .eq("id", p.tenant_id).single()
-        : Promise.resolve({ data: null }),
-      p.tenant_id ? supabase.from("profiles")
-        .select("id, full_name, role, is_active, is_available")
-        .eq("tenant_id", p.tenant_id).eq("is_active", true).eq("role", "livreur")
-        : Promise.resolve({ data: [] }),
-      p.tenant_id ? supabase.from("orders")
-        .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id")
-        .eq("tenant_id", p.tenant_id).order("id", { ascending: false }).limit(300)
-        : Promise.resolve({ data: [] }),
-      p.tenant_id ? supabase.from("driver_stock")
-        .select("id, driver_id, driver_name, product_name, quantity")
-        .eq("tenant_id", p.tenant_id)
-        : Promise.resolve({ data: [] }),
-    ]);
+      const { data: pd } = await supabase.from("profiles")
+        .select("id, role, tenant_id, full_name, email, phone, is_active")
+        .eq("id", user.id).single();
+      if (!pd) { router.replace("/login"); return; }
 
-    if (tenantRes.data) {
-      const td = tenantRes.data as any;
-      if (td.name) setTenantName(td.name);
-      if (td.currency) setCurrency(td.currency);
+      const p = pd as Profile;
+      if (normalizeRole(p.role) !== "closureuse") {
+        router.replace(normalizeRole(p.role) === "admin" ? "/admin" : "/livreur");
+        return;
+      }
+      setProfile(p);
+
+      const tid = (p as any).tenant_id;
+
+      // Tenant d'abord
+      if (tid) {
+        const { data: td } = await supabase.from("tenants")
+          .select("currency, name")
+          .eq("id", tid).single();
+        if (td) {
+          const tda = td as any;
+          if (tda.name) setTenantName(tda.name);
+          if (tda.currency) setCurrency(tda.currency);
+        }
+      }
+
+      // Données en parallèle
+      const [driversRes, ordersRes, stockRes] = await Promise.all([
+        tid ? supabase.from("profiles")
+          .select("id, full_name, role, is_active, is_available")
+          .eq("tenant_id", tid).eq("is_active", true).eq("role", "livreur")
+          : Promise.resolve({ data: [] }),
+        tid ? supabase.from("orders")
+          .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id")
+          .eq("tenant_id", tid).order("id", { ascending: false }).limit(300)
+          : Promise.resolve({ data: [] }),
+        tid ? supabase.from("driver_stock")
+          .select("id, driver_id, driver_name, product_name, quantity")
+          .eq("tenant_id", tid)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      setDrivers((driversRes.data || []) as Profile[]);
+      setOrders((ordersRes.data || []) as Order[]);
+      setDriverStocks((stockRes.data || []) as DriverStock[]);
+
+    } catch (err) {
+      console.error("Erreur init closureuse:", err);
+      router.replace("/login");
     }
-    setDrivers((driversRes.data || []) as Profile[]);
-    setOrders((ordersRes.data || []) as Order[]);
-    setDriverStocks((stockRes.data || []) as DriverStock[]);
   };
 
   const loadData = async (tenantId: string) => {
