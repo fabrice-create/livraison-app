@@ -75,6 +75,11 @@ export default function CommanderPage() {
 
     const saved = sessionStorage.getItem(`cart_${slug}`)
     if (saved) setCart(JSON.parse(saved))
+
+    // Si on revient de la page produit avec step=form
+    if (searchParams?.get("step") === "form") {
+      setStep("form")
+    }
   }, [slug])
 
   useEffect(() => {
@@ -304,10 +309,15 @@ export default function CommanderPage() {
                             + Ajouter
                           </button>
                         ) : (
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: 32, height: 32, borderRadius: 8, background: C.border, border: "none", color: C.white, fontSize: 16, cursor: "pointer", fontWeight: 700 }}>−</button>
-                            <span style={{ color: C.white, fontSize: 15, fontWeight: 700 }}>{qty}</span>
-                            <button onClick={() => updateQty(product.id, qty + 1)} style={{ width: 32, height: 32, borderRadius: 8, background: C.gold, border: "none", color: "#000", fontSize: 16, cursor: "pointer", fontWeight: 700 }}>+</button>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                              <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: 28, height: 28, borderRadius: 6, background: C.border, border: "none", color: C.white, fontSize: 14, cursor: "pointer", fontWeight: 700 }}>−</button>
+                              <span style={{ color: C.white, fontSize: 14, fontWeight: 700 }}>{qty}</span>
+                              <button onClick={() => updateQty(product.id, qty + 1)} style={{ width: 28, height: 28, borderRadius: 6, background: C.gold, border: "none", color: "#000", fontSize: 14, cursor: "pointer", fontWeight: 700 }}>+</button>
+                            </div>
+                            <button onClick={() => setStep("form")} style={{ width: "100%", background: "transparent", border: `1px solid ${C.gold}`, borderRadius: 6, padding: "5px 0", color: C.gold, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              🛒 Voir le panier
+                            </button>
                           </div>
                         )}
                       </div>
