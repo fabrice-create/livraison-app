@@ -38,16 +38,11 @@ interface BoutiqueInfo {
   slug: string
   phone?: string
   delivery_fee: number
+  currency: string
   facebook_pixel_id?: string
   facebook_access_token?: string
   tiktok_pixel_id?: string
 }
-
-const VILLES = [
-  "Lomé", "Sokodé", "Kara", "Kpalimé", "Atakpamé",
-  "Bassar", "Tsévié", "Aného", "Mango", "Dapaong",
-  "Notsé", "Vogan", "Badou", "Blitta", "Sotouboua", "Autre ville",
-]
 
 export default function CommanderPage() {
   const params = useParams()
@@ -65,7 +60,7 @@ export default function CommanderPage() {
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
   const [source, setSource] = useState("direct")
   const [form, setForm] = useState({
-    customer_name: "", phone: "", city: "Lomé",
+    customer_name: "", phone: "", city: "",
     address: "", delivery_type: "Livraison directe", note: "",
   })
 
@@ -88,7 +83,7 @@ export default function CommanderPage() {
     setLoading(true)
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, slug, phone, delivery_fee, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
+      .select("id, name, slug, phone, delivery_fee, currency, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
 
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
@@ -96,6 +91,7 @@ export default function CommanderPage() {
     setBoutique({
       id: tenant.id, name: tenant.name, slug: tenant.slug,
       phone: tenant.phone, delivery_fee: tenant.delivery_fee || 0,
+      currency: tenant.currency || "FCFA",
       facebook_pixel_id: tenant.facebook_pixel_id,
       facebook_access_token: tenant.facebook_access_token,
       tiktok_pixel_id: tenant.tiktok_pixel_id,
@@ -134,7 +130,7 @@ export default function CommanderPage() {
   const totalProduits = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const totalFinal = totalProduits + fraisLivraison
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0)
-  const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
+  const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + (boutique?.currency || "FCFA")
 
   function detectSource(): string {
     if (typeof window === "undefined") return "direct"
@@ -155,6 +151,7 @@ export default function CommanderPage() {
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) { setError("Ton nom est requis"); return }
     if (!form.phone.trim()) { setError("Ton numéro est requis"); return }
+    if (!form.city.trim()) { setError("Ta ville est requise"); return }
     if (cart.length === 0) { setError("Ajoute au moins un produit"); return }
     setError(""); setSubmitting(true)
 
@@ -371,11 +368,10 @@ export default function CommanderPage() {
               ))}
               <div>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Ville <span style={{ color: C.gold }}>*</span></label>
-                <select value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                  style={{ ...inp, appearance: "none" as const, cursor: "pointer" }}
-                  onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border}>
-                  {VILLES.map(v => <option key={v} value={v} style={{ background: "#111118" }}>{v}</option>)}
-                </select>
+                <input type="text" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                  placeholder="Ex: Lomé, Abidjan, Dakar..."
+                  style={inp}
+                  onFocus={e => e.target.style.borderColor=C.gold} onBlur={e => e.target.style.borderColor=C.border} />
               </div>
               <div>
                 <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Type de livraison</label>
