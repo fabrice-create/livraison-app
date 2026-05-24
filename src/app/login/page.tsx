@@ -74,7 +74,8 @@ export default function LoginPage() {
       setError("Ton compte est désactivé.")
       await supabase.auth.signOut(); setLoading(false); return
     }
-    router.push(getRedirectByRole(profile.role))
+    await new Promise(resolve => setTimeout(resolve, 300))
+    router.replace(getRedirectByRole(profile.role))
   }
 
   if (checking) {
