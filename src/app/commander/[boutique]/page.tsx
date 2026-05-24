@@ -7,6 +7,7 @@ import {
   initPixel, trackAddToCart, trackPurchase, serverTrackPurchase
 } from "@/lib/facebookPixel"
 import { initTiktokPixel, tiktokTrackAddToCart, tiktokTrackPurchase } from "@/lib/tiktokPixel"
+import { useClientCurrency } from "@/hooks/useClientCurrency"
 
 const C = {
   bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
@@ -59,6 +60,7 @@ export default function CommanderPage() {
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
   const [source, setSource] = useState("direct")
+  const { formatPrice, clientCurrency, ready: currencyReady } = useClientCurrency(boutique?.currency || "FCFA")
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "",
     address: "", delivery_type: "Livraison directe", note: "",
@@ -130,7 +132,7 @@ export default function CommanderPage() {
   const totalProduits = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const totalFinal = totalProduits + fraisLivraison
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0)
-  const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + (boutique?.currency || "FCFA")
+  const fmt = (n: number) => formatPrice(n, boutique?.currency || "FCFA")
 
   function detectSource(): string {
     if (typeof window === "undefined") return "direct"
