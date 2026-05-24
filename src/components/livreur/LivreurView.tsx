@@ -21,6 +21,7 @@ const S = {
   purple: "#C084FC", purpleBg: "#2E1065",
   text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
   green: "#25D366",
+  blue: "#60A5FA",
 };
 
 type Tab = "dashboard" | "encours" | "historique" | "commissions" | "stock";
@@ -55,6 +56,8 @@ export function LivreurView() {
   const [period, setPeriod] = useState<PeriodFilter>("today");
   const [refreshing, setRefreshing] = useState(false);
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [togglingAvail, setTogglingAvail] = useState(false);
 
   useEffect(() => { void init(); }, []);
 
@@ -94,6 +97,7 @@ export function LivreurView() {
       return;
     }
     setProfile(p);
+    setIsAvailable(p.is_available === true);
     // Charger règles de commission
     if (p.tenant_id) {
       const { data: td } = await supabase.from("tenants")
@@ -294,6 +298,49 @@ export function LivreurView() {
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div>
+            {/* Bouton disponibilité */}
+            <div style={{ marginBottom: 16 }}>
+              <button onClick={toggleAvailability} disabled={togglingAvail}
+                style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", cursor: togglingAvail ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  background: isAvailable ? "linear-gradient(135deg,#052E16,#065F46)" : "linear-gradient(135deg,#2D0F0F,#450A0A)",
+                  color: isAvailable ? S.success : S.danger,
+                  border: `2px solid ${isAvailable ? S.success + "50" : S.danger + "50"}` }}>
+                <span style={{ fontSize: 24 }}>{isAvailable ? "🟢" : "🔴"}</span>
+                <div>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{isAvailable ? "Disponible" : "Indisponible"}</p>
+                  <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>{isAvailable ? "Les closureuses peuvent t'assigner des livraisons" : "Appuie pour te mettre disponible"}</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Stats rapides livreur */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ color: S.text2, fontSize: 11, margin: "0 0 4px 0" }}>🎯 Livrées aujourd&apos;hui</p>
+                <p style={{ color: S.success, fontSize: 28, fontWeight: 800, margin: 0 }}>
+                  {orders.filter(o => o.status === "Livré" && o.delivered_at && new Date(o.delivered_at).toDateString() === new Date().toDateString()).length}
+                </p>
+              </div>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ color: S.text2, fontSize: 11, margin: "0 0 4px 0" }}>📦 En cours</p>
+                <p style={{ color: S.warning, fontSize: 28, fontWeight: 800, margin: 0 }}>
+                  {orders.filter(o => ["Confirmé","Assigné","En livraison"].includes(o.status ?? "")).length}
+                </p>
+              </div>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ color: S.text2, fontSize: 11, margin: "0 0 4px 0" }}>💰 Commissions</p>
+                <p style={{ color: S.gold, fontSize: 18, fontWeight: 800, margin: 0 }}>
+                  {(() => { const total = orders.filter(o => o.status === "Livré" && o.driver_commission).reduce((s, o) => s + Number(o.driver_commission || 0), 0); return fmt(total); })()}
+                </p>
+              </div>
+              <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ color: S.text2, fontSize: 11, margin: "0 0 4px 0" }}>📊 Taux livraison</p>
+                <p style={{ color: S.blue, fontSize: 24, fontWeight: 800, margin: 0 }}>
+                  {(() => { const total = orders.filter(o => ["Livré","Annulé"].includes(o.status ?? "")).length; const livrees = orders.filter(o => o.status === "Livré").length; return total > 0 ? Math.round((livrees/total)*100) + "%" : "—"; })()}
+                </p>
+              </div>
+            </div>
+
             {/* Bannière montant dû + formulaire inline */}
             {profile && (
               montantDu > 0 ? (
