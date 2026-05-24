@@ -354,7 +354,7 @@ export default function ParametresView({ tenantId }: Props) {
       <Section title="🎨 Design de ta boutique">
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Slogan / Description courte</label>
-          <input value={settings.boutique_description} onChange={set("boutique_description")} inp={inp}
+          <input value={settings.boutique_description} onChange={set("boutique_description")}
             placeholder="Ex: Livraison rapide à Lomé. Paiement à la livraison."
             style={inp}
             onFocus={e => e.target.style.borderColor = "#F59E0B"}
