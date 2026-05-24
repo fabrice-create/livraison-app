@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import InstallPWA from "@/components/pwa/InstallPWA";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
@@ -287,6 +288,7 @@ export function LivreurView() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
       <ToastContainer />
+      <InstallPWA />
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
