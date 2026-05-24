@@ -194,7 +194,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       imageUrl = url
     }
 
-    let productId: string | undefined = editing?.id
+    let productId: string | null = editing?.id || null
 
     if (editing) {
       const { error: err } = await supabase.from("products").update({
@@ -204,33 +204,41 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
         image_url: imageUrl,
       }).eq("id", editing.id)
       if (err) { setError(err.message); setSaving(false); return }
+      productId = editing.id
     } else {
-      const { data, error: err } = await supabase.from("products").insert({
-        tenant_id: tenantId,
-        name: form.name.trim(),
-        price: Number(form.price),
-        description: form.description.trim() || null,
-        image_url: imageUrl,
-        is_active: true,
-      }).select("id").single()
-      if (err || !data) { setError(err?.message || "Erreur"); setSaving(false); return }
-      productId = String(data.id)
+      // Insérer le produit et récupérer l'id généré
+      const { data: inserted, error: err } = await supabase
+        .from("products")
+        .insert({
+          tenant_id: tenantId,
+          name: form.name.trim(),
+          price: Number(form.price),
+          description: form.description.trim() || null,
+          image_url: imageUrl,
+          is_active: true,
+        })
+        .select()
+        .single()
+
+      if (err) { setError("Erreur création produit: " + err.message); setSaving(false); return }
+      if (!inserted) { setError("Produit non créé"); setSaving(false); return }
+      productId = inserted.id
     }
 
     // Upload images supplémentaires
     if (extraImages.length > 0 && productId) {
       setUploading(true)
-      const lastPosition = existingImages.length
       for (let i = 0; i < extraImages.length; i++) {
         const compressed = await compressImage(extraImages[i].file, 800, 0.82)
         const url = await uploadImage(compressed)
         if (url) {
-          await supabase.from("product_images").insert({
+          const { error: imgErr } = await supabase.from("product_images").insert({
             product_id: productId,
             tenant_id: tenantId,
             image_url: url,
-            position: lastPosition + i,
+            position: existingImages.length + i,
           })
+          if (imgErr) console.error("Erreur insert image:", imgErr.message)
         }
       }
       setUploading(false)
