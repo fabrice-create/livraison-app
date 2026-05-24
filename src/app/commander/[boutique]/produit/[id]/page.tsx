@@ -213,6 +213,18 @@ export default function ProduitDetailPage() {
             )}
           </div>
         </div>
+        {/* Footer dans le scroll */}
+        {tenantName && (
+          <div style={{ borderTop: `1px solid ${C.border}`, padding: "16px", textAlign: "center", marginTop: 8 }}>
+            <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+              Propulsé par{" "}
+              <a href="https://shipivo.app" target="_blank" rel="noopener noreferrer"
+                style={{ color: brandColor, textDecoration: "none", fontWeight: 600 }}>
+                Shipivo
+              </a>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Boutons fixes en bas */}
@@ -243,18 +255,6 @@ export default function ProduitDetailPage() {
           )}
         </div>
       </div>
-      {/* Footer */}
-      {tenantName && (
-        <div style={{ background: C.card, borderTop: `1px solid ${C.border}`, padding: "16px", textAlign: "center", marginTop: 8 }}>
-          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
-            Propulsé par{" "}
-            <a href="https://shipivo.app" target="_blank" rel="noopener noreferrer"
-              style={{ color: brandColor, textDecoration: "none", fontWeight: 600 }}>
-              Shipivo
-            </a>
-          </p>
-        </div>
-      )}
     </div>
   )
 }
