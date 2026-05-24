@@ -30,20 +30,32 @@ export default function ProduitDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
 
+  const [currency, setCurrency] = useState("FCFA")
+
   useEffect(() => {
     const load = async () => {
+      // Charger produit
       const { data } = await supabase
         .from("products")
-        .select("id, name, price, description, image_url")
+        .select("id, name, price, description, image_url, tenant_id")
         .eq("id", id)
         .single()
       setProduct(data)
+      // Charger devise du tenant
+      if (data?.tenant_id) {
+        const { data: tenant } = await supabase
+          .from("tenants")
+          .select("currency")
+          .eq("id", data.tenant_id)
+          .single()
+        if (tenant?.currency) setCurrency(tenant.currency)
+      }
       setLoading(false)
     }
     load()
   }, [id])
 
-  const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA"
+  const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + currency
 
   const handleAdd = () => {
     const cart = JSON.parse(sessionStorage.getItem(`cart_${boutique}`) || "[]")
