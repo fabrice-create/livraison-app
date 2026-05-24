@@ -466,13 +466,26 @@ export default function CommanderPage() {
 
       {/* Bandeau défilant */}
       {boutique?.banner_text && (
-        <div style={{ background: `${boutique.brand_color}18`, borderBottom: "1px solid #ffffff08", overflow: "hidden", whiteSpace: "nowrap" }}>
-          <div style={{ display: "inline-block", animation: "marquee 20s linear infinite", padding: "8px 0" }}>
-            <span style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 500, opacity: 0.9 }}>
-              &nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;
-            </span>
+        <div style={{ background: `${boutique.brand_color}18`, borderBottom: "1px solid #ffffff08", overflow: "hidden", whiteSpace: "nowrap", padding: "8px 0" }}>
+          <style>{`
+            @keyframes marquee {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .marquee-track {
+              display: inline-flex;
+              animation: marquee 18s linear infinite;
+              will-change: transform;
+            }
+            .marquee-track:hover { animation-play-state: paused; }
+          `}</style>
+          <div className="marquee-track">
+            {[...Array(8)].map((_, i) => (
+              <span key={i} style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 500, opacity: 0.9, paddingRight: 40 }}>
+                {boutique.banner_text} <span style={{ opacity: 0.4, paddingRight: 40 }}>•</span>
+              </span>
+            ))}
           </div>
-          <style>{`@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-33.33%) } }`}</style>
         </div>
       )}
 
@@ -511,21 +524,17 @@ export default function CommanderPage() {
                   return (
                     <div key={product.id}
                       style={{ borderRadius: 20, overflow: "hidden", position: "relative", background: "#111118", border: `1px solid ${qty > 0 ? bc : "#ffffff0a"}` }}>
-                      {/* Photo grande */}
+                      {/* Photo */}
                       <div onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
-                        style={{ position: "relative", aspectRatio: "4/5", overflow: "hidden", cursor: "pointer", background: "#16161F" }}>
+                        style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", cursor: "pointer", background: "#16161F" }}>
                         {product.image_url ? (
                           <img src={product.image_url} alt={product.name}
                             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         ) : (
                           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>📦</div>
                         )}
-                        {/* Overlay gradient en bas */}
-                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "45%", background: "linear-gradient(transparent, rgba(0,0,0,0.85))" }} />
-                        {/* Prix en overlay */}
-                        <div style={{ position: "absolute", bottom: 8, left: 10 }}>
-                          <p style={{ color: "#fff", fontSize: 15, fontWeight: 800, margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{fmt(product.price)}</p>
-                        </div>
+                        {/* Overlay léger en bas */}
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "25%", background: "linear-gradient(transparent, rgba(0,0,0,0.4))" }} />
                         {/* Badge promo */}
                         {product.badge && (
                           <div style={{ position: "absolute", top: 8, left: 8, background: product.badge === "PROMO" ? "#EF4444" : product.badge === "NOUVEAU" ? "#8B5CF6" : product.badge === "BEST-SELLER" ? "#F59E0B" : "#3B82F6", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>
@@ -540,11 +549,12 @@ export default function CommanderPage() {
                         )}
                       </div>
                       {/* Infos + bouton */}
-                      <div style={{ padding: "10px 10px 12px" }}>
+                      <div style={{ padding: "8px 10px 10px" }}>
                         <p onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
-                          style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 600, margin: "0 0 8px 0", lineHeight: 1.4, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
+                          style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 600, margin: "0 0 2px 0", lineHeight: 1.3, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
                           {product.name}
                         </p>
+                        <p style={{ color: bc, fontSize: 14, fontWeight: 800, margin: "2px 0 8px 0" }}>{fmt(product.price)}</p>
                         {qty === 0 ? (
                           <button onClick={() => addToCart(product)}
                             style={{ width: "100%", background: bc, border: "none", borderRadius: 10, padding: "8px 0", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
