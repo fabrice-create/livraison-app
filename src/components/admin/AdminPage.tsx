@@ -17,7 +17,7 @@ import NavTabs          from "@/components/ui/NavTabs"
 import ConfirmModal     from "@/components/ui/ConfirmModal"
 import EditOrderModal   from "@/components/ui/EditOrderModal"
 import OrderForm        from "@/components/order/OrderForm"
-import DashboardView    from "@/components/admin/DashboardView"
+import DashboardView    from "@/components/admin/DashboardView" // v1779641794
 import CommandesView    from "@/components/admin/CommandesView"
 import StockView        from "@/components/admin/StockView"
 import CommissionsView  from "@/components/admin/CommissionsView"
