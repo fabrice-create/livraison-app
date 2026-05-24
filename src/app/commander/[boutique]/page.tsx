@@ -389,35 +389,50 @@ export default function CommanderPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#080810", fontFamily: "Inter, sans-serif" }}>
-      {/* Header premium */}
-      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#080810" }}>
-        {/* Barre panier si items */}
-        {totalItems > 0 && (
-          <div style={{ background: boutique?.brand_color || C.gold, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ color: "#000", fontSize: 13, fontWeight: 700 }}>🛒 {totalItems} article{totalItems > 1 ? "s" : ""} dans le panier</span>
-            <button onClick={() => setStep("form")}
-              style={{ background: "rgba(0,0,0,0.2)", border: "none", borderRadius: 20, padding: "5px 14px", color: "#000", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-              Commander · {fmt(totalProduits)} →
-            </button>
+      {/* Header horizontal premium */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#080810", borderBottom: "1px solid #ffffff0a", backdropFilter: "blur(10px)" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+
+          {/* Logo + Nom */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+            {boutique?.logo_url ? (
+              <img src={boutique.logo_url} alt={boutique.name}
+                style={{ width: 40, height: 40, borderRadius: 10, objectFit: "contain", background: "#16161F", padding: 3, flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: boutique?.brand_color || "#F59E0B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, fontWeight: 800, color: "#000" }}>
+                {boutique?.name?.charAt(0) || "S"}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ color: "#F8F8FC", fontSize: 16, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {boutique?.name}
+              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ color: fraisLivraison === 0 ? "#4ADE80" : "#9898B0", fontSize: 11, fontWeight: 500 }}>
+                  {fraisLivraison === 0 ? "✓ Livraison gratuite" : `Livraison ${fmt(fraisLivraison)}`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Icône panier */}
+          <button onClick={() => totalItems > 0 && setStep("form")}
+            style={{ position: "relative", background: totalItems > 0 ? (boutique?.brand_color || "#F59E0B") : "#1E1E2E", border: "none", borderRadius: 12, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: totalItems > 0 ? "pointer" : "default", flexShrink: 0 }}>
+            <span style={{ fontSize: 20 }}>🛒</span>
+            {totalItems > 0 && (
+              <div style={{ position: "absolute", top: -4, right: -4, background: "#EF4444", color: "#fff", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, border: "2px solid #080810" }}>
+                {totalItems}
+              </div>
+            )}
+          </button>
+        </div>
+
+        {/* Slogan sous le header */}
+        {boutique?.boutique_description && (
+          <div style={{ background: `${boutique.brand_color}15`, borderTop: "1px solid #ffffff06", padding: "7px 16px", textAlign: "center" }}>
+            <p style={{ color: "#9898B0", fontSize: 12, margin: 0 }}>{boutique.boutique_description}</p>
           </div>
         )}
-        {/* Hero boutique */}
-        <div style={{ padding: "20px 16px 16px", textAlign: "center", borderBottom: `1px solid #ffffff08` }}>
-          {boutique?.logo_url && (
-            <img src={boutique.logo_url} alt={boutique.name}
-              style={{ width: 64, height: 64, borderRadius: 16, objectFit: "contain", background: "#16161F", padding: 4, marginBottom: 10, display: "block", margin: "0 auto 10px" }} />
-          )}
-          <h1 style={{ color: C.white, fontSize: 22, fontWeight: 800, margin: "0 0 4px 0", letterSpacing: "-0.3px" }}>{boutique?.name}</h1>
-          {boutique?.boutique_description && (
-            <p style={{ color: C.muted, fontSize: 13, margin: "0 0 8px 0", lineHeight: 1.5 }}>{boutique.boutique_description}</p>
-          )}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: fraisLivraison === 0 ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.06)", borderRadius: 20, padding: "4px 12px" }}>
-            <span style={{ fontSize: 14 }}>{fraisLivraison === 0 ? "🚚" : "📦"}</span>
-            <span style={{ color: fraisLivraison === 0 ? "#4ADE80" : C.muted, fontSize: 12, fontWeight: 600 }}>
-              {fraisLivraison === 0 ? "Livraison gratuite" : `Livraison : ${fmt(fraisLivraison)}`}
-            </span>
-          </div>
-        </div>
       </div>
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 12px 100px" }}>
