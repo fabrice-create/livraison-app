@@ -18,6 +18,7 @@ interface Product {
   price: number
   description?: string
   image_url?: string
+  badge?: string
   is_active: boolean
   created_at: string
   images?: ProductImage[]
@@ -34,7 +35,7 @@ interface Props {
   tenantSlug?: string
 }
 
-const EMPTY = { name: "", price: "", description: "" }
+const EMPTY = { name: "", price: "", description: "", badge: "" }
 
 export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [products, setProducts] = useState<Product[]>([])
@@ -121,7 +122,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
   const startEdit = async (p: Product) => {
     setEditing(p)
-    setForm({ name: p.name, price: String(p.price), description: p.description || "" })
+    setForm({ name: p.name, price: String(p.price), description: p.description || "", badge: p.badge || "" })
     setMainImagePreview(p.image_url || "")
     setMainImageFile(null)
     setMainImageInfo("")
@@ -204,6 +205,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
         price: Number(form.price),
         description: form.description.trim() || null,
         image_url: imageUrl,
+        badge: form.badge || null,
       }).eq("id", editing.id)
       if (err) { setError(err.message); setSaving(false); return }
       productId = editing.id
@@ -374,6 +376,19 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
               )}
             </div>
             <input ref={extraFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleExtraImagesChange} style={{ display: "none" }} />
+          </div>
+
+          {/* Badge produit */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>Badge (optionnel)</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["", "PROMO", "NOUVEAU", "BEST-SELLER", "SOLDE"].map(b => (
+                <button key={b} type="button" onClick={() => setForm(p => ({ ...p, badge: b }))}
+                  style={{ padding: "6px 14px", borderRadius: 8, border: `2px solid ${form.badge === b ? S.gold : S.border}`, background: form.badge === b ? "rgba(245,158,11,0.1)" : "transparent", color: form.badge === b ? S.gold : S.text2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  {b === "" ? "Aucun" : b}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Boutons */}
