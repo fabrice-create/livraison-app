@@ -21,11 +21,7 @@ interface Product {
   tenant_id?: string
 }
 
-interface ProductImage {
-  id: number
-  image_url: string
-  position: number
-}
+
 
 export default function ProduitDetailPage() {
   const params = useParams()
@@ -63,7 +59,7 @@ export default function ProduitDetailPage() {
         .select("image_url, position")
         .eq("product_id", data.id)
         .order("position")
-      if (extraImgs) allImgs.push(...extraImgs.map((i: ProductImage) => i.image_url))
+      if (extraImgs) allImgs.push(...extraImgs.map((i: { image_url: string; position: number }) => i.image_url))
       setImages(allImgs)
 
       // Charger devise du tenant
