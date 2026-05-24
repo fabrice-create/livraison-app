@@ -57,6 +57,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [copied, setCopied] = useState<string>("")
+  const [widgetProduct, setWidgetProduct] = useState<Product | null>(null)
+  const [widgetMode, setWidgetMode] = useState<"form" | "full">("form")
   const mainFileRef = useRef<HTMLInputElement>(null)
   const extraFileRef = useRef<HTMLInputElement>(null)
 
@@ -94,7 +96,16 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
   const getBaseUrl = () => {
     if (typeof window === "undefined") return "shipivo.app"
-    return window.location.host
+    return window.location.origin
+  }
+
+  const getWidgetCode = (p: Product, mode: "form" | "full") => {
+    const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
+    return `<script src="${base}/widget.js"
+  data-boutique="${slug}"
+  data-produit="${p.id}"
+  data-mode="${mode}">
+</script>`
   }
 
   const getLienBoutique = () => `https://${getBaseUrl()}/commander/${slug}`
@@ -440,12 +451,18 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
                 <p style={{ color: S.gold, fontSize: 15, fontWeight: 800, margin: "0 0 4px 0" }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</p>
                 {p.description && <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>}
 
-                {/* Lien produit */}
+                {/* Liens */}
                 {slug && (
-                  <button onClick={() => copyToClipboard(getLienProduit(p), `p_${p.id}`)}
-                    style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: copied === `p_${p.id}` ? S.success : S.info, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
-                    {copied === `p_${p.id}` ? "✓ Copié" : "🔗 Lien produit"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <button onClick={() => copyToClipboard(getLienProduit(p), `p_${p.id}`)}
+                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: copied === `p_${p.id}` ? S.success : S.info, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
+                      {copied === `p_${p.id}` ? "✓ Copié" : "🔗 Lien"}
+                    </button>
+                    <button onClick={() => { setWidgetProduct(p); setWidgetMode("form") }}
+                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: S.gold, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
+                      {'</>'}  Widget
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -464,6 +481,63 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
           )
         })}
       </div>
+      {/* Modal Widget */}
+      {widgetProduct && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ color: S.text, fontSize: 16, fontWeight: 700, margin: 0 }}>🔌 Code Widget — {widgetProduct.name}</h3>
+              <button onClick={() => setWidgetProduct(null)}
+                style={{ background: "none", border: "none", color: S.text2, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+
+            {/* Choix mode */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Type de widget :</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["form", "full"] as const).map(m => (
+                  <button key={m} onClick={() => setWidgetMode(m)}
+                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetMode === m ? S.gold : S.border}`, background: widgetMode === m ? "rgba(245,158,11,0.1)" : "transparent", color: widgetMode === m ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    {m === "form" ? "📝 Formulaire seul" : "🖼️ Produit + Formulaire"}
+                  </button>
+                ))}
+              </div>
+              <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>
+                {widgetMode === "form" ? "Le formulaire seul s'intègre sous ta page produit existante." : "Affiche la photo, le prix et le formulaire — idéal pour un blog ou email."}
+              </p>
+            </div>
+
+            {/* Code à copier */}
+            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 14, marginBottom: 12 }}>
+              <pre style={{ color: S.info, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
+                {getWidgetCode(widgetProduct, widgetMode)}
+              </pre>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => copyToClipboard(getWidgetCode(widgetProduct, widgetMode), "widget")}
+                style={{ flex: 1, background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {copied === "widget" ? "✓ Copié !" : "📋 Copier le code"}
+              </button>
+              <button onClick={() => setWidgetProduct(null)}
+                style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Fermer
+              </button>
+            </div>
+
+            {/* Instructions */}
+            <div style={{ marginTop: 14, background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 8, padding: "10px 14px" }}>
+              <p style={{ color: S.success, fontSize: 12, fontWeight: 600, margin: "0 0 6px 0" }}>📋 Comment l'utiliser :</p>
+              <p style={{ color: S.text2, fontSize: 11, margin: 0, lineHeight: 1.7 }}>
+                1. Copie le code ci-dessus<br/>
+                2. Colle-le dans ton site WordPress, Shopify, YouCan...<br/>
+                3. Le formulaire apparaît automatiquement<br/>
+                4. Les commandes arrivent directement dans Shipivo
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
