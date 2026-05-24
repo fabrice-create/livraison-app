@@ -10,18 +10,12 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "Shipivo — Gestion de livraisons",
   description: "Gérez vos livraisons e-commerce facilement avec Shipivo",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Shipivo",
   },
   formatDetection: { telephone: false },
-  openGraph: {
-    title: "Shipivo",
-    description: "Gérez vos livraisons e-commerce facilement",
-    type: "website",
-  },
 };
 
 export const viewport: Viewport = {
@@ -40,26 +34,12 @@ export default function RootLayout({
   return (
     <html lang="fr" className={geistSans.variable}>
       <head>
-        {/* PWA */}
-        <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Shipivo" />
-        {/* Icônes Apple */}
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
-        <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png" />
-        {/* Favicon */}
         <link rel="icon" href="/icons/icon-96.png" />
-        {/* Service Worker — désactivé temporairement */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              regs.forEach(function(reg) { reg.unregister(); });
-            });
-          }
-        ` }} />
       </head>
       <body style={{ margin: 0, padding: 0, background: "#0a0a0f" }}>
         {children}
