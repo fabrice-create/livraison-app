@@ -145,9 +145,9 @@ export default function ProduitDetailPage() {
       <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: 120 }}>
 
         {/* Galerie photos */}
-        <div style={{ position: "relative" }}>
+        <div>
           {/* Photo principale */}
-          <div style={{ width: "100%", aspectRatio: "1/1", background: C.card, overflow: "hidden" }}>
+          <div style={{ position: "relative", width: "100%", aspectRatio: "1/1", background: C.card, overflow: "hidden" }}>
             {images.length > 0 ? (
               <img
                 src={images[activeImg]}
@@ -159,27 +159,26 @@ export default function ProduitDetailPage() {
                 📦
               </div>
             )}
+            {/* Indicateur photos */}
+            {images.length > 1 && (
+              <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.7)", borderRadius: 12, padding: "3px 10px" }}>
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{activeImg + 1}/{images.length}</span>
+              </div>
+            )}
           </div>
 
-          {/* Indicateur photos */}
+          {/* Miniatures — juste sous la photo */}
           {images.length > 1 && (
-            <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.6)", borderRadius: 12, padding: "3px 10px" }}>
-              <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{activeImg + 1}/{images.length}</span>
+            <div style={{ display: "flex", gap: 8, padding: "10px 12px", overflowX: "auto", background: C.card, borderBottom: `1px solid ${C.border}` }}>
+              {images.map((img, i) => (
+                <div key={i} onClick={() => setActiveImg(i)}
+                  style={{ flexShrink: 0, width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: `2px solid ${activeImg === i ? C.gold : C.border}`, cursor: "pointer", opacity: activeImg === i ? 1 : 0.6 }}>
+                  <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              ))}
             </div>
           )}
         </div>
-
-        {/* Miniatures */}
-        {images.length > 1 && (
-          <div style={{ display: "flex", gap: 8, padding: "10px 12px", overflowX: "auto" }}>
-            {images.map((img, i) => (
-              <div key={i} onClick={() => setActiveImg(i)}
-                style={{ flexShrink: 0, width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: `2px solid ${activeImg === i ? C.gold : C.border}`, cursor: "pointer" }}>
-                <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Infos produit */}
         <div style={{ padding: "16px 16px 0" }}>
