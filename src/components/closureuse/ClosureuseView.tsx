@@ -61,6 +61,7 @@ export function ClosureuseView() {
   const [createForm, setCreateForm] = useState({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" });
   const [createLoading, setCreateLoading] = useState(false);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const [tenantName, setTenantName] = useState("Shipivo");
 
   useEffect(() => { void init(); }, []);
 
@@ -103,6 +104,10 @@ export function ClosureuseView() {
       return;
     }
     setProfile(p);
+    if (p.tenant_id) {
+      const { data: td } = await supabase.from("tenants").select("name").eq("id", p.tenant_id).single();
+      if (td?.name) setTenantName(td.name);
+    }
     // Charger devise du tenant
     if (p.tenant_id) {
       const { data: td } = await supabase.from("tenants").select("currency").eq("id", p.tenant_id).single();
@@ -291,8 +296,8 @@ export function ClosureuseView() {
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>Shipivo</div>
-          <div style={{ fontSize: 10, color: S.text3 }}>👩‍💼 Closeur(se)</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>👩‍💼 Closeur(se) · {profile?.full_name}</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {nonAssigned.length > 0 && (
