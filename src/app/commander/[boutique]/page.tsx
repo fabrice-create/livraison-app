@@ -79,6 +79,8 @@ interface BoutiqueInfo {
   boutique_description?: string
   banner_text?: string
   countdown_end?: string
+  banner_on_boutique?: boolean
+  banner_on_produit?: boolean
   facebook_pixel_id?: string
   facebook_access_token?: string
   tiktok_pixel_id?: string
@@ -168,7 +170,7 @@ export default function CommanderPage() {
     setLoading(true)
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, banner_text, countdown_end, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
+      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
 
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
@@ -182,6 +184,8 @@ export default function CommanderPage() {
       boutique_description: tenant.boutique_description || "",
       banner_text: tenant.banner_text || "",
       countdown_end: tenant.countdown_end || "",
+      banner_on_boutique: tenant.banner_on_boutique !== false,
+      banner_on_produit: tenant.banner_on_produit === true,
       facebook_pixel_id: tenant.facebook_pixel_id,
       facebook_access_token: tenant.facebook_access_token,
       tiktok_pixel_id: tenant.tiktok_pixel_id,
@@ -465,7 +469,7 @@ export default function CommanderPage() {
       </div>
 
       {/* Bandeau défilant */}
-      {boutique?.banner_text && (
+      {boutique?.banner_text && boutique?.banner_on_boutique && (
         <div style={{ background: `${boutique.brand_color}18`, borderBottom: "1px solid #ffffff08", overflow: "hidden", whiteSpace: "nowrap", padding: "8px 0" }}>
           <style>{`
             @keyframes marquee {
