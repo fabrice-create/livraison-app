@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
+import { useClientCurrency } from "@/hooks/useClientCurrency"
 
 const C = {
   bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
@@ -17,6 +18,7 @@ interface Product {
   price: number
   description?: string
   image_url?: string
+  tenant_id?: string
 }
 
 export default function ProduitDetailPage() {
@@ -26,11 +28,12 @@ export default function ProduitDetailPage() {
   const id = params?.id as string
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [tenantCurrency, setTenantCurrency] = useState("FCFA")
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
 
-  const [currency, setCurrency] = useState("FCFA")
+  const { formatPrice } = useClientCurrency(tenantCurrency)
 
   useEffect(() => {
     const load = async () => {
@@ -48,14 +51,14 @@ export default function ProduitDetailPage() {
           .select("currency")
           .eq("id", data.tenant_id)
           .single()
-        if (tenant?.currency) setCurrency(tenant.currency)
+        if (tenant?.currency) setTenantCurrency(tenant.currency)
       }
       setLoading(false)
     }
     load()
   }, [id])
 
-  const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + currency
+  const fmt = (n: number) => formatPrice(n, tenantCurrency)
 
   const handleAdd = () => {
     const cart = JSON.parse(sessionStorage.getItem(`cart_${boutique}`) || "[]")
