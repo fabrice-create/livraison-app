@@ -62,6 +62,7 @@ interface TenantSettings {
   at_username: string
   at_api_key: string
   at_sender_id: string
+  ga_measurement_id: string
   brand_color: string
   logo_url: string
   boutique_description: string
@@ -76,6 +77,7 @@ const EMPTY: TenantSettings = {
   facebook_pixel_id: "", facebook_access_token: "", tiktok_pixel_id: "",
   closer_commission: 500, driver_commission: 2000, currency: "FCFA",
   at_username: "", at_api_key: "", at_sender_id: "Shipivo",
+  ga_measurement_id: "",
   brand_color: "#F59E0B", logo_url: "", boutique_description: "",
   banner_text: "", countdown_end: "",
   banner_on_boutique: true, banner_on_produit: false,
@@ -117,7 +119,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit, ga_measurement_id")
       .eq("id", tenantId)
       .single()
 
@@ -135,6 +137,7 @@ export default function ParametresView({ tenantId }: Props) {
         at_username: data.at_username || "",
         at_api_key: data.at_api_key || "",
         at_sender_id: data.at_sender_id || "Shipivo",
+        ga_measurement_id: data.ga_measurement_id || "",
         brand_color: data.brand_color || "#F59E0B",
         logo_url: data.logo_url || "",
         boutique_description: data.boutique_description || "",
@@ -199,6 +202,7 @@ export default function ParametresView({ tenantId }: Props) {
       at_username: settings.at_username || null,
       at_api_key: settings.at_api_key || null,
       at_sender_id: settings.at_sender_id || "Shipivo",
+      ga_measurement_id: settings.ga_measurement_id || null,
       brand_color: settings.brand_color || "#F59E0B",
       logo_url: settings.logo_url || null,
       boutique_description: settings.boutique_description || null,
@@ -503,6 +507,34 @@ export default function ParametresView({ tenantId }: Props) {
             • 🎯 Livraison — quand le livreur marque &quot;Livré + Payé&quot;
           </p>
         </div>
+      </Section>
+
+      {/* Pixels & Analytics */}
+      <Section title="📊 Pixels & Analytics">
+        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <p style={{ color: S.info, fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+            Configure tes pixels pour tracker les commandes et optimiser tes publicités.
+          </p>
+        </div>
+
+        {/* Facebook Pixel */}
+        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>Facebook / Meta</p>
+        <Field label="Facebook Pixel ID" value={settings.facebook_pixel_id} onChange={set("facebook_pixel_id")} inp={inp} placeholder="Ex: 123456789012345" />
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Facebook Access Token (API Conversions)</label>
+          <input type="password" value={settings.facebook_access_token} onChange={set("facebook_access_token")}
+            placeholder="EAAxxxxxxx..." style={inp}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+        </div>
+
+        {/* TikTok Pixel */}
+        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>TikTok</p>
+        <Field label="TikTok Pixel ID" value={settings.tiktok_pixel_id} onChange={set("tiktok_pixel_id")} inp={inp} placeholder="Ex: CXXXXXXXXXXXXXXX" />
+
+        {/* Google Analytics */}
+        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>Google Analytics</p>
+        <Field label="GA4 Measurement ID" value={settings.ga_measurement_id} onChange={set("ga_measurement_id")} inp={inp} placeholder="Ex: G-XXXXXXXXXX" />
       </Section>
 
       {/* Bouton save */}
