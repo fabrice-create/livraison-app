@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import InstallPWA from "@/components/pwa/InstallPWA";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock } from "@/types";
@@ -270,6 +271,7 @@ export function ClosureuseView() {
   return (
     <div style={{ minHeight: "100vh", backgroundColor: S.bg, color: S.text, fontFamily: "Inter, system-ui, sans-serif" }}>
       <ToastContainer />
+      <InstallPWA />
 
       {/* Modal assignation */}
       {assignModal && (
