@@ -97,6 +97,7 @@ export default function ParametresView({ tenantId }: Props) {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const logoFileRef = useRef<HTMLInputElement>(null)
   const [lienCommande, setLienCommande] = useState("")
+  const [tenantSlug, setTenantSlug] = useState("")
   const [password, setPassword] = useState({ current: "", new: "", confirm: "" })
   const [showPasswords, setShowPasswords] = useState(false)
 
@@ -148,6 +149,7 @@ export default function ParametresView({ tenantId }: Props) {
       })
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
       setLienCommande(`${baseUrl}/commander/${data.slug}`)
+      setTenantSlug(data.slug || "")
     }
 
     // Charger profil admin
