@@ -146,14 +146,22 @@ export default function CommanderPage() {
 
   // Compte à rebours
   useEffect(() => {
-    if (!boutique?.countdown_end) return
-    const end = new Date(boutique.countdown_end).getTime()
+    const endStr = boutique?.countdown_end
+    if (!endStr || endStr === "") return
+    const end = new Date(endStr).getTime()
+    if (isNaN(end)) return
+    if (end <= Date.now()) return
+
     const tick = () => {
       const diff = end - Date.now()
-      if (diff <= 0) { setCountdown({ h: "00", m: "00", s: "00", active: false }); return }
-      const h = Math.floor(diff / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      const s = Math.floor((diff % 60000) / 1000)
+      if (diff <= 0) {
+        setCountdown({ h: "00", m: "00", s: "00", active: false })
+        return
+      }
+      const totalSec = Math.floor(diff / 1000)
+      const h = Math.floor(totalSec / 3600)
+      const m = Math.floor((totalSec % 3600) / 60)
+      const s = totalSec % 60
       setCountdown({
         h: String(h).padStart(2, "0"),
         m: String(m).padStart(2, "0"),
