@@ -13,7 +13,7 @@ const S = {
 }
 
 interface Product {
-  id: number
+  id: string
   name: string
   price: number
   description?: string
@@ -24,7 +24,7 @@ interface Product {
 }
 
 interface ProductImage {
-  id: number
+  id: string
   image_url: string
   position: number
 }
@@ -194,7 +194,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       imageUrl = url
     }
 
-    let productId = editing?.id
+    let productId: string | undefined = editing?.id
 
     if (editing) {
       const { error: err } = await supabase.from("products").update({
@@ -212,9 +212,9 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
         description: form.description.trim() || null,
         image_url: imageUrl,
         is_active: true,
-      }).select().single()
+      }).select("id").single()
       if (err || !data) { setError(err?.message || "Erreur"); setSaving(false); return }
-      productId = data.id
+      productId = String(data.id)
     }
 
     // Upload images supplémentaires
