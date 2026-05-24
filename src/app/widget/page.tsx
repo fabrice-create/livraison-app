@@ -33,6 +33,9 @@ function WidgetContent() {
   const searchParams = useSearchParams()
   const slug = searchParams?.get("boutique") || ""
   const produitId = searchParams?.get("produit") || ""
+  const produitNom = searchParams?.get("produit_nom") || ""
+  const produitPrix = searchParams?.get("produit_prix") || ""
+  const produitImage = searchParams?.get("produit_image") || ""
   const mode = searchParams?.get("mode") || "form"
   const couleur = searchParams?.get("couleur") || "#F59E0B"
 
@@ -63,6 +66,14 @@ function WidgetContent() {
           .select("id, name, price, description, image_url")
           .eq("id", produitId).single()
         if (prod) setProduct(prod)
+      } else if (produitNom) {
+        // Produit passé directement depuis le site externe (Shopify, WordPress...)
+        setProduct({
+          id: "external",
+          name: produitNom,
+          price: Number(produitPrix) || 0,
+          image_url: produitImage || undefined,
+        })
       }
       setLoading(false)
     }
@@ -117,7 +128,7 @@ function WidgetContent() {
 
     setSubmitting(true); setError("")
     const fullPhone = dialCode + form.phone.trim().replace(/^0/, "")
-    const productName = product?.name || "Commande directe"
+    const productName = product?.name || form.note || "Commande directe"
     const amount = (product?.price || 0) + (boutique.delivery_fee || 0)
 
     const { error: err } = await supabase.from("orders").insert({
@@ -195,6 +206,19 @@ function WidgetContent() {
 
       {/* Formulaire */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+        {/* Produit libre si pas de produit configuré */}
+        {!product && (
+          <div>
+            <label style={{ display: "block", color: C.mutedLight, fontSize: 12, marginBottom: 5 }}>
+              Produit souhaité <span style={{ color: bc }}>*</span>
+            </label>
+            <input value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))}
+              placeholder="Ex: Crème massage 50ml, couleur rouge..." style={inp}
+              onFocus={e => e.target.style.borderColor = bc}
+              onBlur={e => e.target.style.borderColor = C.border} />
+          </div>
+        )}
 
         {/* Nom */}
         <div>
