@@ -109,14 +109,17 @@ export default function CommanderPage() {
     setSource(src)
 
     // Détecter pays du client pour indicatif téléphonique
-    try {
-      const geoRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
-      if (geoRes.ok) {
-        const geo = await geoRes.json()
-        const country = COUNTRY_DIALCODES[geo.country_code]
-        if (country) setSelectedCountry(country)
-      }
-    } catch { /* silencieux */ }
+    const detectCountry = async () => {
+      try {
+        const geoRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
+        if (geoRes.ok) {
+          const geo = await geoRes.json()
+          const country = COUNTRY_DIALCODES[geo.country_code]
+          if (country) setSelectedCountry(country)
+        }
+      } catch { /* silencieux */ }
+    }
+    detectCountry()
 
     const saved = sessionStorage.getItem(`cart_${slug}`)
     if (saved) setCart(JSON.parse(saved))
