@@ -52,13 +52,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png" />
         {/* Favicon */}
         <link rel="icon" href="/icons/icon-96.png" />
-        {/* Service Worker */}
+        {/* Service Worker — désactivé temporairement */}
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js')
-                .then(function(reg) { console.log('SW registered'); })
-                .catch(function(err) { console.log('SW error:', err); });
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(reg) { reg.unregister(); });
             });
           }
         ` }} />
