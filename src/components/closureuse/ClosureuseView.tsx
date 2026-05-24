@@ -274,7 +274,7 @@ export function ClosureuseView() {
             <p style={{ fontSize: 13, color: S.text2, marginBottom: 16 }}>{assignModal.customer_name} — {assignModal.city}</p>
             <select value={selectedDriver} onChange={e => setSelectedDriver(e.target.value)} style={{ ...inp, marginBottom: 16 }}>
               <option value="">Choisir un livreur</option>
-              {drivers.map(d => <option key={d.id} value={d.id}>{(d as Profile & {is_available?: boolean}).is_available ? "🟢" : "🔴"} {d.full_name}</option>)}
+              {drivers.map(d => <option key={d.id} value={d.id}>{d.is_available ? "🟢" : "🔴"} {d.full_name}</option>)}
             </select>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => { setAssignModal(null); setSelectedDriver(""); }}
@@ -383,16 +383,16 @@ export function ClosureuseView() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {[...drivers].sort((a, b) => (b.is_available ? 1 : 0) - (a.is_available ? 1 : 0)).map(d => (
-                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: (d as Profile & {is_available?: boolean}).is_available ? "rgba(37,211,102,0.06)" : "transparent", borderRadius: 10, border: `1px solid ${(d as Profile & {is_available?: boolean}).is_available ? S.success + "30" : S.border}` }}>
-                      <span style={{ fontSize: 18 }}>{(d as Profile & {is_available?: boolean}).is_available ? "🟢" : "🔴"}</span>
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: d.is_available ? "rgba(37,211,102,0.06)" : "transparent", borderRadius: 10, border: `1px solid ${d.is_available ? S.success + "30" : S.border}` }}>
+                      <span style={{ fontSize: 18 }}>{d.is_available ? "🟢" : "🔴"}</span>
                       <div style={{ flex: 1 }}>
                         <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{d.full_name}</p>
                         <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>
-                          {(d as Profile & {is_available?: boolean}).is_available ? "Disponible" : "Indisponible"}
-                          {(d as Profile & {last_seen?: string}).last_seen ? ` · vu ${new Date(d.last_seen).toLocaleTimeString("fr-FR", {hour:"2-digit",minute:"2-digit"})}` : ""}
+                          {d.is_available ? "Disponible" : "Indisponible"}
+                          {d.last_seen ? ` · vu ${new Date(d.last_seen).toLocaleTimeString("fr-FR", {hour:"2-digit",minute:"2-digit"})}` : ""}
                         </p>
                       </div>
-                      {(d as Profile & {is_available?: boolean}).is_available && <span style={{ color: S.success, fontSize: 11, fontWeight: 600 }}>✓ Disponible</span>}
+                      {d.is_available && <span style={{ color: S.success, fontSize: 11, fontWeight: 600 }}>✓ Disponible</span>}
                     </div>
                   ))}
                 </div>
