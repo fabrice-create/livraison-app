@@ -153,11 +153,13 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     const remaining = 9 - existingImages.length - extraImages.length
     const toAdd = files.slice(0, remaining)
     for (const file of toAdd) {
+      // Comprimer immédiatement au moment de la sélection
+      const compressed = await compressImage(file, 800, 0.82)
       const reader = new FileReader()
       reader.onload = (ev) => {
-        setExtraImages(prev => [...prev, { file, preview: ev.target?.result as string }])
+        setExtraImages(prev => [...prev, { file: compressed, preview: ev.target?.result as string }])
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(compressed)
     }
   }
 
@@ -225,20 +227,18 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       productId = inserted.id
     }
 
-    // Upload images supplémentaires
+    // Upload images supplémentaires (déjà compressées)
     if (extraImages.length > 0 && productId) {
       setUploading(true)
       for (let i = 0; i < extraImages.length; i++) {
-        const compressed = await compressImage(extraImages[i].file, 800, 0.82)
-        const url = await uploadImage(compressed)
+        const url = await uploadImage(extraImages[i].file)
         if (url) {
-          const { error: imgErr } = await supabase.from("product_images").insert({
+          await supabase.from("product_images").insert({
             product_id: productId,
             tenant_id: tenantId,
             image_url: url,
             position: existingImages.length + i,
           })
-          if (imgErr) console.error("Erreur insert image:", imgErr.message)
         }
       }
       setUploading(false)
