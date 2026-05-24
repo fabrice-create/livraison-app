@@ -65,6 +65,8 @@ interface TenantSettings {
   brand_color: string
   logo_url: string
   boutique_description: string
+  banner_text: string
+  countdown_end: string
 }
 
 const EMPTY: TenantSettings = {
@@ -73,6 +75,7 @@ const EMPTY: TenantSettings = {
   closer_commission: 500, driver_commission: 2000, currency: "FCFA",
   at_username: "", at_api_key: "", at_sender_id: "Shipivo",
   brand_color: "#F59E0B", logo_url: "", boutique_description: "",
+  banner_text: "", countdown_end: "",
 }
 
 export default function ParametresView({ tenantId }: Props) {
@@ -111,7 +114,7 @@ export default function ParametresView({ tenantId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from("tenants")
-      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description")
+      .select("name, phone, delivery_fee, slug, facebook_pixel_id, facebook_access_token, tiktok_pixel_id, closer_commission, driver_commission, currency, at_username, at_api_key, at_sender_id, brand_color, logo_url, boutique_description, banner_text, countdown_end")
       .eq("id", tenantId)
       .single()
 
@@ -132,6 +135,8 @@ export default function ParametresView({ tenantId }: Props) {
         brand_color: data.brand_color || "#F59E0B",
         logo_url: data.logo_url || "",
         boutique_description: data.boutique_description || "",
+        banner_text: data.banner_text || "",
+        countdown_end: data.countdown_end || "",
       })
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
       setLienCommande(`${baseUrl}/commander/${data.slug}`)
@@ -192,6 +197,8 @@ export default function ParametresView({ tenantId }: Props) {
       brand_color: settings.brand_color || "#F59E0B",
       logo_url: settings.logo_url || null,
       boutique_description: settings.boutique_description || null,
+      banner_text: settings.banner_text || null,
+      countdown_end: settings.countdown_end || null,
     }).eq("id", tenantId)
 
     if (err) { setError(err.message); setSaving(false); return }
@@ -416,6 +423,30 @@ export default function ParametresView({ tenantId }: Props) {
             </div>
           </div>
           <input ref={logoFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} style={{ display: "none" }} />
+        </div>
+        {/* Bandeau défilant */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+            📢 Bandeau défilant
+          </label>
+          <input value={settings.banner_text} onChange={set("banner_text")}
+            placeholder="Ex: 🚚 Livraison gratuite • 💳 Paiement à la livraison • ✅ 100% naturel"
+            style={inp}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+          <p style={{ color: S.text3, fontSize: 11, margin: "4px 0 0 0" }}>Sépare les messages avec • pour un défilement fluide</p>
+        </div>
+
+        {/* Compte à rebours */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+            ⏰ Compte à rebours (date de fin de promo)
+          </label>
+          <input type="datetime-local" value={settings.countdown_end} onChange={set("countdown_end")}
+            style={{ ...inp, colorScheme: "dark" }}
+            onFocus={e => e.target.style.borderColor = "#F59E0B"}
+            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
+          <p style={{ color: S.text3, fontSize: 11, margin: "4px 0 0 0" }}>Laisse vide pour désactiver le compte à rebours</p>
         </div>
       </Section>
 
