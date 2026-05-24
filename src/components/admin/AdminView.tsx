@@ -1122,52 +1122,55 @@ export function AdminView() {
     setAuthLoading(true);
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) { router.replace("/login"); return; }
-    const { data: pd } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+
+    const { data: pd } = await supabase.from("profiles")
+      .select("*").eq("id", user.id).single();
     if (!pd) { router.replace("/login"); return; }
+
     const p = pd as Profile;
     const role = normalizeRole(p.role);
-    if (role !== "admin" && role !== "manager") {
-      router.replace(role === "closureuse" ? "/closureuse" : "/livreur");
+    if (role !== "admin" && role !== "manager" && role !== "super_admin") {
+      router.replace(role === "closureuse" ? "/closureuse" : role === "livreur" ? "/livreur" : "/login");
       return;
     }
+
     setProfile(p);
     const tid = (p as any).tenant_id || "";
     setTenantId(tid);
-    // Charger les règles de commission depuis les paramètres de la boutique
-    if (tid) {
-      const { data: tenantData } = await supabase.from("tenants")
+
+    // Tout en parallèle — beaucoup plus rapide
+    const [tenantRes, profilesRes, ordersRes, stockRes] = await Promise.all([
+      tid ? supabase.from("tenants")
         .select("driver_commission, closer_commission, currency, name")
-        .eq("id", tid).single();
-      if (tenantData) {
-        if (tenantData.name) setTenantName(tenantData.name);
-        setCommissionRules({
-          driver: Number(tenantData.driver_commission) || 2000,
-          closer: Number(tenantData.closer_commission) || 500,
-        });
-        setCurrency(tenantData.currency || "FCFA");
-      }
+        .eq("id", tid).single()
+        : Promise.resolve({ data: null }),
+      tid ? supabase.from("profiles")
+        .select("id, full_name, role, is_active, is_available, last_seen, tenant_id")
+        .eq("tenant_id", tid).eq("is_active", true).order("full_name")
+        : Promise.resolve({ data: [] }),
+      tid ? supabase.from("orders")
+        .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id, payment_status")
+        .eq("tenant_id", tid).order("id", { ascending: false }).limit(500)
+        : Promise.resolve({ data: [] }),
+      tid ? supabase.from("driver_stock")
+        .select("id, driver_id, driver_name, product_name, quantity")
+        .eq("tenant_id", tid)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    if (tenantRes.data) {
+      const td = tenantRes.data as any;
+      if (td.name) setTenantName(td.name);
+      setCommissionRules({ driver: td.driver_commission || 2000, closer: td.closer_commission || 500 });
+      if (td.currency) setCurrency(td.currency);
     }
-    const { data: profiles } = await supabase.from("profiles").select("*").eq("tenant_id", tid).order("full_name");
-    if (profiles) {
-      const all = profiles as Profile[];
-      setDrivers(all.filter(pr => normalizeRole(pr.role) === "livreur"));
-      setClosers(all.filter(pr => normalizeRole(pr.role) === "closureuse"));
-    }
-    const { data: od } = await supabase.from("orders").select("*").eq("tenant_id", tid).order("id", { ascending: false });
-    const fetched = (od as Order[]) || [];
-    setOrders(fetched);
-    const sel: Record<number, string> = {}; const act: Record<number, string> = {};
-    fetched.forEach(o => { sel[o.id] = o.assigned_driver_id || ""; act[o.id] = ""; });
-    setSelectedDrivers(sel); setSelectedActions(act);
-    const driverIds = (profiles as Profile[])?.filter(p => normalizeRole(p.role) === "livreur").map(p => p.id) || [];
-    const { data: sd } = driverIds.length > 0
-      ? await supabase.from("driver_stock").select("*").in("driver_id", driverIds).order("id", { ascending: false })
-      : { data: [] };
-    setDriverStocks((sd as DriverStock[]) || []);
-    const { data: hd } = await supabase.from("order_history").select("*")
-      .in("order_id", (od as Order[]).map(o => o.id))
-      .order("created_at", { ascending: false });
-    setHistory((hd as OrderHistory[]) || []);
+
+    const allProfiles = (profilesRes.data || []) as Profile[];
+    setDrivers(allProfiles.filter(pr => normalizeRole(pr.role) === "livreur"));
+    setClosers(allProfiles.filter(pr => normalizeRole(pr.role) === "closureuse"));
+    setOrders((ordersRes.data || []) as Order[]);
+    setDriverStocks((stockRes.data || []) as DriverStock[]);
+    setIsManager(role === "manager");
     setAuthLoading(false);
   };
 
