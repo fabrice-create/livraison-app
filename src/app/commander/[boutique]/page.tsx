@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
 import {
-  initPixel, trackAddToCart, trackPurchase, serverTrackPurchase
+  initPixel, trackAddToCart, trackPurchase, trackInitiateCheckout, serverTrackPurchase
 } from "@/lib/facebookPixel"
-import { initTiktokPixel, tiktokTrackAddToCart, tiktokTrackPurchase } from "@/lib/tiktokPixel"
+import { initTiktokPixel, tiktokTrackAddToCart, tiktokTrackPurchase, tiktokTrackInitiateCheckout } from "@/lib/tiktokPixel"
+import { initGA, gaTrackAddToCart, gaTrackBeginCheckout, gaTrackPurchase } from "@/lib/googleAnalytics"
 import { useClientCurrency } from "@/hooks/useClientCurrency"
 
 // Indicatifs téléphoniques par pays
@@ -81,6 +82,7 @@ interface BoutiqueInfo {
   countdown_end?: string
   banner_on_boutique?: boolean
   banner_on_produit?: boolean
+  ga_measurement_id?: string
   facebook_pixel_id?: string
   facebook_access_token?: string
   tiktok_pixel_id?: string
@@ -178,7 +180,7 @@ export default function CommanderPage() {
     setLoading(true)
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
+      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, banner_text, countdown_end, banner_on_boutique, banner_on_produit, ga_measurement_id, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
 
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
@@ -194,6 +196,7 @@ export default function CommanderPage() {
       countdown_end: tenant.countdown_end || "",
       banner_on_boutique: tenant.banner_on_boutique !== false,
       banner_on_produit: tenant.banner_on_produit === true,
+      ga_measurement_id: tenant.ga_measurement_id || "",
       facebook_pixel_id: tenant.facebook_pixel_id,
       facebook_access_token: tenant.facebook_access_token,
       tiktok_pixel_id: tenant.tiktok_pixel_id,
@@ -202,6 +205,7 @@ export default function CommanderPage() {
     // Initialiser pixels
     if (tenant.facebook_pixel_id) initPixel(tenant.facebook_pixel_id)
     if (tenant.tiktok_pixel_id) initTiktokPixel(tenant.tiktok_pixel_id)
+    if (tenant.ga_measurement_id) initGA(tenant.ga_measurement_id)
 
     const { data: prods } = await supabase
       .from("products").select("id, name, price, description, image_url")
@@ -217,8 +221,10 @@ export default function CommanderPage() {
       return [...prev, { id: product.id, name: product.name, price: product.price, image_url: product.image_url, quantity: 1 }]
     })
     // Track AddToCart
-    if (boutique?.facebook_pixel_id) trackAddToCart(boutique.facebook_pixel_id, product.name, product.price, 1)
-    if (boutique?.tiktok_pixel_id) tiktokTrackAddToCart(boutique.tiktok_pixel_id, product.name, product.price)
+    const cur = boutique?.currency || "FCFA"
+    if (boutique?.facebook_pixel_id) trackAddToCart(boutique.facebook_pixel_id, product.name, product.price, 1, cur)
+    if (boutique?.tiktok_pixel_id) tiktokTrackAddToCart(boutique.tiktok_pixel_id, product.name, product.price, cur)
+    if (boutique?.ga_measurement_id) gaTrackAddToCart(boutique.ga_measurement_id, product.name, product.price, 1, cur)
   }
 
   const updateQty = (id: string, qty: number) => {
@@ -285,11 +291,16 @@ export default function CommanderPage() {
       setOrderNumber(orderNum)
 
       // Track Purchase — pixel client
+      const orderRef = `order_${Date.now()}`
+      const currency = boutique?.currency || "FCFA"
       if (boutique?.facebook_pixel_id) {
-        trackPurchase(boutique.facebook_pixel_id, totalFinal, `order_${Date.now()}`)
+        trackPurchase(boutique.facebook_pixel_id, totalFinal, orderRef, currency)
       }
       if (boutique?.tiktok_pixel_id) {
-        tiktokTrackPurchase(boutique.tiktok_pixel_id, totalFinal)
+        tiktokTrackPurchase(boutique.tiktok_pixel_id, totalFinal, currency)
+      }
+      if (boutique?.ga_measurement_id) {
+        gaTrackPurchase(boutique.ga_measurement_id, totalFinal, orderRef, currency)
       }
 
       // Track Purchase — API Conversions côté serveur (plus fiable iOS 14)
