@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import InstallPWA from "@/components/pwa/InstallPWA";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFormData } from "@/types";
@@ -1332,6 +1333,7 @@ export function AdminView() {
 
       {/* Modals */}
       {editingOrder && <EditModal form={editForm} onClose={() => setEditingOrder(null)} onSubmit={handleEditSubmit} onChange={e => setEditForm(f => ({ ...f, [e.target.name]: e.target.value }))} />}
+      <InstallPWA />
       {confirmAction && (
         <ConfirmModal
           title={confirmAction.action === "livre_paye" ? "🎯 Confirmer la livraison ?" : confirmAction.action === "gare" ? "🚌 Envoi à la gare ?" : "❌ Annuler la commande ?"}
