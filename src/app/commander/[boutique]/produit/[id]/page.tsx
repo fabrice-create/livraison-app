@@ -33,6 +33,9 @@ export default function ProduitDetailPage() {
   const [images, setImages] = useState<string[]>([])
   const [activeImg, setActiveImg] = useState(0)
   const [tenantCurrency, setTenantCurrency] = useState("FCFA")
+  const [brandColor, setBrandColor] = useState("#F59E0B")
+  const [tenantName, setTenantName] = useState("")
+  const [tenantPhone, setTenantPhone] = useState("")
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
@@ -62,14 +65,17 @@ export default function ProduitDetailPage() {
       if (extraImgs) allImgs.push(...extraImgs.map((i: { image_url: string; position: number }) => i.image_url))
       setImages(allImgs)
 
-      // Charger devise du tenant
+      // Charger devise + couleur du tenant
       if (data.tenant_id) {
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("currency")
+          .select("currency, brand_color, name, phone")
           .eq("id", data.tenant_id)
           .single()
         if (tenant?.currency) setTenantCurrency(tenant.currency)
+        if (tenant?.brand_color) setBrandColor(tenant.brand_color)
+        if (tenant?.name) setTenantName(tenant.name)
+        if (tenant?.phone) setTenantPhone(tenant.phone)
       }
       setLoading(false)
     }
@@ -183,7 +189,7 @@ export default function ProduitDetailPage() {
         {/* Infos produit */}
         <div style={{ padding: "16px 16px 0" }}>
           <h2 style={{ color: C.white, fontSize: 20, fontWeight: 800, margin: "0 0 6px 0" }}>{product.name}</h2>
-          <p style={{ color: C.gold, fontSize: 24, fontWeight: 800, margin: "0 0 16px 0" }}>{fmt(product.price)}</p>
+          <p style={{ color: brandColor, fontSize: 24, fontWeight: 800, margin: "0 0 16px 0" }}>{fmt(product.price)}</p>
 
           {product.description && (
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
@@ -230,13 +236,25 @@ export default function ProduitDetailPage() {
                 ← Continuer
               </button>
               <button onClick={() => router.push(`/commander/${boutique}?step=form`)}
-                style={{ flex: 2, background: `linear-gradient(135deg,${C.gold},${C.goldDark})`, border: "none", borderRadius: 12, padding: "14px", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                style={{ flex: 2, background: brandColor, border: "none", borderRadius: 12, padding: "14px", color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
                 🛒 Voir le panier →
               </button>
             </div>
           )}
         </div>
       </div>
+      {/* Footer */}
+      {tenantName && (
+        <div style={{ background: C.card, borderTop: `1px solid ${C.border}`, padding: "16px", textAlign: "center", marginTop: 8 }}>
+          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+            Propulsé par{" "}
+            <a href="https://shipivo.app" target="_blank" rel="noopener noreferrer"
+              style={{ color: brandColor, textDecoration: "none", fontWeight: 600 }}>
+              Shipivo
+            </a>
+          </p>
+        </div>
+      )}
     </div>
   )
 }
