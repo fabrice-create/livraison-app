@@ -1170,7 +1170,6 @@ export function AdminView() {
     setClosers(allProfiles.filter(pr => normalizeRole(pr.role) === "closureuse"));
     setOrders((ordersRes.data || []) as Order[]);
     setDriverStocks((stockRes.data || []) as DriverStock[]);
-    setIsManager(role === "manager");
     setAuthLoading(false);
   };
 
