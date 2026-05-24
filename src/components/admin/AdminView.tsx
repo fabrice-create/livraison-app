@@ -1111,6 +1111,7 @@ export function AdminView() {
   const [confirmAction, setConfirmAction]     = useState<{ order: Order; action: string } | null>(null);
   const [editingOrder, setEditingOrder]       = useState<Order | null>(null);
   const [editForm, setEditForm]               = useState<OrderFormData>(EMPTY_FORM);
+  const [tenantName, setTenantName]           = useState<string>("Shipivo");
 
   const enCoursCount = useMemo(() => orders.filter(isEnCours).length, [orders]);
 
