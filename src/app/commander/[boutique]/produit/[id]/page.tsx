@@ -36,6 +36,8 @@ export default function ProduitDetailPage() {
   const [brandColor, setBrandColor] = useState("#F59E0B")
   const [tenantName, setTenantName] = useState("")
   const [tenantPhone, setTenantPhone] = useState("")
+  const [bannerText, setBannerText] = useState("")
+  const [bannerOnProduit, setBannerOnProduit] = useState(false)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [added, setAdded] = useState(false)
@@ -69,13 +71,15 @@ export default function ProduitDetailPage() {
       if (data.tenant_id) {
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("currency, brand_color, name, phone")
+          .select("currency, brand_color, name, phone, banner_text, banner_on_produit")
           .eq("id", data.tenant_id)
           .single()
         if (tenant?.currency) setTenantCurrency(tenant.currency)
         if (tenant?.brand_color) setBrandColor(tenant.brand_color)
         if (tenant?.name) setTenantName(tenant.name)
         if (tenant?.phone) setTenantPhone(tenant.phone)
+        if (tenant?.banner_text) setBannerText(tenant.banner_text)
+        if (tenant?.banner_on_produit) setBannerOnProduit(true)
       }
       setLoading(false)
     }
@@ -147,6 +151,20 @@ export default function ProduitDetailPage() {
           </h1>
         </div>
       </div>
+
+      {/* Bandeau défilant si activé */}
+      {bannerText && bannerOnProduit && (
+        <div style={{ background: `${brandColor}18`, borderBottom: "1px solid #ffffff08", overflow: "hidden", whiteSpace: "nowrap", padding: "7px 0" }}>
+          <style>{`@keyframes mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}} .mq{display:inline-flex;animation:mq 18s linear infinite;}`}</style>
+          <div className="mq">
+            {[...Array(8)].map((_, i) => (
+              <span key={i} style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 500, opacity: 0.85, paddingRight: 40 }}>
+                {bannerText} <span style={{ opacity: 0.4 }}>•</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ maxWidth: 600, margin: "0 auto", paddingBottom: 120 }}>
 
