@@ -57,6 +57,7 @@ export default function CommanderPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [orderNumber, setOrderNumber] = useState("")
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
   const [source, setSource] = useState("direct")
@@ -181,6 +182,11 @@ export default function CommanderPage() {
 
       if (orderError) throw new Error(orderError.message)
 
+      // Générer numéro de commande lisible
+      const now = new Date()
+      const orderNum = `#${boutique!.slug.toUpperCase().slice(0,3)}-${now.getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
+      setOrderNumber(orderNum)
+
       // Track Purchase — pixel client
       if (boutique?.facebook_pixel_id) {
         trackPurchase(boutique.facebook_pixel_id, totalFinal, `order_${Date.now()}`)
@@ -223,24 +229,102 @@ export default function CommanderPage() {
   )
 
   if (success) return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <div style={{ textAlign: "center", maxWidth: 400 }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-        <h1 style={{ color: C.white, fontSize: 24, fontWeight: 800, margin: "0 0 8px 0" }}>Commande envoyée !</h1>
-        <p style={{ color: C.muted, fontSize: 15, margin: "0 0 24px 0", lineHeight: 1.6 }}>
-          Merci <strong style={{ color: C.white }}>{form.customer_name}</strong> !<br/>
-          On te contacte sur le <strong style={{ color: C.white }}>{form.phone}</strong>.
-        </p>
-        <div style={{ background: C.successBg, border: "1px solid rgba(74,222,128,0.2)", borderRadius: 12, padding: "14px 20px", marginBottom: 24 }}>
-          <p style={{ color: C.success, fontSize: 14, fontWeight: 600, margin: 0 }}>✓ Total : {fmt(totalFinal)}</p>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+      {/* Header */}
+      <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", textAlign: "center" }}>
+        <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>{boutique?.name}</p>
+      </div>
+
+      <div style={{ maxWidth: 500, margin: "0 auto", padding: "24px 16px" }}>
+
+        {/* Icône succès */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(74,222,128,0.12)", border: "2px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 16px" }}>✅</div>
+          <h1 style={{ color: C.white, fontSize: 22, fontWeight: 800, margin: "0 0 6px 0" }}>Commande confirmée !</h1>
+          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Merci <strong style={{ color: C.white }}>{form.customer_name}</strong> !</p>
         </div>
+
+        {/* Numéro de commande */}
+        <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 12, padding: "14px 16px", marginBottom: 16, textAlign: "center" }}>
+          <p style={{ color: C.muted, fontSize: 11, fontWeight: 600, margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: 1 }}>Numéro de commande</p>
+          <p style={{ color: C.gold, fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: 2 }}>{orderNumber}</p>
+          <p style={{ color: C.muted, fontSize: 11, margin: "4px 0 0 0" }}>Garde ce numéro pour suivre ta commande</p>
+        </div>
+
+        {/* Récap commande */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <p style={{ color: C.white, fontSize: 13, fontWeight: 700, margin: "0 0 12px 0" }}>📦 Récapitulatif</p>
+          {cart.map(item => (
+            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {item.image_url && <img src={item.image_url} alt={item.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover" }} />}
+                <div>
+                  <p style={{ color: C.white, fontSize: 13, fontWeight: 600, margin: 0 }}>{item.name}</p>
+                  <p style={{ color: C.muted, fontSize: 11, margin: 0 }}>× {item.quantity}</p>
+                </div>
+              </div>
+              <span style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{fmt(item.price * item.quantity)}</span>
+            </div>
+          ))}
+          {fraisLivraison > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ color: C.muted, fontSize: 13 }}>Frais de livraison</span>
+              <span style={{ color: C.white, fontSize: 13 }}>{fmt(fraisLivraison)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0 0" }}>
+            <span style={{ color: C.white, fontSize: 15, fontWeight: 700 }}>Total</span>
+            <span style={{ color: C.gold, fontSize: 18, fontWeight: 800 }}>{fmt(totalFinal)}</span>
+          </div>
+        </div>
+
+        {/* Infos livraison */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <p style={{ color: C.white, fontSize: 13, fontWeight: 700, margin: "0 0 10px 0" }}>🚚 Infos livraison</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: C.muted, fontSize: 13 }}>Nom</span>
+              <span style={{ color: C.white, fontSize: 13, fontWeight: 600 }}>{form.customer_name}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: C.muted, fontSize: 13 }}>Téléphone</span>
+              <span style={{ color: C.white, fontSize: 13, fontWeight: 600 }}>{form.phone}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: C.muted, fontSize: 13 }}>Ville</span>
+              <span style={{ color: C.white, fontSize: 13, fontWeight: 600 }}>{form.city}</span>
+            </div>
+            {form.address && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: C.muted, fontSize: 13 }}>Adresse</span>
+                <span style={{ color: C.white, fontSize: 13, fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{form.address}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Message rassurant */}
+        <div style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, textAlign: "center" }}>
+          <p style={{ color: C.success, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+            📞 Notre livreur va vous appeler bientôt au <strong>{form.phone}</strong> pour confirmer la livraison.
+          </p>
+        </div>
+
+        {/* Bouton WhatsApp */}
         {boutique?.phone && (
-          <a href={`https://wa.me/${boutique.phone.replace(/[^0-9]/g,"")}?text=${encodeURIComponent(`Bonjour ! J'ai commandé sur ${boutique.name}. Nom: ${form.customer_name}, Tél: ${form.phone}`)}`}
+          <a href={`https://wa.me/${boutique.phone.replace(/[^0-9]/g,"")}?text=${encodeURIComponent(`Bonjour ! J'ai commandé sur ${boutique.name}.\nCommande: ${orderNumber}\nNom: ${form.customer_name}\nTél: ${form.phone}\nVille: ${form.city}`)}`}
             target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-block", background: "#25D366", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
-            💬 Confirmer sur WhatsApp
+            style={{ display: "block", background: "#25D366", borderRadius: 12, padding: "14px", color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none", textAlign: "center", marginBottom: 12 }}>
+            💬 Contacter la boutique sur WhatsApp
           </a>
         )}
+
+        {/* Retour boutique */}
+        <a href={`/commander/${boutique?.slug}`}
+          style={{ display: "block", background: C.border, borderRadius: 12, padding: "14px", color: C.white, fontSize: 14, fontWeight: 600, textDecoration: "none", textAlign: "center" }}>
+          🛍️ Continuer mes achats
+        </a>
+
       </div>
     </div>
   )
