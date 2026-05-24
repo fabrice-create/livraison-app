@@ -80,9 +80,9 @@ export default function DashboardView({ orders, driverStocks }: Props) {
 
   const stats = useMemo(() => {
     const total = periodOrders.length
-    const confirmed = periodOrders.filter(o => ["Confirmé", "Assigné", "En livraison", "Livré"].includes(o.status)).length
-    const delivered = periodOrders.filter(o => o.status === "Livré").length
-    const cancelled = periodOrders.filter(o => o.status === "Annulé").length
+    const confirmed = periodOrders.filter(o => ["Confirmé", "Assigné", "En livraison", "Livré"].includes(o.status || "")).length
+    const delivered = periodOrders.filter(o => (o.status || "") === "Livré").length
+    const cancelled = periodOrders.filter(o => (o.status || "") === "Annulé").length
     const pending = periodOrders.filter(isEnCours).length
     const ca = periodOrders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0)
     const pending_amount = periodOrders.filter(o => !o.cash_collected && isEnCours(o)).reduce((s, o) => s + Number(o.amount || 0), 0)
@@ -117,11 +117,11 @@ export default function DashboardView({ orders, driverStocks }: Props) {
   const closeuseStats = useMemo(() => {
     const map: Record<string, { confirmed: number; cancelled: number; total: number }> = {}
     periodOrders.forEach(o => {
-      const name = o.closer_name || "Non assigné"
+      const name = (o.closer_name as string | undefined) || "Non assigné"
       if (!map[name]) map[name] = { confirmed: 0, cancelled: 0, total: 0 }
       map[name].total++
       if (["Confirmé", "Livré", "Assigné", "En livraison"].includes(o.status)) map[name].confirmed++
-      if (o.status === "Annulé") map[name].cancelled++
+      if ((o.status || "") === "Annulé") map[name].cancelled++
     })
     return Object.entries(map)
       .filter(([name]) => name !== "Non assigné")
@@ -135,7 +135,7 @@ export default function DashboardView({ orders, driverStocks }: Props) {
       if (!o.driver_name) return
       if (!map[o.driver_name]) map[o.driver_name] = { delivered: 0, total: 0, ca: 0 }
       map[o.driver_name].total++
-      if (o.status === "Livré") {
+      if ((o.status || "") === "Livré") {
         map[o.driver_name].delivered++
         if (o.cash_collected) map[o.driver_name].ca += Number(o.amount || 0)
       }
