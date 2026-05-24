@@ -1,7 +1,19 @@
 // lib/facebookPixel.ts
-// Facebook Pixel + API Conversions
+// Facebook Pixel + API Conversions — Phase 9
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+// Mapping devise → USD (taux approximatifs)
+const CURRENCY_TO_USD: Record<string, number> = {
+  FCFA: 650, XAF: 650, NGN: 1600, GHS: 15, EUR: 0.92,
+  USD: 1, GBP: 0.79, MAD: 10, DZD: 135, EGP: 30,
+  KES: 130, ZAR: 18, GNF: 8600, XOF: 650,
+}
+
+function toUSD(amount: number, currency: string): number {
+  const rate = CURRENCY_TO_USD[currency] || 650
+  return Math.round((amount / rate) * 100) / 100
+}
 
 export function initPixel(pixelId: string) {
   if (typeof window === "undefined" || !pixelId) return
@@ -33,31 +45,40 @@ function fbq(...args: any[]) {
   }
 }
 
-export function trackViewContent(pixelId: string, productName: string, price: number) {
+export function trackViewContent(pixelId: string, productName: string, price: number, currency = "FCFA") {
   if (!pixelId) return
   fbq("track", "ViewContent", {
     content_name: productName,
     content_type: "product",
-    value: price / 650,
+    value: toUSD(price, currency),
     currency: "USD",
   })
 }
 
-export function trackAddToCart(pixelId: string, productName: string, price: number, quantity: number) {
+export function trackAddToCart(pixelId: string, productName: string, price: number, quantity: number, currency = "FCFA") {
   if (!pixelId) return
   fbq("track", "AddToCart", {
     content_name: productName,
     content_type: "product",
-    value: (price * quantity) / 650,
+    value: toUSD(price * quantity, currency),
     currency: "USD",
     num_items: quantity,
   })
 }
 
-export function trackPurchase(pixelId: string, totalAmount: number, orderRef: string) {
+export function trackInitiateCheckout(pixelId: string, totalAmount: number, numItems: number, currency = "FCFA") {
+  if (!pixelId) return
+  fbq("track", "InitiateCheckout", {
+    value: toUSD(totalAmount, currency),
+    currency: "USD",
+    num_items: numItems,
+  })
+}
+
+export function trackPurchase(pixelId: string, totalAmount: number, orderRef: string, currency = "FCFA") {
   if (!pixelId) return
   fbq("track", "Purchase", {
-    value: totalAmount / 650,
+    value: toUSD(totalAmount, currency),
     currency: "USD",
     content_type: "product",
     content_ids: [orderRef],
@@ -68,6 +89,7 @@ export async function serverTrackPurchase(
   pixelId: string,
   accessToken: string,
   totalAmount: number,
+  currency = "FCFA",
   customerPhone?: string
 ) {
   if (!pixelId || !accessToken) return
@@ -85,7 +107,7 @@ export async function serverTrackPurchase(
               ph: [customerPhone.replace(/[^0-9]/g, "")]
             } : undefined,
             custom_data: {
-              value: totalAmount / 650,
+              value: toUSD(totalAmount, currency),
               currency: "USD",
             },
           }],
