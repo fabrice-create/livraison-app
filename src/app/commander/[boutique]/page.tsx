@@ -55,6 +55,7 @@ interface Product {
   price: number
   description?: string
   image_url?: string
+  badge?: string
 }
 
 interface CartItem {
@@ -62,6 +63,7 @@ interface CartItem {
   name: string
   price: number
   image_url?: string
+  badge?: string
   quantity: number
 }
 
