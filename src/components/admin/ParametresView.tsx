@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { setCurrency } from "@/lib/utils"
 
@@ -86,9 +86,24 @@ export default function ParametresView({ tenantId }: Props) {
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
   const [copied, setCopied] = useState("")
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoFileRef = useRef<HTMLInputElement>(null)
   const [lienCommande, setLienCommande] = useState("")
   const [password, setPassword] = useState({ current: "", new: "", confirm: "" })
   const [showPasswords, setShowPasswords] = useState(false)
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    const fileName = `logos/${tenantId}/${Date.now()}.jpg`
+    const { error: err } = await supabase.storage
+      .from("shipivo-images").upload(fileName, file, { contentType: file.type, upsert: true })
+    if (err) { setError("Erreur upload logo : " + err.message); setUploadingLogo(false); return }
+    const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+    setSettings(p => ({ ...p, logo_url: data.publicUrl }))
+    setUploadingLogo(false)
+  }
 
   useEffect(() => { loadSettings() }, [tenantId])
 
@@ -376,15 +391,31 @@ export default function ParametresView({ tenantId }: Props) {
           <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>Cette couleur s&apos;applique aux boutons et éléments de ta boutique publique.</p>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>URL du logo</label>
-          <input value={settings.logo_url} onChange={set("logo_url")}
-            placeholder="https://... (lien vers ton logo)"
-            style={inp}
-            onFocus={e => e.target.style.borderColor = "#F59E0B"}
-            onBlur={e => e.target.style.borderColor = "#1E1E2E"} />
-          {settings.logo_url && (
-            <img src={settings.logo_url} alt="Logo preview" style={{ width: 80, height: 80, objectFit: "contain", marginTop: 8, borderRadius: 8, background: "#16161F", padding: 4 }} />
-          )}
+          <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Logo de ta boutique</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div onClick={() => logoFileRef.current?.click()}
+              style={{ width: 80, height: 80, borderRadius: 10, border: `2px dashed ${settings.logo_url ? "#F59E0B" : S.border}`, overflow: "hidden", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: S.bg, flexShrink: 0 }}>
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+              ) : (
+                <span style={{ fontSize: 28 }}>🏪</span>
+              )}
+            </div>
+            <div>
+              <button onClick={() => logoFileRef.current?.click()} disabled={uploadingLogo}
+                style={{ background: S.border, border: "none", borderRadius: 8, padding: "8px 14px", color: S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "block", marginBottom: 6 }}>
+                {uploadingLogo ? "⬆️ Upload..." : "📷 Choisir un logo"}
+              </button>
+              {settings.logo_url && (
+                <button onClick={() => setSettings(p => ({ ...p, logo_url: "" }))}
+                  style={{ background: "none", border: "none", color: S.danger, fontSize: 11, cursor: "pointer", padding: 0 }}>
+                  🗑️ Supprimer le logo
+                </button>
+              )}
+              <p style={{ color: S.text3, fontSize: 11, margin: "4px 0 0 0" }}>PNG, JPG — recommandé 200×200px</p>
+            </div>
+          </div>
+          <input ref={logoFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} style={{ display: "none" }} />
         </div>
       </Section>
 
