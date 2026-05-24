@@ -75,6 +75,8 @@ interface BoutiqueInfo {
   brand_color: string
   logo_url?: string
   boutique_description?: string
+  banner_text?: string
+  countdown_end?: string
   facebook_pixel_id?: string
   facebook_access_token?: string
   tiktok_pixel_id?: string
@@ -99,6 +101,7 @@ export default function CommanderPage() {
   const { formatPrice, clientCurrency, ready: currencyReady } = useClientCurrency(boutique?.currency || "FCFA")
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY)
   const [showCountryPicker, setShowCountryPicker] = useState(false)
+  const [countdown, setCountdown] = useState({ h: "00", m: "00", s: "00", active: false })
   const [form, setForm] = useState({
     customer_name: "", phone: "", city: "",
     address: "", delivery_type: "Livraison directe", note: "",
@@ -137,11 +140,33 @@ export default function CommanderPage() {
     if (slug) sessionStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
   }, [cart, slug])
 
+  // Compte à rebours
+  useEffect(() => {
+    if (!boutique?.countdown_end) return
+    const end = new Date(boutique.countdown_end).getTime()
+    const tick = () => {
+      const diff = end - Date.now()
+      if (diff <= 0) { setCountdown({ h: "00", m: "00", s: "00", active: false }); return }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown({
+        h: String(h).padStart(2, "0"),
+        m: String(m).padStart(2, "0"),
+        s: String(s).padStart(2, "0"),
+        active: true
+      })
+    }
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [boutique?.countdown_end])
+
   const loadBoutique = async () => {
     setLoading(true)
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
+      .select("id, name, slug, phone, delivery_fee, currency, brand_color, logo_url, boutique_description, banner_text, countdown_end, facebook_pixel_id, facebook_access_token, tiktok_pixel_id")
       .eq("slug", slug).single()
 
     if (!tenant) { setError("Boutique introuvable."); setLoading(false); return }
@@ -153,6 +178,8 @@ export default function CommanderPage() {
       brand_color: tenant.brand_color || "#F59E0B",
       logo_url: tenant.logo_url || "",
       boutique_description: tenant.boutique_description || "",
+      banner_text: tenant.banner_text || "",
+      countdown_end: tenant.countdown_end || "",
       facebook_pixel_id: tenant.facebook_pixel_id,
       facebook_access_token: tenant.facebook_access_token,
       tiktok_pixel_id: tenant.tiktok_pixel_id,
@@ -435,6 +462,33 @@ export default function CommanderPage() {
         )}
       </div>
 
+      {/* Bandeau défilant */}
+      {boutique?.banner_text && (
+        <div style={{ background: `${boutique.brand_color}18`, borderBottom: "1px solid #ffffff08", overflow: "hidden", whiteSpace: "nowrap" }}>
+          <div style={{ display: "inline-block", animation: "marquee 20s linear infinite", padding: "8px 0" }}>
+            <span style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 500, opacity: 0.9 }}>
+              &nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;{boutique.banner_text}&nbsp;&nbsp;&nbsp;
+            </span>
+          </div>
+          <style>{`@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-33.33%) } }`}</style>
+        </div>
+      )}
+
+      {/* Compte à rebours */}
+      {countdown.active && (
+        <div style={{ background: "#1A0A00", borderBottom: "2px solid #F59E0B", padding: "10px 16px", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <span style={{ color: "#F59E0B", fontSize: 13, fontWeight: 700 }}>⏰ Offre expire dans</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {[countdown.h, countdown.m, countdown.s].map((val, i) => (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ background: "#F59E0B", color: "#000", borderRadius: 8, padding: "4px 10px", fontSize: 16, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{val}</span>
+                {i < 2 && <span style={{ color: "#F59E0B", fontSize: 16, fontWeight: 800 }}>:</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "16px 12px 100px" }}>
 
         {step === "catalogue" && (
@@ -470,6 +524,12 @@ export default function CommanderPage() {
                         <div style={{ position: "absolute", bottom: 8, left: 10 }}>
                           <p style={{ color: "#fff", fontSize: 15, fontWeight: 800, margin: 0, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{fmt(product.price)}</p>
                         </div>
+                        {/* Badge promo */}
+                        {product.badge && (
+                          <div style={{ position: "absolute", top: 8, left: 8, background: product.badge === "PROMO" ? "#EF4444" : product.badge === "NOUVEAU" ? "#8B5CF6" : product.badge === "BEST-SELLER" ? "#F59E0B" : "#3B82F6", color: "#fff", borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>
+                            {product.badge}
+                          </div>
+                        )}
                         {/* Badge quantité */}
                         {qty > 0 && (
                           <div style={{ position: "absolute", top: 8, right: 8, background: bc, color: "#000", borderRadius: "50%", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800 }}>
