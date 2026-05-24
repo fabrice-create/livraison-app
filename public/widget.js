@@ -1,90 +1,101 @@
-// Shipivo Widget — v1.0
-// Intégration formulaire de commande sur sites externes
 ;(function() {
-  'use strict'
+  'use strict';
 
-  // Trouver tous les scripts Shipivo sur la page
-  var scripts = document.querySelectorAll('script[data-boutique]')
-  
-  scripts.forEach(function(script) {
-    var boutique = script.getAttribute('data-boutique')
-    var produit = script.getAttribute('data-produit') || ''
-    var mode = script.getAttribute('data-mode') || 'form' // 'form' ou 'full'
-    var couleur = script.getAttribute('data-couleur') || '#F59E0B'
-    var langue = script.getAttribute('data-langue') || 'fr'
-
-    if (!boutique) return
-
-    // Créer le conteneur
-    var container = document.createElement('div')
-    container.id = 'shipivo-widget-' + Math.random().toString(36).slice(2)
-    container.style.cssText = 'font-family: Inter, -apple-system, sans-serif; max-width: 480px; margin: 0 auto;'
-    script.parentNode.insertBefore(container, script.nextSibling)
-
-    // Créer l'iframe
-    var baseUrl = 'https://shipivo.app'
-    var params = new URLSearchParams({
-      boutique: boutique,
-      mode: mode,
-      couleur: couleur,
-      langue: langue,
-    })
-    if (produit) params.set('produit', produit)
-
-    var iframe = document.createElement('iframe')
-    iframe.src = baseUrl + '/widget?' + params.toString()
-    iframe.style.cssText = [
-      'width: 100%',
-      'border: none',
-      'border-radius: 12px',
-      'min-height: 400px',
-      'display: block',
-    ].join(';')
-    iframe.setAttribute('scrolling', 'no')
-    iframe.setAttribute('frameborder', '0')
-    iframe.setAttribute('allowtransparency', 'true')
-    iframe.title = 'Commande Shipivo'
-
-    // Resize automatique selon le contenu
-    window.addEventListener('message', function(e) {
-      if (e.data && e.data.type === 'shipivo-resize' && e.data.id === container.id) {
-        iframe.style.minHeight = e.data.height + 'px'
-      }
-      if (e.data && e.data.type === 'shipivo-success') {
-        // Déclencher un event custom sur la page hôte
-        var event = new CustomEvent('shipivo:order_placed', { detail: e.data.order })
-        document.dispatchEvent(event)
-      }
-    })
-
-    // Loader pendant le chargement
-    var loader = document.createElement('div')
-    loader.style.cssText = 'text-align:center;padding:32px;color:#9898B0;font-size:14px;'
-    loader.innerHTML = '<div style="display:inline-block;width:24px;height:24px;border:3px solid #1E1E2E;border-top-color:' + couleur + ';border-radius:50%;animation:sw-spin 0.8s linear infinite;margin-bottom:8px;"></div><br>Chargement...'
-
-    var style = document.createElement('style')
-    style.textContent = '@keyframes sw-spin{to{transform:rotate(360deg)}}'
-    document.head.appendChild(style)
-
-    container.appendChild(loader)
-
-    iframe.onload = function() {
-      loader.style.display = 'none'
-      container.appendChild(iframe)
-      // Envoyer l'ID du container à l'iframe pour le resize
-      iframe.contentWindow.postMessage({ type: 'shipivo-init', id: container.id }, '*')
+  function init() {
+    // Trouver le script courant ou tous les scripts avec data-boutique
+    var allScripts = document.querySelectorAll('script[data-boutique]');
+    
+    if (allScripts.length === 0) {
+      // Chercher le script par son src
+      var scripts = document.querySelectorAll('script[src*="widget.js"]');
+      scripts.forEach(function(s) {
+        if (s.getAttribute('data-boutique')) {
+          allScripts = [s];
+        }
+      });
     }
 
-    // Créer iframe en arrière plan
-    var tempDiv = document.createElement('div')
-    tempDiv.style.display = 'none'
-    document.body.appendChild(tempDiv)
-    tempDiv.appendChild(iframe)
+    allScripts.forEach(function(script) {
+      var boutique = script.getAttribute('data-boutique');
+      var produit = script.getAttribute('data-produit') || '';
+      var produitNom = script.getAttribute('data-produit-nom') || '';
+      var produitPrix = script.getAttribute('data-produit-prix') || '';
+      var produitImage = script.getAttribute('data-produit-image') || '';
+      var mode = script.getAttribute('data-mode') || 'form';
+      var couleur = script.getAttribute('data-couleur') || '#F59E0B';
 
-    // Powered by Shipivo
-    var powered = document.createElement('p')
-    powered.style.cssText = 'text-align:center;font-size:11px;color:#55556A;margin:8px 0 0 0;'
-    powered.innerHTML = 'Propulsé par <a href="https://shipivo.app" target="_blank" style="color:' + couleur + ';text-decoration:none;font-weight:600;">Shipivo</a>'
-    container.appendChild(powered)
-  })
-})()
+      if (!boutique) return;
+
+      // Créer le conteneur juste après le script
+      var container = document.createElement('div');
+      container.style.cssText = 'width:100%;max-width:480px;margin:0 auto;font-family:Inter,-apple-system,sans-serif;';
+      script.parentNode.insertBefore(container, script.nextSibling);
+
+      // Construire l'URL de l'iframe
+      var baseUrl = script.src.replace('/widget.js', '');
+      var params = 'boutique=' + encodeURIComponent(boutique) +
+        '&mode=' + encodeURIComponent(mode) +
+        '&couleur=' + encodeURIComponent(couleur);
+      
+      if (produit) params += '&produit=' + encodeURIComponent(produit);
+      if (produitNom) params += '&produit_nom=' + encodeURIComponent(produitNom);
+      if (produitPrix) params += '&produit_prix=' + encodeURIComponent(produitPrix);
+      if (produitImage) params += '&produit_image=' + encodeURIComponent(produitImage);
+
+      var iframeSrc = baseUrl + '/widget?' + params;
+
+      // Style animation
+      var style = document.createElement('style');
+      style.textContent = '@keyframes sw-spin{to{transform:rotate(360deg)}} @keyframes sw-fade{from{opacity:0}to{opacity:1}}';
+      document.head.appendChild(style);
+
+      // Loader
+      var loader = document.createElement('div');
+      loader.style.cssText = 'text-align:center;padding:32px 16px;';
+      loader.innerHTML = '<div style="width:32px;height:32px;border:3px solid #1E1E2E;border-top-color:' + couleur + ';border-radius:50%;animation:sw-spin 0.8s linear infinite;margin:0 auto 12px;"></div>' +
+        '<p style="color:#9898B0;font-size:13px;margin:0;font-family:Inter,sans-serif;">Chargement du formulaire...</p>';
+      container.appendChild(loader);
+
+      // Créer l'iframe
+      var iframe = document.createElement('iframe');
+      iframe.src = iframeSrc;
+      iframe.style.cssText = 'width:100%;border:none;border-radius:12px;min-height:480px;display:none;animation:sw-fade 0.3s ease;';
+      iframe.setAttribute('scrolling', 'no');
+      iframe.setAttribute('frameborder', '0');
+      iframe.title = 'Commande Shipivo';
+
+      iframe.onload = function() {
+        loader.style.display = 'none';
+        iframe.style.display = 'block';
+      };
+
+      container.appendChild(iframe);
+
+      // Resize automatique
+      window.addEventListener('message', function(e) {
+        try {
+          if (e.data && e.data.type === 'shipivo-resize') {
+            iframe.style.minHeight = (e.data.height + 20) + 'px';
+          }
+          if (e.data && e.data.type === 'shipivo-success') {
+            var ev = new CustomEvent('shipivo:order_placed', { detail: e.data.order });
+            document.dispatchEvent(ev);
+          }
+        } catch(err) {}
+      });
+
+      // Powered by
+      var powered = document.createElement('p');
+      powered.style.cssText = 'text-align:center;font-size:11px;color:#999;margin:6px 0 0 0;font-family:Inter,sans-serif;';
+      powered.innerHTML = 'Propulsé par <a href="https://shipivo.app" target="_blank" style="color:' + couleur + ';text-decoration:none;font-weight:600;">Shipivo</a>';
+      container.appendChild(powered);
+    });
+  }
+
+  // Lancer quand le DOM est prêt
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
