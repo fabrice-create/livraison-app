@@ -69,12 +69,20 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setLoading(true)
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+
+    // Déconnecter l'ancienne session avant tout — clé du fix
+    await supabase.auth.signOut()
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    })
     if (authError) {
       setError(authError.message.includes("Invalid login") ? "Email ou mot de passe incorrect." : authError.message)
       setLoading(false); return
     }
     if (!data.user) { setError("Connexion échouée."); setLoading(false); return }
+
     const profile = await getUserProfile(data.user.id)
     if (!profile) {
       setError("Compte non configuré. Contacte le support.")
@@ -84,9 +92,11 @@ export default function LoginPage() {
       setError("Ton compte est désactivé.")
       await supabase.auth.signOut(); setLoading(false); return
     }
-    await new Promise(resolve => setTimeout(resolve, 300))
-    router.replace(getRedirectByRole(profile.role))
+
+    // window.location.href force le rechargement complet — pas de cache de session
+    window.location.href = getRedirectByRole(profile.role)
   }
+
 
   if (checking) {
     return (
