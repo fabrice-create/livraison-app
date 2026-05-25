@@ -14,18 +14,71 @@ const S = {
 
 const DEVISES = ["FCFA","XOF","XAF","USD","EUR","GHS","NGN","MAD"]
 const PAYS_PRESETS = [
+  // ── Afrique de l'Ouest ──
   { nom:"Togo", pays:"Togo", emoji:"🇹🇬", devise:"FCFA" },
   { nom:"Sénégal", pays:"Sénégal", emoji:"🇸🇳", devise:"FCFA" },
   { nom:"Mali", pays:"Mali", emoji:"🇲🇱", devise:"FCFA" },
   { nom:"Côte d'Ivoire", pays:"Côte d'Ivoire", emoji:"🇨🇮", devise:"FCFA" },
   { nom:"Bénin", pays:"Bénin", emoji:"🇧🇯", devise:"FCFA" },
   { nom:"Burkina Faso", pays:"Burkina Faso", emoji:"🇧🇫", devise:"FCFA" },
-  { nom:"Gabon", pays:"Gabon", emoji:"🇬🇦", devise:"XAF" },
-  { nom:"Cameroun", pays:"Cameroun", emoji:"🇨🇲", devise:"XAF" },
+  { nom:"Niger", pays:"Niger", emoji:"🇳🇪", devise:"FCFA" },
+  { nom:"Guinée", pays:"Guinée", emoji:"🇬🇳", devise:"GNF" },
+  { nom:"Guinée-Bissau", pays:"Guinée-Bissau", emoji:"🇬🇼", devise:"FCFA" },
+  { nom:"Sierra Leone", pays:"Sierra Leone", emoji:"🇸🇱", devise:"SLL" },
+  { nom:"Liberia", pays:"Liberia", emoji:"🇱🇷", devise:"LRD" },
   { nom:"Ghana", pays:"Ghana", emoji:"🇬🇭", devise:"GHS" },
   { nom:"Nigeria", pays:"Nigeria", emoji:"🇳🇬", devise:"NGN" },
+  { nom:"Cap-Vert", pays:"Cap-Vert", emoji:"🇨🇻", devise:"CVE" },
+  { nom:"Gambie", pays:"Gambie", emoji:"🇬🇲", devise:"GMD" },
+  { nom:"Mauritanie", pays:"Mauritanie", emoji:"🇲🇷", devise:"MRU" },
+  // ── Afrique Centrale ──
+  { nom:"Cameroun", pays:"Cameroun", emoji:"🇨🇲", devise:"XAF" },
+  { nom:"Gabon", pays:"Gabon", emoji:"🇬🇦", devise:"XAF" },
+  { nom:"Congo-Brazzaville", pays:"Congo", emoji:"🇨🇬", devise:"XAF" },
+  { nom:"RD Congo", pays:"RD Congo", emoji:"🇨🇩", devise:"CDF" },
+  { nom:"Tchad", pays:"Tchad", emoji:"🇹🇩", devise:"XAF" },
+  { nom:"Centrafrique", pays:"Centrafrique", emoji:"🇨🇫", devise:"XAF" },
+  { nom:"Guinée Équatoriale", pays:"Guinée Équatoriale", emoji:"🇬🇶", devise:"XAF" },
+  { nom:"São Tomé", pays:"São Tomé", emoji:"🇸🇹", devise:"STN" },
+  // ── Afrique de l'Est ──
+  { nom:"Éthiopie", pays:"Éthiopie", emoji:"🇪🇹", devise:"ETB" },
+  { nom:"Kenya", pays:"Kenya", emoji:"🇰🇪", devise:"KES" },
+  { nom:"Tanzanie", pays:"Tanzanie", emoji:"🇹🇿", devise:"TZS" },
+  { nom:"Ouganda", pays:"Ouganda", emoji:"🇺🇬", devise:"UGX" },
+  { nom:"Rwanda", pays:"Rwanda", emoji:"🇷🇼", devise:"RWF" },
+  { nom:"Burundi", pays:"Burundi", emoji:"🇧🇮", devise:"BIF" },
+  { nom:"Somalie", pays:"Somalie", emoji:"🇸🇴", devise:"SOS" },
+  { nom:"Djibouti", pays:"Djibouti", emoji:"🇩🇯", devise:"DJF" },
+  { nom:"Érythrée", pays:"Érythrée", emoji:"🇪🇷", devise:"ERN" },
+  { nom:"Soudan", pays:"Soudan", emoji:"🇸🇩", devise:"SDG" },
+  { nom:"Soudan du Sud", pays:"Soudan du Sud", emoji:"🇸🇸", devise:"SSP" },
+  // ── Afrique du Nord ──
   { nom:"Maroc", pays:"Maroc", emoji:"🇲🇦", devise:"MAD" },
+  { nom:"Algérie", pays:"Algérie", emoji:"🇩🇿", devise:"DZD" },
+  { nom:"Tunisie", pays:"Tunisie", emoji:"🇹🇳", devise:"TND" },
+  { nom:"Libye", pays:"Libye", emoji:"🇱🇾", devise:"LYD" },
+  { nom:"Égypte", pays:"Égypte", emoji:"🇪🇬", devise:"EGP" },
+  // ── Afrique du Sud & Australe ──
+  { nom:"Afrique du Sud", pays:"Afrique du Sud", emoji:"🇿🇦", devise:"ZAR" },
+  { nom:"Angola", pays:"Angola", emoji:"🇦🇴", devise:"AOA" },
+  { nom:"Mozambique", pays:"Mozambique", emoji:"🇲🇿", devise:"MZN" },
+  { nom:"Zimbabwe", pays:"Zimbabwe", emoji:"🇿🇼", devise:"ZWL" },
+  { nom:"Zambie", pays:"Zambie", emoji:"🇿🇲", devise:"ZMW" },
+  { nom:"Malawi", pays:"Malawi", emoji:"🇲🇼", devise:"MWK" },
+  { nom:"Madagascar", pays:"Madagascar", emoji:"🇲🇬", devise:"MGA" },
+  { nom:"Namibie", pays:"Namibie", emoji:"🇳🇦", devise:"NAD" },
+  { nom:"Botswana", pays:"Botswana", emoji:"🇧🇼", devise:"BWP" },
+  { nom:"Lesotho", pays:"Lesotho", emoji:"🇱🇸", devise:"LSL" },
+  { nom:"Eswatini", pays:"Eswatini", emoji:"🇸🇿", devise:"SZL" },
+  { nom:"Comores", pays:"Comores", emoji:"🇰🇲", devise:"KMF" },
+  { nom:"Maurice", pays:"Maurice", emoji:"🇲🇺", devise:"MUR" },
+  { nom:"Seychelles", pays:"Seychelles", emoji:"🇸🇨", devise:"SCR" },
+  // ── Europe ──
   { nom:"France", pays:"France", emoji:"🇫🇷", devise:"EUR" },
+  { nom:"Belgique", pays:"Belgique", emoji:"🇧🇪", devise:"EUR" },
+  { nom:"Suisse", pays:"Suisse", emoji:"🇨🇭", devise:"CHF" },
+  { nom:"Canada", pays:"Canada", emoji:"🇨🇦", devise:"CAD" },
+  { nom:"États-Unis", pays:"États-Unis", emoji:"🇺🇸", devise:"USD" },
 ]
 
 interface Props {
@@ -43,6 +96,7 @@ export default function ZonesView({ tenantId, tenantSlug }: Props) {
   const [error, setError] = useState("")
   const [editZone, setEditZone] = useState<Zone | null>(null)
   const [assignModal, setAssignModal] = useState<Zone | null>(null)
+  const [filteredPays, setFilteredPays] = useState(PAYS_PRESETS)
 
   const [form, setForm] = useState({
     nom: "", pays: "", emoji: "🌍", frais_livraison: 0, devise: "FCFA"
@@ -144,16 +198,27 @@ export default function ZonesView({ tenantId, tenantSlug }: Props) {
             {editZone ? "Modifier la zone" : "Nouvelle zone"}
           </p>
 
-          {/* Pays presets */}
+          {/* Pays presets avec recherche */}
           {!editZone && (
             <div style={{ marginBottom:14 }}>
               <p style={{ color:S.muted2, fontSize:12, marginBottom:8 }}>Sélection rapide :</p>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                {PAYS_PRESETS.map(p => (
+              <input
+                placeholder="🔍 Rechercher un pays..."
+                style={{ ...inp, marginBottom:8 }}
+                onChange={e => {
+                  const val = e.target.value.toLowerCase()
+                  const filtered = PAYS_PRESETS.filter(p =>
+                    p.nom.toLowerCase().includes(val) || p.pays.toLowerCase().includes(val)
+                  )
+                  setFilteredPays(val ? filtered : PAYS_PRESETS)
+                }}
+              />
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, maxHeight:160, overflowY:"auto" as const, padding:4 }}>
+                {filteredPays.map(p => (
                   <button key={p.pays} onClick={() => applyPreset(p)} style={{
                     padding:"5px 10px", borderRadius:20, border:`1px solid ${form.pays===p.pays?S.gold:S.border}`,
                     background: form.pays===p.pays?"rgba(245,158,11,0.1)":"transparent",
-                    color: form.pays===p.pays?S.gold:S.muted2, fontSize:12, cursor:"pointer",
+                    color: form.pays===p.pays?S.gold:S.muted2, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" as const,
                   }}>
                     {p.emoji} {p.nom}
                   </button>

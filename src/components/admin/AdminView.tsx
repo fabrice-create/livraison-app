@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import InstallPWA from "@/components/pwa/InstallPWA";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
-import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFormData } from "@/types";
+import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFormData, Zone } from "@/types";
 import ProduitsView from "@/components/admin/ProduitsView";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ClientsView from "@/components/admin/ClientsView";
 import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
+import ZonesView from "@/components/admin/ZonesView";
 import FinancesView from "@/components/admin/FinancesView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -119,9 +120,14 @@ function Select({ label, name, value, onChange, options }: {
 }
 
 // ─── Vue Dashboard — Phase 10 Analytics Pro ──────────────────
-function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks: DriverStock[] }) {
+function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; driverStocks: DriverStock[]; zones?: Zone[] }) {
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
+  const [selectedZone, setSelectedZone] = useState<string>("all");
   const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total");
+
+  const ordersForZone = selectedZone === "all"
+    ? orders
+    : orders.filter(o => o.zone_nom === selectedZone)
 
   function inPeriod(dateStr: string | null | undefined, p: string): boolean {
     if (!dateStr) return false;
@@ -134,7 +140,7 @@ function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks
   }
 
   const periodOrders = useMemo(() =>
-    orders.filter(o => inPeriod(o.created_at, period)),
+    ordersForZone.filter(o => inPeriod(o.created_at, period)),
     [orders, period]
   );
 
@@ -222,6 +228,20 @@ function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks
   return (
     <div style={{ fontFamily: "Inter, sans-serif" }}>
 
+      {/* Filtre par zone */}
+      {zones.length > 0 && (
+        <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ color:"#55556A", fontSize:12, fontWeight:600 }}>🌍</span>
+          <button onClick={() => setSelectedZone("all")} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone==="all"?"#F59E0B":"#1E1E2E"}`, background:selectedZone==="all"?"rgba(245,158,11,0.1)":"transparent", color:selectedZone==="all"?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+            Toutes
+          </button>
+          {zones.map((z: Zone) => (
+            <button key={z.id} onClick={() => setSelectedZone(z.nom)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone===z.nom?"#F59E0B":"#1E1E2E"}`, background:selectedZone===z.nom?"rgba(245,158,11,0.1)":"transparent", color:selectedZone===z.nom?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+              {z.emoji} {z.nom}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Filtre période */}
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
         {(["today","7d","30d","all"] as const).map(p => (
@@ -404,6 +424,7 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
   const [activeTab, setActiveTab] = useState("aujourd_hui");
   const [search, setSearch]       = useState("");
   const [driverFilter, setDriverFilter] = useState("Tous");
+  const [zoneFilter, setZoneFilter] = useState("Toutes");
 
   const now      = new Date();
   const todayStr = now.toDateString();
@@ -1100,6 +1121,8 @@ export function AdminView() {
   const [history, setHistory]           = useState<OrderHistory[]>([]);
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [tenantId, setTenantId]         = useState<string>("");
+  const [zones, setZones]               = useState<Zone[]>([]);
+  const [tenantSlug, setTenantSlug]     = useState<string>("");
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
   const [authLoading, setAuthLoading]   = useState(true);
   const [loading, setLoading]           = useState(false);
@@ -1137,11 +1160,11 @@ export function AdminView() {
     setProfile(p);
     const tid = (p as any).tenant_id || "";
     setTenantId(tid)
-      const { data: td } = await supabase.from("tenants").select("slug").eq("id", tid).single()
-      if (td) setTenantSlug(td.slug || "");
+    const { data: td } = await supabase.from("tenants").select("slug").eq("id", tid).single()
+    if (td) setTenantSlug(td.slug || "");
 
     // Tout en parallèle — beaucoup plus rapide
-    const [tenantRes, profilesRes, ordersRes, stockRes] = await Promise.all([
+    const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes] = await Promise.all([
       tid ? supabase.from("tenants")
         .select("driver_commission, closer_commission, currency, name")
         .eq("id", tid).single()
@@ -1158,6 +1181,8 @@ export function AdminView() {
         .select("id, driver_id, driver_name, product_name, quantity")
         .eq("tenant_id", tid)
         : Promise.resolve({ data: [] }),
+      tid ? supabase.from("zones").select("*").eq("tenant_id", tid).eq("is_active", true)
+        : Promise.resolve({ data: [] }),
     ]);
 
     if (tenantRes.data) {
@@ -1172,6 +1197,7 @@ export function AdminView() {
     setClosers(allProfiles.filter(pr => ["closureuse","Closureuse","CLOSUREUSE","closer"].includes((pr.role||"").trim())));
     setOrders((ordersRes.data || []) as Order[]);
     setDriverStocks((stockRes.data || []) as DriverStock[]);
+    if (zonesRes?.data) setZones(zonesRes.data as Zone[]);
     setAuthLoading(false);
   };
 
@@ -1324,6 +1350,7 @@ export function AdminView() {
     { id: "produits",    label: "📦 Produits" },
     { id: "equipe",      label: "👥 Équipe" },
     { id: "parametres",  label: "⚙️ Paramètres" },
+    { id: "zones",       label: "🌍 Zones" },
     { id: "clients",     label: "👥 Clients" },
     { id: "import",      label: "📥 Import" },
   ];
@@ -1374,7 +1401,7 @@ export function AdminView() {
 
       {/* Contenu */}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 14px 80px" }}>
-        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
+        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} zones={zones} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} tenantId={tenantId} />}

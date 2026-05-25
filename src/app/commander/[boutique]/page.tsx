@@ -345,6 +345,16 @@ export default function CommanderPage() {
       {/* Header */}
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", textAlign: "center" }}>
         <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>{boutique?.name}</p>
+        {zoneInfo && (
+          <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:20, padding:"3px 10px", marginTop:6 }}>
+            <span style={{ fontSize:12 }}>🌍</span>
+            <span style={{ color:"#F59E0B", fontSize:11, fontWeight:600 }}>{zoneInfo.nom}</span>
+            {zoneInfo.frais === 0
+              ? <span style={{ color:"#4ADE80", fontSize:11 }}>· Livraison gratuite</span>
+              : <span style={{ color:"#9898B0", fontSize:11 }}>· Livraison {zoneInfo.frais.toLocaleString("fr-FR")} {zoneInfo.devise}</span>
+            }
+          </div>
+        )}
       </div>
 
       <div style={{ maxWidth: 500, margin: "0 auto", padding: "24px 16px" }}>
