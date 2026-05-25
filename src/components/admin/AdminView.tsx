@@ -1100,6 +1100,7 @@ export function AdminView() {
   const [history, setHistory]           = useState<OrderHistory[]>([]);
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [tenantId, setTenantId]         = useState<string>("");
+  const [tenantSlug, setTenantSlug]     = useState<string>("");
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
   const [authLoading, setAuthLoading]   = useState(true);
   const [loading, setLoading]           = useState(false);
@@ -1137,8 +1138,8 @@ export function AdminView() {
     setProfile(p);
     const tid = (p as any).tenant_id || "";
     setTenantId(tid)
-      const { data: td } = await supabase.from("tenants").select("slug").eq("id", tid).single()
-      if (td) setTenantSlug(td.slug || "");
+    const { data: td } = await supabase.from("tenants").select("slug").eq("id", tid).single()
+    if (td) setTenantSlug(td.slug || "");
 
     // Tout en parallèle — beaucoup plus rapide
     const [tenantRes, profilesRes, ordersRes, stockRes] = await Promise.all([
