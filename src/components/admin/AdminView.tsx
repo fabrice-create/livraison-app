@@ -13,6 +13,7 @@ import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import ZonesView from "@/components/admin/ZonesView";
+import ProduitsView from "@/components/admin/ProduitsView";
 import FinancesView from "@/components/admin/FinancesView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -1407,7 +1408,7 @@ export function AdminView() {
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} tenantId={tenantId} />}
         {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
-        {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
+        {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
           {activeView === "zones"        && tenantId && <ZonesView tenantId={tenantId} tenantSlug={tenantSlug} />}
