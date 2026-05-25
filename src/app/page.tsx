@@ -127,7 +127,15 @@ export default function LandingPage() {
     checkSession()
   }, [])
 
-  if (checking) return null
+  if (checking) return (
+    <div style={{ minHeight:"100vh", background:"#07070C", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid #1C1C2E", borderTopColor:"#F59E0B", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
+        <p style={{ color:"#6E6E90", fontSize:14 }}>Chargement...</p>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
   const [openFaq, setOpenFaq] = useState<number|null>(null)
   const [annual, setAnnual] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
