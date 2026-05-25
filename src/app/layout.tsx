@@ -10,11 +10,6 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "Shipivo — Gestion de livraisons",
   description: "Gérez vos livraisons e-commerce facilement avec Shipivo",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Shipivo",
-  },
   formatDetection: { telephone: false },
 };
 
@@ -36,10 +31,15 @@ export default function RootLayout({
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Shipivo" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="icon" href="/icons/icon-96.png" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        {/* Enregistrer SW uniquement pour se désinstaller */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+          }
+        ` }} />
       </head>
       <body style={{ margin: 0, padding: 0, background: "#0a0a0f" }}>
         {children}
