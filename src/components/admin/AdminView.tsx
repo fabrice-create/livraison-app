@@ -1166,8 +1166,8 @@ export function AdminView() {
     }
 
     const allProfiles = (profilesRes.data || []) as Profile[];
-    setDrivers(allProfiles.filter(pr => normalizeRole(pr.role) === "livreur"));
-    setClosers(allProfiles.filter(pr => normalizeRole(pr.role) === "closureuse"));
+    setDrivers(allProfiles.filter(pr => ["livreur","Livreur","LIVREUR","driver"].includes((pr.role||"").trim())));
+    setClosers(allProfiles.filter(pr => ["closureuse","Closureuse","CLOSUREUSE","closer"].includes((pr.role||"").trim())));
     setOrders((ordersRes.data || []) as Order[]);
     setDriverStocks((stockRes.data || []) as DriverStock[]);
     setAuthLoading(false);
