@@ -56,6 +56,7 @@ interface Product {
   price: number
   description?: string
   image_url?: string
+  slug?: string
   badge?: string
 }
 
