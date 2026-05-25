@@ -660,21 +660,114 @@ export default function ParametresView({ tenantId }: Props) {
           </Section>
 
           {/* Widget */}
-          <Section title="🔌 Widget de commande">
-            <p style={{ color: S.text2, fontSize: 12, marginBottom: 12 }}>
-              Intègre le formulaire de commande sur n&apos;importe quel site web externe (WordPress, Wix, Webflow...).
+          <Section title="🔌 Intégration sur d'autres sites">
+            <p style={{ color: S.text2, fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>
+              Intègre le formulaire de commande Shipivo sur n&apos;importe quel site — WordPress, Elementor, Shopify, Wix, Webflow ou tout autre plateforme.
             </p>
-            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "10px 12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, wordBreak: "break-all" as const }}>
-              {`<script src="${typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"}/widget.js" data-tenant="${tenantSlug}"></script>`}
+
+            {/* Méthode recommandée — style Tally */}
+            <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+              <p style={{ color: S.gold, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>⭐ Code universel — Elementor, Shopify, Wix, Webflow</p>
+              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px", lineHeight: 1.6 }}>
+                Colle ce code dans un bloc <strong style={{color:S.white}}>HTML</strong> Elementor. Le formulaire s&apos;affiche directement.
+              </p>
+              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
+                <div>{`<iframe`}</div>
+                <div style={{paddingLeft:16}}>{`data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}"`}</div>
+                <div style={{paddingLeft:16}}>{`loading="lazy" width="100%" height="520"`}</div>
+                <div style={{paddingLeft:16}}>{`frameborder="0" style="border-radius:12px;border:none;">`}</div>
+                <div>{`</iframe>`}</div>
+                <div style={{marginTop:6}}>{`<script>`}</div>
+                <div style={{paddingLeft:16}}>{`var d=document,w="https://shipivo.app/widget-embed.js",`}</div>
+                <div style={{paddingLeft:16}}>{`v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};`}</div>
+                <div style={{paddingLeft:16}}>{`if(window.Shipivo)v();`}</div>
+                <div style={{paddingLeft:16}}>{`else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}`}</div>
+                <div>{`</script>`}</div>
+              </div>
+              <button onClick={() => {
+                const code = `<iframe data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}" loading="lazy" width="100%" height="520" frameborder="0" style="border-radius:12px;border:none;"></iframe><script>var d=document,w="https://shipivo.app/widget-embed.js",v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};if(window.Shipivo)v();else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}<\/script>`
+                navigator.clipboard.writeText(code)
+                setCopied("widget-tally")
+                setTimeout(() => setCopied(""), 2000)
+              }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "widget-tally" ? S.success : S.border}`, background: "transparent", color: copied === "widget-tally" ? S.success : S.text3, fontSize: 12, cursor: "pointer" }}>
+                {copied === "widget-tally" ? "✓ Code copié !" : "📋 Copier le code"}
+              </button>
             </div>
-            <button onClick={() => {
-              const code = `<script src="${window.location.origin}/widget.js" data-tenant="${tenantSlug}"></script>`
-              navigator.clipboard.writeText(code)
-              setCopied("widget")
-              setTimeout(() => setCopied(""), 2000)
-            }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "widget" ? S.success : S.border}`, background: "transparent", color: copied === "widget" ? S.success : S.text3, fontSize: 12, cursor: "pointer" }}>
-              {copied === "widget" ? "✓ Code copié !" : "📋 Copier le code"}
-            </button>
+
+            {/* Avec produit spécifique */}
+            <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>📦 Avec un produit spécifique</p>
+              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px" }}>Remplace <strong style={{color:S.white}}>NOM_PRODUIT</strong> et <strong style={{color:S.white}}>15000</strong> par ton produit et son prix :</p>
+              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
+                <div>{`<iframe`}</div>
+                <div style={{paddingLeft:16, color:"#FCD34D"}}>{`data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=15000&mode=full"`}</div>
+                <div style={{paddingLeft:16}}>{`loading="lazy" width="100%" height="620"`}</div>
+                <div style={{paddingLeft:16}}>{`frameborder="0" style="border-radius:12px;border:none;">`}</div>
+                <div>{`</iframe>`}</div>
+                <div style={{marginTop:6}}>{`<script>`}</div>
+                <div style={{paddingLeft:16}}>{`var d=document,w="https://shipivo.app/widget-embed.js",`}</div>
+                <div style={{paddingLeft:16}}>{`v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};`}</div>
+                <div style={{paddingLeft:16}}>{`if(window.Shipivo)v();`}</div>
+                <div style={{paddingLeft:16}}>{`else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}`}</div>
+                <div>{`</script>`}</div>
+              </div>
+              <button onClick={() => {
+                const code = `<iframe data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=15000&mode=full" loading="lazy" width="100%" height="620" frameborder="0" style="border-radius:12px;border:none;"></iframe><script>var d=document,w="https://shipivo.app/widget-embed.js",v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};if(window.Shipivo)v();else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}<\/script>`
+                navigator.clipboard.writeText(code)
+                setCopied("widget-produit")
+                setTimeout(() => setCopied(""), 2000)
+              }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "widget-produit" ? S.success : S.border}`, background: "transparent", color: copied === "widget-produit" ? S.success : S.text3, fontSize: 12, cursor: "pointer" }}>
+                {copied === "widget-produit" ? "✓ Code copié !" : "📋 Copier le code"}
+              </button>
+            </div>
+
+            {/* Guide Elementor */}
+            <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 12 }}>🔵 Guide Elementor (WordPress)</p>
+              {[
+                "1. Dans Elementor, cherche le widget HTML (ou Custom HTML)",
+                "2. Glisse-le à l'endroit où tu veux le formulaire",
+                "3. Colle le code ci-dessus dans le champ HTML",
+                "4. Clique sur Mettre à jour / Publier",
+                "5. Le formulaire apparaît directement sur ta page",
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                  <span style={{ color: S.gold, fontSize: 13, flexShrink: 0 }}>→</span>
+                  <span style={{ color: S.text2, fontSize: 13 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Guide Shopify */}
+            <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 12 }}>🟢 Guide Shopify</p>
+              {[
+                "1. Va dans Boutique en ligne → Thèmes → Personnaliser",
+                "2. Clique sur Ajouter une section → Code personnalisé",
+                "3. Colle le code et enregistre",
+                "Ou : Thèmes → Modifier le code → colle dans le fichier de ta page produit",
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                  <span style={{ color: S.success, fontSize: 13, flexShrink: 0 }}>→</span>
+                  <span style={{ color: S.text2, fontSize: 13 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Guide Wix / Webflow */}
+            <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px" }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 12 }}>🌐 Wix / Webflow / Autres</p>
+              {[
+                "Wix : Ajouter → Plus → Intégrer du code HTML → colle le code",
+                "Webflow : Ajoute un élément Embed → colle le code",
+                "Autres : Tout éditeur avec un bloc HTML ou Embed accepte ce code",
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                  <span style={{ color: S.info, fontSize: 13, flexShrink: 0 }}>→</span>
+                  <span style={{ color: S.text2, fontSize: 13 }}>{step}</span>
+                </div>
+              ))}
+            </div>
           </Section>
 
           {/* Bouton save */}
