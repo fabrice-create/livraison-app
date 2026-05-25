@@ -104,7 +104,7 @@ export function ClosureuseView() {
       if (error || !user) { router.replace("/login"); return; }
 
       const { data: pd } = await supabase.from("profiles")
-        .select("id, role, tenant_id, full_name, email, phone, is_active")
+        .select("id, role, tenant_id, full_name, email, phone, is_active, zone_id, zone_nom")
         .or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle();
       if (!pd) { router.replace("/login"); return; }
 
@@ -146,7 +146,13 @@ export function ClosureuseView() {
       ]);
 
       setDrivers((driversRes.data || []) as Profile[]);
-      setOrders((ordersRes.data || []) as Order[]);
+      const allOrders = (ordersRes.data || []) as Order[]
+    // Filtrer par zone si la closeuse est assignée à une zone
+    const myZoneId = (p as any)?.zone_id
+    const filtered = myZoneId
+      ? allOrders.filter(o => o.zone_id === myZoneId || !o.zone_id)
+      : allOrders
+    setOrders(filtered);
       setDriverStocks((stockRes.data || []) as DriverStock[]);
       setLoading(false);
 
@@ -160,12 +166,16 @@ export function ClosureuseView() {
   const loadData = async (tenantId: string) => {
     // Charger en parallèle pour aller plus vite
     const [ordersRes, profilesRes] = await Promise.all([
-      supabase.from("orders").select("*").eq("tenant_id", tenantId).order("id", { ascending: false }),
+      supabase.from("orders").select("*, zone_id, zone_nom").eq("tenant_id", tenantId).order("id", { ascending: false }),
       supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId).eq("is_active", true)
     ]);
     const allOrders = (ordersRes.data as Order[]) || []
     // Filtrage par zone appliqué après chargement du profil
-    setOrders(allOrders);
+    const myZoneIdReload = profile?.zone_id
+    const filteredReload = myZoneIdReload
+      ? allOrders.filter((o: Order) => o.zone_id === myZoneIdReload || !o.zone_id)
+      : allOrders
+    setOrders(filteredReload);
     const driverList = (profilesRes.data as Profile[]) || [];
     setDrivers(driverList);
     // Charger stock seulement si des livreurs existent
@@ -353,7 +363,10 @@ export function ClosureuseView() {
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
-          <div style={{ fontSize: 10, color: S.text3 }}>👩‍💼 Closeur(se) · {profile?.full_name}</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>
+            👩‍💼 Closeur(se) · {profile?.full_name}
+            {profile?.zone_nom && <span style={{ marginLeft:6, background:"rgba(245,158,11,0.15)", color:"#F59E0B", padding:"1px 6px", borderRadius:10, fontSize:9, fontWeight:700 }}>🌍 {profile.zone_nom}</span>}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {nonAssigned.length > 0 && (
