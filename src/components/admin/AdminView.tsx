@@ -1407,7 +1407,7 @@ export function AdminView() {
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} tenantId={tenantId} />}
         {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
-        {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
+        {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
           {activeView === "zones"        && tenantId && <ZonesView tenantId={tenantId} tenantSlug={tenantSlug} />}

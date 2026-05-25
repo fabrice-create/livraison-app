@@ -1,563 +1,375 @@
 "use client"
-
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
-import { compressImage, formatFileSize } from "@/lib/imageUtils"
 
 const S = {
-  gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
-  bg: "#0A0A0F", card: "#111118", card2: "#16161F", border: "#1E1E2E",
-  text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
-  danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
-  success: "#4ADE80", info: "#60A5FA",
+  bg:"#0A0A0F", card:"#111118", card2:"#16161F", border:"#1E1E2E",
+  gold:"#F59E0B", goldDk:"#D97706", white:"#F8F8FC",
+  muted:"#55556A", muted2:"#9898B0", success:"#4ADE80",
+  danger:"#F87171", dangerBg:"rgba(248,113,113,0.08)",
 }
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  description?: string
-  image_url?: string
-  badge?: string
-  is_active: boolean
-  created_at: string
-  images?: ProductImage[]
-}
+interface Props { tenantId: string; tenantSlug: string }
 
-interface ProductImage {
-  id: string
-  image_url: string
-  position: number
+type Product = {
+  id: string; nom: string; slug: string; prix: number
+  prix_barre: number | null; devise: string; badge: string
+  is_active: boolean; image_principale: string
+  vues: number; commandes: number; created_at: string
 }
-
-interface Props {
-  tenantId: string
-  tenantSlug?: string
-}
-
-const EMPTY = { name: "", price: "", description: "", badge: "" }
 
 export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [products, setProducts] = useState<Product[]>([])
-  const [slug, setSlug] = useState(tenantSlug || "")
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Product | null>(null)
-  const [form, setForm] = useState(EMPTY)
-
-  // Images multiples
-  const [mainImageFile, setMainImageFile] = useState<File | null>(null)
-  const [mainImagePreview, setMainImagePreview] = useState("")
-  const [mainImageInfo, setMainImageInfo] = useState("")
-  const [extraImages, setExtraImages] = useState<{ file: File; preview: string }[]>([])
-  const [existingImages, setExistingImages] = useState<ProductImage[]>([])
-
-  const [uploading, setUploading] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [copied, setCopied] = useState<string>("")
-  const [widgetProduct, setWidgetProduct] = useState<Product | null>(null)
-  const [widgetMode, setWidgetMode] = useState<"form" | "full">("form")
-  const [widgetType, setWidgetType] = useState<"script" | "iframe">("iframe")
-  const mainFileRef = useRef<HTMLInputElement>(null)
-  const extraFileRef = useRef<HTMLInputElement>(null)
+  const [tab, setTab] = useState("base")
 
-  useEffect(() => { loadData() }, [tenantId])
+  // Formulaire
+  const [nom, setNom] = useState("")
+  const [prix, setPrix] = useState("")
+  const [prixBarre, setPrixBarre] = useState("")
+  const [devise, setDevise] = useState("FCFA")
+  const [badge, setBadge] = useState("")
+  const [imagePrincipale, setImagePrincipale] = useState("")
+  const [description, setDescription] = useState("")
+  const [heroTitre, setHeroTitre] = useState("")
+  const [heroSousTitre, setHeroSousTitre] = useState("")
+  const [heroCta, setHeroCta] = useState("Commander maintenant")
+  const [isActive, setIsActive] = useState(true)
+  const [uploadingImg, setUploadingImg] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [theme, setTheme] = useState("dark")
+  const [font, setFont] = useState("Poppins")
+  const [couleurAccent, setCouleurAccent] = useState("#F59E0B")
+  const [couleurFond, setCouleurFond] = useState("#080810")
 
-  const loadData = async () => {
+  useEffect(() => { loadProducts() }, [tenantId])
+
+  const loadProducts = async () => {
     setLoading(true)
-    if (!slug) {
-      const { data: tenant } = await supabase
-        .from("tenants").select("slug").eq("id", tenantId).single()
-      if (tenant) setSlug(tenant.slug)
-    }
-    const { data } = await supabase
-      .from("products").select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-
-    if (data) {
-      // Charger les images pour chaque produit
-      const productIds = data.map(p => p.id)
-      const { data: imgs } = await supabase
-        .from("product_images")
-        .select("*")
-        .in("product_id", productIds)
-        .order("position")
-
-      const productsWithImages = data.map(p => ({
-        ...p,
-        images: imgs?.filter(i => i.product_id === p.id) || []
-      }))
-      setProducts(productsWithImages)
-    }
+    const { data } = await supabase.from("products").select("id,nom,slug,prix,prix_barre,devise,badge,is_active,image_principale,vues,commandes,created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false })
+    setProducts((data || []) as Product[])
     setLoading(false)
   }
 
-  const getBaseUrl = () => {
-    if (typeof window === "undefined") return "shipivo.app"
-    return window.location.origin
-  }
-
-  const getWidgetCode = (p: Product, mode: "form" | "full", type: "script" | "iframe") => {
-    const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
-    if (type === "iframe") {
-      return `<iframe
-  src="${base}/widget?boutique=${slug}&produit=${p.id}&mode=${mode}"
-  style="width:100%;min-height:500px;border:none;border-radius:12px;"
-  frameborder="0"
-  scrolling="no">
-</iframe>`
-    }
-    return `<script src="${base}/widget.js"
-  data-boutique="${slug}"
-  data-produit="${p.id}"
-  data-mode="${mode}">
-</script>`
-  }
-
-  const getLienBoutique = () => `https://${getBaseUrl()}/commander/${slug}`
-  const getLienProduit = (p: Product) => `https://${getBaseUrl()}/commander/${slug}?produit=${p.id}`
-
-  const copyToClipboard = async (text: string, key: string) => {
+  const uploadImage = async (file: File) => {
+    setUploadingImg(true)
     try {
-      await navigator.clipboard.writeText(text)
-      setCopied(key)
-      setTimeout(() => setCopied(""), 2000)
-    } catch { setError("Impossible de copier") }
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
+      const fileName = `produits/${tenantId}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage
+        .from("shipivo-images")
+        .upload(fileName, file, { upsert: true, contentType: file.type })
+      if (error) { alert("Erreur upload: " + error.message); setUploadingImg(false); return }
+      const { data: urlData } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+      setImagePrincipale(urlData.publicUrl)
+    } catch (e) {
+      alert("Erreur lors de l upload de l image")
+    }
+    setUploadingImg(false)
   }
 
   const resetForm = () => {
-    setForm(EMPTY)
-    setEditing(null)
-    setMainImageFile(null)
-    setMainImagePreview("")
-    setMainImageInfo("")
-    setExtraImages([])
-    setExistingImages([])
-    setError("")
-    setShowForm(false)
+    setNom(""); setPrix(""); setPrixBarre(""); setDevise("FCFA"); setBadge("")
+    setImagePrincipale(""); setDescription(""); setHeroTitre(""); setHeroSousTitre("")
+    setHeroCta("Commander maintenant"); setIsActive(true); setTheme("dark")
+    setFont("Poppins"); setCouleurAccent("#F59E0B"); setCouleurFond("#080810")
+    setEditId(null); setTab("base"); setError("")
   }
 
-  const startEdit = async (p: Product) => {
-    setEditing(p)
-    setForm({ name: p.name, price: String(p.price), description: p.description || "", badge: p.badge || "" })
-    setMainImagePreview(p.image_url || "")
-    setMainImageFile(null)
-    setMainImageInfo("")
-    setExtraImages([])
-    // Charger images existantes
-    const { data: imgs } = await supabase
-      .from("product_images")
-      .select("*")
-      .eq("product_id", p.id)
-      .order("position")
-    setExistingImages(imgs || [])
-    setShowForm(true)
-  }
+  const openNew = () => { resetForm(); setShowEditor(true) }
 
-  const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setMainImagePreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-    setMainImageInfo("Compression en cours...")
-    const compressed = await compressImage(file, 800, 0.82)
-    setMainImageFile(compressed)
-    setMainImageInfo(`✓ Optimisé : ${formatFileSize(compressed.size)}`)
-  }
-
-  const handleExtraImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    const remaining = 9 - existingImages.length - extraImages.length
-    const toAdd = files.slice(0, remaining)
-    for (const file of toAdd) {
-      // Comprimer immédiatement au moment de la sélection
-      const compressed = await compressImage(file, 800, 0.82)
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        setExtraImages(prev => [...prev, { file: compressed, preview: ev.target?.result as string }])
-      }
-      reader.readAsDataURL(compressed)
-    }
-  }
-
-  const removeExtraImage = (index: number) => {
-    setExtraImages(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const removeExistingImage = async (img: ProductImage) => {
-    await supabase.from("product_images").delete().eq("id", img.id)
-    setExistingImages(prev => prev.filter(i => i.id !== img.id))
-  }
-
-  const uploadImage = async (file: File): Promise<string | null> => {
-    const fileName = `products/${tenantId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
-    const { error: err } = await supabase.storage
-      .from("shipivo-images").upload(fileName, file, { contentType: "image/jpeg", upsert: false })
-    if (err) { setError("Erreur upload : " + err.message); return null }
-    const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
-    return data.publicUrl
+  const openEdit = async (id: string) => {
+    const { data } = await supabase.from("products").select("*").eq("id", id).single()
+    if (!data) return
+    setNom(data.nom || ""); setPrix(String(data.prix || "")); setPrixBarre(data.prix_barre ? String(data.prix_barre) : "")
+    setDevise(data.devise || "FCFA"); setBadge(data.badge || ""); setImagePrincipale(data.image_principale || "")
+    setDescription(data.description || ""); setHeroTitre(data.hero_titre || ""); setHeroSousTitre(data.hero_sous_titre || "")
+    setHeroCta(data.hero_cta_texte || "Commander maintenant"); setIsActive(data.is_active !== false)
+    setTheme(data.theme || "dark"); setFont(data.font || "Poppins")
+    setCouleurAccent(data.couleur_accent || "#F59E0B"); setCouleurFond(data.couleur_fond || "#080810")
+    setEditId(id); setShowEditor(true); setTab("base")
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError("Nom requis"); return }
-    if (!form.price || isNaN(Number(form.price))) { setError("Prix invalide"); return }
+    if (!nom.trim()) { setError("Nom requis."); return }
+    if (!prix) { setError("Prix requis."); return }
     setSaving(true); setError("")
-
-    // Upload image principale
-    let imageUrl = editing?.image_url || null
-    if (mainImageFile) {
-      setUploading(true)
-      const url = await uploadImage(mainImageFile)
-      setUploading(false)
-      if (!url) { setSaving(false); return }
-      imageUrl = url
+    // Slug sécurisé — gère les accents et caractères spéciaux
+    const slugBase = nom.trim()
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || "produit"
+    // Ajouter timestamp pour éviter les doublons
+    const slug = editId ? slugBase : `${slugBase}-${Date.now().toString(36)}`
+    const payload = {
+      tenant_id: tenantId, nom: nom.trim(), slug, prix: Number(prix),
+      prix_barre: prixBarre ? Number(prixBarre) : null, devise, badge, is_active: isActive,
+      image_principale: imagePrincipale, description, hero_titre: heroTitre,
+      hero_sous_titre: heroSousTitre, hero_cta_texte: heroCta,
+      theme, font, couleur_accent: couleurAccent, couleur_fond: couleurFond,
+      updated_at: new Date().toISOString()
     }
-
-    let productId: string | null = editing?.id || null
-
-    if (editing) {
-      const { error: err } = await supabase.from("products").update({
-        name: form.name.trim(),
-        price: Number(form.price),
-        description: form.description.trim() || null,
-        image_url: imageUrl,
-        badge: form.badge || null,
-      }).eq("id", editing.id)
-      if (err) { setError(err.message); setSaving(false); return }
-      productId = editing.id
+    if (editId) {
+      const { error } = await supabase.from("products").update(payload).eq("id", editId)
+      if (error) { setError("Erreur: " + error.message); setSaving(false); return }
     } else {
-      // Insérer le produit et récupérer l'id généré
-      const { data: inserted, error: err } = await supabase
-        .from("products")
-        .insert({
-          tenant_id: tenantId,
-          name: form.name.trim(),
-          price: Number(form.price),
-          description: form.description.trim() || null,
-          image_url: imageUrl,
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (err) { setError("Erreur création produit: " + err.message); setSaving(false); return }
-      if (!inserted) { setError("Produit non créé"); setSaving(false); return }
-      productId = inserted.id
+      const { error } = await supabase.from("products").insert(payload)
+      if (error) { setError("Erreur: " + error.message); setSaving(false); return }
     }
-
-    // Upload images supplémentaires (déjà compressées)
-    if (extraImages.length > 0 && productId) {
-      setUploading(true)
-      for (let i = 0; i < extraImages.length; i++) {
-        const url = await uploadImage(extraImages[i].file)
-        if (url) {
-          await supabase.from("product_images").insert({
-            product_id: productId,
-            tenant_id: tenantId,
-            image_url: url,
-            position: existingImages.length + i,
-          })
-        }
-      }
-      setUploading(false)
-    }
-
-    setSuccess(editing ? "Produit modifié ✓" : "Produit ajouté ✓")
-    setTimeout(() => setSuccess(""), 3000)
-    resetForm()
-    loadData()
-    setSaving(false)
+    await loadProducts()
+    setShowEditor(false); resetForm(); setSaving(false)
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Supprimer ce produit ?")) return
-    await supabase.from("product_images").delete().eq("product_id", id)
+    if (!confirm("Supprimer ce produit ?")) return
     await supabase.from("products").delete().eq("id", id)
-    setProducts(prev => prev.filter(p => p.id !== id))
+    await loadProducts()
   }
 
-  const inp = {
+  const inp: React.CSSProperties = {
     width: "100%", background: S.bg, border: `1px solid ${S.border}`,
-    borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 14,
-    outline: "none", boxSizing: "border-box" as const,
+    borderRadius: 8, padding: "10px 12px", color: S.white, fontSize: 13,
+    outline: "none", boxSizing: "border-box", fontFamily: "inherit"
   }
 
-  if (loading) return (
-    <div style={{ padding: 32, textAlign: "center", color: S.text2 }}>Chargement...</div>
+  const pageUrl = (slug: string) => `https://shipivo.app/produit/${tenantSlug}/${slug}`
+
+  if (loading) return <p style={{ color: S.muted, textAlign: "center", padding: 32 }}>Chargement...</p>
+
+  if (showEditor) return (
+    <div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={() => { setShowEditor(false); resetForm() }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${S.border}`, background: "transparent", color: S.muted2, fontSize: 13, cursor: "pointer" }}>
+          ← Retour
+        </button>
+        <p style={{ color: S.white, fontSize: 15, fontWeight: 700, margin: 0, flex: 1 }}>
+          {editId ? `Modifier : ${nom}` : "Nouveau produit"}
+        </p>
+        <button onClick={handleSave} disabled={saving} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: saving ? S.muted : `linear-gradient(135deg,${S.gold},${S.goldDk})`, color: "#000", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}>
+          {saving ? "Enregistrement..." : "✅ Enregistrer"}
+        </button>
+      </div>
+
+      {error && <div style={{ background: S.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: S.card, borderRadius: 12, padding: 4 }}>
+        {[["base","📦 Produit"],["design","🎨 Design"],["apercu","👁️ Aperçu"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", background: tab === id ? S.gold : "transparent", color: tab === id ? "#000" : S.muted2 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "base" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Nom du produit *</label>
+              <input value={nom} onChange={e => setNom(e.target.value)} style={inp} placeholder="Ex: THERAWOLF Baume" />
+            </div>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Badge</label>
+              <select value={badge} onChange={e => setBadge(e.target.value)} style={inp}>
+                <option value="">Aucun</option>
+                {["NOUVEAU","PROMO","BEST-SELLER","RUPTURE"].map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Description</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} style={{ ...inp, resize: "none", height: 70 }} placeholder="Description du produit..." />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Prix *</label>
+              <input type="number" value={prix} onChange={e => setPrix(e.target.value)} style={inp} placeholder="15000" />
+            </div>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Prix barré</label>
+              <input type="number" value={prixBarre} onChange={e => setPrixBarre(e.target.value)} style={inp} placeholder="20000" />
+            </div>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Devise</label>
+              <select value={devise} onChange={e => setDevise(e.target.value)} style={inp}>
+                {["FCFA","XOF","XAF","USD","EUR","GHS","NGN"].map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Image principale</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }}
+            />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImg}
+                style={{ padding: "10px 16px", borderRadius: 8, border: `1px dashed ${S.gold}`, background: "rgba(245,158,11,0.05)", color: S.gold, fontSize: 13, fontWeight: 600, cursor: uploadingImg ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                {uploadingImg ? "⏳ Upload..." : "📁 Choisir une image"}
+              </button>
+              <input value={imagePrincipale} onChange={e => setImagePrincipale(e.target.value)} style={{ ...inp, flex: 1 }} placeholder="Ou colle une URL..." />
+            </div>
+            {imagePrincipale && (
+              <div style={{ marginTop: 8, position: "relative", display: "inline-block" }}>
+                <img src={imagePrincipale} alt="" style={{ height: 100, borderRadius: 10, objectFit: "cover", border: `2px solid ${S.gold}` }} />
+                <button onClick={() => setImagePrincipale("")} style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: "50%", border: "none", background: S.danger, color: "#fff", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: S.card2, borderRadius: 12, padding: "14px 16px" }}>
+            <p style={{ color: S.muted2, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Textes de la page</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Titre accrocheur</label>
+                <input value={heroTitre} onChange={e => setHeroTitre(e.target.value)} style={inp} placeholder="Ex: Dites adieu à la douleur..." />
+              </div>
+              <div>
+                <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Sous-titre</label>
+                <input value={heroSousTitre} onChange={e => setHeroSousTitre(e.target.value)} style={inp} placeholder="Ex: La solution naturelle..." />
+              </div>
+              <div>
+                <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Texte bouton commander</label>
+                <input value={heroCta} onChange={e => setHeroCta(e.target.value)} style={inp} placeholder="Commander maintenant" />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ color: S.muted2, fontSize: 13 }}>Produit actif</span>
+            <button onClick={() => setIsActive(!isActive)} style={{ padding: "5px 14px", borderRadius: 20, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: isActive ? "rgba(74,222,128,0.15)" : S.card2, color: isActive ? S.success : S.muted }}>
+              {isActive ? "✅ Actif" : "Inactif"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "design" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 8 }}>Thème</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[["dark","🌙 Sombre"],["light","☀️ Clair"]].map(([id, label]) => (
+                <button key={id} onClick={() => { setTheme(id); setCouleurFond(id === "dark" ? "#080810" : "#FFFFFF") }} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `2px solid ${theme === id ? S.gold : S.border}`, background: theme === id ? "rgba(245,158,11,0.08)" : "transparent", color: theme === id ? S.gold : S.muted2, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 8 }}>Police</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {["Inter","Poppins","Montserrat","Playfair Display","Bebas Neue"].map(f => (
+                <button key={f} onClick={() => setFont(f)} style={{ padding: "7px 14px", borderRadius: 20, border: `1px solid ${font === f ? S.gold : S.border}`, background: font === f ? "rgba(245,158,11,0.1)" : "transparent", color: font === f ? S.gold : S.muted2, fontSize: 13, cursor: "pointer", fontFamily: f }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Couleur accent</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={couleurAccent} onChange={e => setCouleurAccent(e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: `1px solid ${S.border}`, cursor: "pointer" }} />
+                <input value={couleurAccent} onChange={e => setCouleurAccent(e.target.value)} style={{ ...inp, flex: 1 }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Couleur de fond</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={couleurFond} onChange={e => setCouleurFond(e.target.value)} style={{ width: 40, height: 36, borderRadius: 8, border: `1px solid ${S.border}`, cursor: "pointer" }} />
+                <input value={couleurFond} onChange={e => setCouleurFond(e.target.value)} style={{ ...inp, flex: 1 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "apercu" && (
+        <div style={{ textAlign: "center", padding: "20px 0" }}>
+          {editId ? (
+            <>
+              <a href={pageUrl(nom.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-"))} target="_blank" rel="noreferrer"
+                style={{ display: "inline-block", padding: "12px 24px", borderRadius: 10, background: `linear-gradient(135deg,${S.gold},${S.goldDk})`, color: "#000", fontSize: 14, fontWeight: 700, textDecoration: "none", marginBottom: 16 }}>
+                👁️ Voir la page de vente
+              </a>
+              <p style={{ color: S.muted2, fontSize: 12 }}>
+                {pageUrl(nom.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-"))}
+              </p>
+            </>
+          ) : (
+            <p style={{ color: S.danger, fontSize: 13 }}>Enregistre le produit pour voir la page.</p>
+          )}
+        </div>
+      )}
+    </div>
   )
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", color: S.text }}>
-
-      {/* Lien boutique */}
-      {slug && (
-        <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <div>
-            <p style={{ color: S.text3, fontSize: 11, margin: "0 0 2px 0", fontWeight: 600 }}>LIEN DE TA BOUTIQUE</p>
-            <p style={{ color: S.info, fontSize: 12, margin: 0, wordBreak: "break-all" }}>{getLienBoutique()}</p>
-          </div>
-          <button onClick={() => copyToClipboard(getLienBoutique(), "boutique")}
-            style={{ background: copied === "boutique" ? S.success : S.border, border: "none", borderRadius: 6, padding: "6px 12px", color: copied === "boutique" ? "#000" : S.text, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-            {copied === "boutique" ? "✓ Copié" : "📋 Copier"}
-          </button>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <p style={{ color: S.white, fontSize: 15, fontWeight: 700, margin: "0 0 4px" }}>📦 Mes produits</p>
+          <p style={{ color: S.muted2, fontSize: 13, margin: 0 }}>Crée et personnalise tes pages de vente.</p>
         </div>
-      )}
-
-      {/* Messages */}
-      {error && <div style={{ background: S.dangerBg, border: `1px solid rgba(248,113,113,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
-      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: `1px solid rgba(74,222,128,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.success, fontSize: 13 }}>✅ {success}</div>}
-
-      {/* Bouton ajouter */}
-      {!showForm && (
-        <button onClick={() => { setShowForm(true); setEditing(null); setForm(EMPTY); setMainImagePreview(""); setExtraImages([]); setExistingImages([]) }}
-          style={{ width: "100%", background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "12px", color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>
+        <button onClick={openNew} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${S.gold},${S.goldDk})`, color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
           + Nouveau produit
         </button>
-      )}
-
-      {/* Formulaire */}
-      {showForm && (
-        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <h3 style={{ color: S.text, fontSize: 15, fontWeight: 700, margin: "0 0 16px 0" }}>
-            {editing ? "✏️ Modifier le produit" : "➕ Nouveau produit"}
-          </h3>
-
-          {/* Nom */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nom du produit *</label>
-            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Crème visage hydratante" style={inp}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Prix */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Prix *</label>
-            <input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="Ex: 5000" style={inp}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Description */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Description</label>
-            <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Décris ton produit..." rows={3}
-              style={{ ...inp, resize: "none", fontFamily: "Inter, sans-serif" }}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Photo principale */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>📸 Photo principale *</label>
-            <div onClick={() => mainFileRef.current?.click()} style={{ width: 120, height: 120, border: `2px dashed ${mainImagePreview ? S.gold : S.border}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: S.bg }}>
-              {mainImagePreview ? (
-                <img src={mainImagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontSize: 32 }}>📷</span>
-              )}
-            </div>
-            <input ref={mainFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleMainImageChange} style={{ display: "none" }} />
-            {mainImageInfo && <p style={{ color: S.success, fontSize: 11, margin: "6px 0 0 0" }}>{mainImageInfo}</p>}
-          </div>
-
-          {/* Photos supplémentaires */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
-              📸 Photos supplémentaires ({existingImages.length + extraImages.length}/9)
-            </label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-
-              {/* Images existantes */}
-              {existingImages.map(img => (
-                <div key={img.id} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.border}` }}>
-                  <img src={img.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <button onClick={() => removeExistingImage(img)}
-                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
-                </div>
-              ))}
-
-              {/* Nouvelles images */}
-              {extraImages.map((img, i) => (
-                <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.gold}` }}>
-                  <img src={img.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <button onClick={() => removeExtraImage(i)}
-                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
-                </div>
-              ))}
-
-              {/* Bouton ajouter photo */}
-              {existingImages.length + extraImages.length < 9 && (
-                <div onClick={() => extraFileRef.current?.click()}
-                  style={{ width: 72, height: 72, border: `2px dashed ${S.border}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: S.text3 }}>
-                  +
-                </div>
-              )}
-            </div>
-            <input ref={extraFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleExtraImagesChange} style={{ display: "none" }} />
-          </div>
-
-          {/* Badge produit */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>Badge (optionnel)</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["", "PROMO", "NOUVEAU", "BEST-SELLER", "SOLDE"].map(b => (
-                <button key={b} type="button" onClick={() => setForm(p => ({ ...p, badge: b }))}
-                  style={{ padding: "6px 14px", borderRadius: 8, border: `2px solid ${form.badge === b ? S.gold : S.border}`, background: form.badge === b ? "rgba(245,158,11,0.1)" : "transparent", color: form.badge === b ? S.gold : S.text2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  {b === "" ? "Aucun" : b}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Boutons */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={resetForm} style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              Annuler
-            </button>
-            <button onClick={handleSave} disabled={saving || uploading}
-              style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
-              {uploading ? "⬆️ Upload..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Liste produits */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {products.length === 0 && !showForm && (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: S.text3 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
-            <p>Aucun produit. Crée ton premier produit !</p>
-          </div>
-        )}
-
-        {products.map(p => {
-          const allImages = [p.image_url, ...(p.images?.map(i => i.image_url) || [])].filter(Boolean)
-          return (
-            <div key={p.id} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 12, display: "flex", gap: 12, alignItems: "flex-start" }}>
-
-              {/* Photo + galerie */}
-              <div style={{ flexShrink: 0 }}>
-                {p.image_url ? (
-                  <div style={{ position: "relative" }}>
-                    <img src={p.image_url} alt={p.name} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
-                    {allImages.length > 1 && (
-                      <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.7)", borderRadius: 4, padding: "1px 5px", fontSize: 10, color: "#fff", fontWeight: 700 }}>
-                        +{allImages.length - 1}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ width: 80, height: 80, background: S.card2, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>
-                )}
-              </div>
-
-              {/* Infos */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: "0 0 2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
-                <p style={{ color: S.gold, fontSize: 15, fontWeight: 800, margin: "0 0 4px 0" }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</p>
-                {p.description && <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>}
-
-                {/* Liens */}
-                {slug && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button onClick={() => copyToClipboard(getLienProduit(p), `p_${p.id}`)}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: copied === `p_${p.id}` ? S.success : S.info, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
-                      {copied === `p_${p.id}` ? "✓ Copié" : "🔗 Lien"}
-                    </button>
-                    <button onClick={() => { setWidgetProduct(p); setWidgetMode("form") }}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: S.gold, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
-                      {'</>'}  Widget
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => startEdit(p)}
-                  style={{ background: S.border, border: "none", borderRadius: 6, padding: "6px 10px", color: S.text2, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
-                  ✏️
-                </button>
-                <button onClick={() => handleDelete(p.id)}
-                  style={{ background: S.dangerBg, border: "none", borderRadius: 6, padding: "6px 10px", color: S.danger, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
-                  🗑️
-                </button>
-              </div>
-            </div>
-          )
-        })}
       </div>
-      {/* Modal Widget */}
-      {widgetProduct && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ color: S.text, fontSize: 16, fontWeight: 700, margin: 0 }}>🔌 Code Widget — {widgetProduct.name}</h3>
-              <button onClick={() => setWidgetProduct(null)}
-                style={{ background: "none", border: "none", color: S.text2, fontSize: 20, cursor: "pointer" }}>×</button>
-            </div>
 
-            {/* Choix type intégration */}
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Méthode d&apos;intégration :</p>
-              <div style={{ display: "flex", gap: 8 }}>
-                {(["iframe", "script"] as const).map(t => (
-                  <button key={t} onClick={() => setWidgetType(t)}
-                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetType === t ? S.gold : S.border}`, background: widgetType === t ? "rgba(245,158,11,0.1)" : "transparent", color: widgetType === t ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    {t === "iframe" ? "🖼️ iframe (Elementor, Wix)" : "⚡ Script (WordPress, Shopify)"}
-                  </button>
-                ))}
+      {products.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", background: S.card, borderRadius: 14, border: `1px solid ${S.border}` }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+          <p style={{ color: S.white, fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>Aucun produit créé</p>
+          <p style={{ color: S.muted2, fontSize: 13, margin: "0 0 20px" }}>Crée ton premier produit et personnalise ta page de vente.</p>
+          <button onClick={openNew} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${S.gold},${S.goldDk})`, color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            + Créer un produit
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {products.map(p => (
+            <div key={p.id} style={{ background: S.card, border: `1px solid ${p.is_active ? S.border : "rgba(248,113,113,0.2)"}`, borderRadius: 14, padding: "14px 16px", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+              {p.image_principale ? (
+                <img src={p.image_principale} alt={p.nom} style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 56, height: 56, borderRadius: 10, background: S.card2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📦</div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <p style={{ color: S.white, fontSize: 14, fontWeight: 700, margin: 0 }}>{p.nom}</p>
+                  {p.badge && <span style={{ background: "rgba(245,158,11,0.15)", color: S.gold, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{p.badge}</span>}
+                  {!p.is_active && <span style={{ background: S.dangerBg, color: S.danger, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>Inactif</span>}
+                </div>
+                <p style={{ color: S.gold, fontSize: 14, fontWeight: 800, margin: "0 0 2px" }}>
+                  {p.prix.toLocaleString("fr-FR")} {p.devise}
+                  {p.prix_barre && <span style={{ color: S.muted, fontSize: 12, fontWeight: 400, textDecoration: "line-through", marginLeft: 8 }}>{p.prix_barre.toLocaleString("fr-FR")}</span>}
+                </p>
+                <p style={{ color: S.muted2, fontSize: 11, margin: 0 }}>{p.vues || 0} vues · {p.commandes || 0} commandes</p>
               </div>
-              <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>
-                {widgetType === "iframe" ? "✅ Recommandé pour Elementor, Wix, et la plupart des sites." : "Pour les sites qui acceptent les scripts externes."}
-              </p>
-            </div>
-
-            {/* Choix mode */}
-            <div style={{ marginBottom: 16 }}>
-              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Contenu affiché :</p>
               <div style={{ display: "flex", gap: 8 }}>
-                {(["form", "full"] as const).map(m => (
-                  <button key={m} onClick={() => setWidgetMode(m)}
-                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetMode === m ? S.gold : S.border}`, background: widgetMode === m ? "rgba(245,158,11,0.1)" : "transparent", color: widgetMode === m ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    {m === "form" ? "📝 Formulaire seul" : "🖼️ Produit + Formulaire"}
-                  </button>
-                ))}
+                <button onClick={() => openEdit(p.id)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: "transparent", color: S.gold, fontSize: 12, cursor: "pointer" }}>✏️ Éditer</button>
+                <a href={pageUrl(p.slug)} target="_blank" rel="noreferrer" style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: "transparent", color: "#60A5FA", fontSize: 12, cursor: "pointer", textDecoration: "none" }}>👁️ Voir</a>
+                <button onClick={() => handleDelete(p.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: S.dangerBg, color: S.danger, fontSize: 12, cursor: "pointer" }}>🗑️</button>
               </div>
             </div>
-
-            {/* Code à copier */}
-            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 14, marginBottom: 12, overflowX: "auto" }}>
-              <pre style={{ color: S.info, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
-                {getWidgetCode(widgetProduct, widgetMode, widgetType)}
-              </pre>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => copyToClipboard(getWidgetCode(widgetProduct, widgetMode, widgetType), "widget")}
-                style={{ flex: 1, background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {copied === "widget" ? "✓ Copié !" : "📋 Copier le code"}
-              </button>
-              <button onClick={() => setWidgetProduct(null)}
-                style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                Fermer
-              </button>
-            </div>
-
-            {/* Instructions */}
-            <div style={{ marginTop: 14, background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 8, padding: "10px 14px" }}>
-              <p style={{ color: S.success, fontSize: 12, fontWeight: 600, margin: "0 0 6px 0" }}>📋 Comment l'utiliser :</p>
-              <p style={{ color: S.text2, fontSize: 11, margin: 0, lineHeight: 1.7 }}>
-                1. Copie le code ci-dessus<br/>
-                2. Colle-le dans ton site WordPress, Shopify, YouCan...<br/>
-                3. Le formulaire apparaît automatiquement<br/>
-                4. Les commandes arrivent directement dans Shipivo
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>
