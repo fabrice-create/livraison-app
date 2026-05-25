@@ -1326,6 +1326,7 @@ export function AdminView() {
     { id: "produits",    label: "📦 Produits" },
     { id: "equipe",      label: "👥 Équipe" },
     { id: "parametres",  label: "⚙️ Paramètres" },
+    { id: "zones",       label: "🌍 Zones" },
     { id: "clients",     label: "👥 Clients" },
     { id: "import",      label: "📥 Import" },
   ];
