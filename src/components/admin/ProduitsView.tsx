@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
 
 const S = {
@@ -39,6 +39,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [heroSousTitre, setHeroSousTitre] = useState("")
   const [heroCta, setHeroCta] = useState("Commander maintenant")
   const [isActive, setIsActive] = useState(true)
+  const [uploadingImg, setUploadingImg] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [theme, setTheme] = useState("dark")
   const [font, setFont] = useState("Poppins")
   const [couleurAccent, setCouleurAccent] = useState("#F59E0B")
@@ -51,6 +53,32 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     const { data } = await supabase.from("products").select("id,nom,slug,prix,prix_barre,devise,badge,is_active,image_principale,vues,commandes,created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false })
     setProducts((data || []) as Product[])
     setLoading(false)
+  }
+
+  const uploadImage = async (file: File) => {
+    setUploadingImg(true)
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
+      const fileName = `produits/${tenantId}/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage
+        .from("product-images")
+        .upload(fileName, file, { upsert: true, contentType: file.type })
+      if (error) {
+        // Fallback: essayer le bucket "images" existant
+        const { data: d2, error: e2 } = await supabase.storage
+          .from("images")
+          .upload(fileName, file, { upsert: true, contentType: file.type })
+        if (e2) { alert("Erreur upload: " + e2.message); setUploadingImg(false); return }
+        const { data: url2 } = supabase.storage.from("images").getPublicUrl(fileName)
+        setImagePrincipale(url2.publicUrl)
+      } else {
+        const { data: url } = supabase.storage.from("product-images").getPublicUrl(fileName)
+        setImagePrincipale(url.publicUrl)
+      }
+    } catch (e) {
+      alert("Erreur lors de l upload de l image")
+    }
+    setUploadingImg(false)
   }
 
   const resetForm = () => {
@@ -177,9 +205,29 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
           </div>
 
           <div>
-            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Image principale (URL)</label>
-            <input value={imagePrincipale} onChange={e => setImagePrincipale(e.target.value)} style={inp} placeholder="https://..." />
-            {imagePrincipale && <img src={imagePrincipale} alt="" style={{ marginTop: 8, height: 80, borderRadius: 8, objectFit: "cover" }} />}
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Image principale</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }}
+            />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImg}
+                style={{ padding: "10px 16px", borderRadius: 8, border: `1px dashed ${S.gold}`, background: "rgba(245,158,11,0.05)", color: S.gold, fontSize: 13, fontWeight: 600, cursor: uploadingImg ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                {uploadingImg ? "⏳ Upload..." : "📁 Choisir une image"}
+              </button>
+              <input value={imagePrincipale} onChange={e => setImagePrincipale(e.target.value)} style={{ ...inp, flex: 1 }} placeholder="Ou colle une URL..." />
+            </div>
+            {imagePrincipale && (
+              <div style={{ marginTop: 8, position: "relative", display: "inline-block" }}>
+                <img src={imagePrincipale} alt="" style={{ height: 100, borderRadius: 10, objectFit: "cover", border: `2px solid ${S.gold}` }} />
+                <button onClick={() => setImagePrincipale("")} style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: "50%", border: "none", background: S.danger, color: "#fff", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              </div>
+            )}
           </div>
 
           <div style={{ background: S.card2, borderRadius: 12, padding: "14px 16px" }}>
