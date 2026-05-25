@@ -53,6 +53,18 @@ export default function LoginPage() {
         setLoadingLogin(false)
         return
       }
+      // Vérifier super_admins EN PREMIER
+      const { data: superAdmin } = await supabase
+        .from("super_admins")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .maybeSingle()
+
+      if (superAdmin) {
+        window.location.replace("/super-admin")
+        return
+      }
+
       const { data: profileData } = await supabase
         .from("profiles")
         .select("id, role, is_active")
