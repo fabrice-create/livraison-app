@@ -27,6 +27,7 @@ type Product = {
   theme: string; font: string
   couleur_fond: string; couleur_accent: string; couleur_texte: string
   tenant_id: string
+  vues?: number; commandes?: number
 }
 type Tenant = {
   id: string; name: string; slug: string; phone: string
