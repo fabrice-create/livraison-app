@@ -164,12 +164,8 @@ export function ClosureuseView() {
       supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId).eq("is_active", true)
     ]);
     const allOrders = (ordersRes.data as Order[]) || []
-    // Si la closeuse a une zone assignée, elle ne voit que les commandes de sa zone
-    // Sinon elle voit toutes les commandes (compatibilité)
-    const filteredOrders = profileData?.zone_id
-      ? allOrders.filter(o => o.zone_id === profileData.zone_id || !o.zone_id)
-      : allOrders
-    setOrders(filteredOrders);
+    // Filtrage par zone appliqué après chargement du profil
+    setOrders(allOrders);
     const driverList = (profilesRes.data as Profile[]) || [];
     setDrivers(driverList);
     // Charger stock seulement si des livreurs existent
