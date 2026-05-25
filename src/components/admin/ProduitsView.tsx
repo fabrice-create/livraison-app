@@ -60,21 +60,12 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
       const fileName = `produits/${tenantId}/${Date.now()}.${ext}`
-      const { data, error } = await supabase.storage
-        .from("product-images")
+      const { error } = await supabase.storage
+        .from("shipivo-images")
         .upload(fileName, file, { upsert: true, contentType: file.type })
-      if (error) {
-        // Fallback: essayer le bucket "images" existant
-        const { data: d2, error: e2 } = await supabase.storage
-          .from("images")
-          .upload(fileName, file, { upsert: true, contentType: file.type })
-        if (e2) { alert("Erreur upload: " + e2.message); setUploadingImg(false); return }
-        const { data: url2 } = supabase.storage.from("images").getPublicUrl(fileName)
-        setImagePrincipale(url2.publicUrl)
-      } else {
-        const { data: url } = supabase.storage.from("product-images").getPublicUrl(fileName)
-        setImagePrincipale(url.publicUrl)
-      }
+      if (error) { alert("Erreur upload: " + error.message); setUploadingImg(false); return }
+      const { data: urlData } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+      setImagePrincipale(urlData.publicUrl)
     } catch (e) {
       alert("Erreur lors de l upload de l image")
     }
