@@ -115,3 +115,6 @@ src/components/livreur/
 **products** : id, tenant_id, name, price, description, image_url, badge, is_active
 
 **product_images** : id, product_id, tenant_id, image_url, position
+
+## ✅ Phase 12 — Monétisation
+Abonnements, paiements CinetPay et manuels. Tables : subscriptions, payments.
