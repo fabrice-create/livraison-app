@@ -1197,6 +1197,7 @@ export function AdminView() {
     setClosers(allProfiles.filter(pr => ["closureuse","Closureuse","CLOSUREUSE","closer"].includes((pr.role||"").trim())));
     setOrders((ordersRes.data || []) as Order[]);
     setDriverStocks((stockRes.data || []) as DriverStock[]);
+    if (zonesRes?.data) setZones(zonesRes.data as Zone[]);
     setAuthLoading(false);
   };
 
