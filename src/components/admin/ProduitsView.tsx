@@ -40,7 +40,20 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [heroCta, setHeroCta] = useState("Commander maintenant")
   const [isActive, setIsActive] = useState(true)
   const [uploadingImg, setUploadingImg] = useState(false)
+  const [uploadingGallery, setUploadingGallery] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const [imagesGalerie, setImagesGalerie] = useState<string[]>([])
+  const [sectionsOrdre, setSectionsOrdre] = useState<string[]>(["galerie","description","probleme","benefices","utilisation","composition","temoignages","comparaison","faq","garantie","formulaire"])
+  const [sections, setSections] = useState({
+    probleme: { active:false, titre:"Vous souffrez de ça ?", items:[] as {emoji:string;texte:string}[] },
+    benefices: { active:false, titre:"Pourquoi choisir ce produit ?", items:[] as {emoji:string;titre:string;texte:string}[] },
+    temoignages: { active:false, titre:"Ce qu'ils en disent", items:[] as {nom:string;ville:string;texte:string;note:number;photo:string}[] },
+    faq: { active:false, titre:"Questions fréquentes", items:[] as {question:string;reponse:string}[] },
+    garantie: { active:false, texte:"Satisfait ou remboursé 30 jours", icone:"🛡️" },
+    composition: { active:false, titre:"Composition", items:[] as {nom:string;description:string}[] },
+    utilisation: { active:false, titre:"Comment ça marche ?", items:[] as {etape:number;titre:string;texte:string}[] },
+  })
   const [theme, setTheme] = useState("dark")
   const [font, setFont] = useState("Poppins")
   const [couleurAccent, setCouleurAccent] = useState("#F59E0B")
@@ -77,6 +90,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setImagePrincipale(""); setDescription(""); setHeroTitre(""); setHeroSousTitre("")
     setHeroCta("Commander maintenant"); setIsActive(true); setTheme("dark")
     setFont("Poppins"); setCouleurAccent("#F59E0B"); setCouleurFond("#080810")
+    setImagesGalerie([]); setSectionsOrdre(["galerie","description","probleme","benefices","utilisation","composition","temoignages","comparaison","faq","garantie","formulaire"])
+    setSections({ probleme:{active:false,titre:"Vous souffrez de ça ?",items:[]}, benefices:{active:false,titre:"Pourquoi choisir ce produit ?",items:[]}, temoignages:{active:false,titre:"Ce qu'ils en disent",items:[]}, faq:{active:false,titre:"Questions fréquentes",items:[]}, garantie:{active:false,texte:"Satisfait ou remboursé 30 jours",icone:"🛡️"}, composition:{active:false,titre:"Composition",items:[]}, utilisation:{active:false,titre:"Comment ça marche ?",items:[]} })
     setEditId(null); setTab("base"); setError("")
   }
 
@@ -91,6 +106,17 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setHeroCta(data.hero_cta_texte || "Commander maintenant"); setIsActive(data.is_active !== false)
     setTheme(data.theme || "dark"); setFont(data.font || "Poppins")
     setCouleurAccent(data.couleur_accent || "#F59E0B"); setCouleurFond(data.couleur_fond || "#080810")
+    setImagesGalerie(data.images || [])
+    try { setSectionsOrdre(data.sections_ordre ? JSON.parse(data.sections_ordre) : ["galerie","description","probleme","benefices","utilisation","composition","temoignages","comparaison","faq","garantie","formulaire"]) } catch { setSectionsOrdre(["galerie","description","probleme","benefices","utilisation","composition","temoignages","comparaison","faq","garantie","formulaire"]) }
+    setSections({
+      probleme: { active:data.section_probleme_active||false, titre:data.section_probleme_titre||"Vous souffrez de ça ?", items:data.section_probleme_items||[] },
+      benefices: { active:data.section_benefices_active||false, titre:data.section_benefices_titre||"Pourquoi choisir ce produit ?", items:data.section_benefices_items||[] },
+      temoignages: { active:data.section_temoignages_active||false, titre:data.section_temoignages_titre||"Ce qu'ils en disent", items:data.section_temoignages_items||[] },
+      faq: { active:data.section_faq_active||false, titre:data.section_faq_titre||"Questions fréquentes", items:data.section_faq_items||[] },
+      garantie: { active:data.section_garantie_active||false, texte:data.section_garantie_texte||"Satisfait ou remboursé 30 jours", icone:data.section_garantie_icone||"🛡️" },
+      composition: { active:data.section_composition_active||false, titre:data.section_composition_titre||"Composition", items:data.section_composition_items||[] },
+      utilisation: { active:data.section_utilisation_active||false, titre:data.section_utilisation_titre||"Comment ça marche ?", items:data.section_utilisation_items||[] },
+    })
     setEditId(id); setShowEditor(true); setTab("base")
   }
 
@@ -110,9 +136,32 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     const payload = {
       tenant_id: tenantId, nom: nom.trim(), slug, prix: Number(prix),
       prix_barre: prixBarre ? Number(prixBarre) : null, devise, badge, is_active: isActive,
-      image_principale: imagePrincipale, description, hero_titre: heroTitre,
+      image_principale: imagePrincipale, images: imagesGalerie,
+      description, hero_titre: heroTitre,
       hero_sous_titre: heroSousTitre, hero_cta_texte: heroCta,
       theme, font, couleur_accent: couleurAccent, couleur_fond: couleurFond,
+      sections_ordre: JSON.stringify(sectionsOrdre),
+      section_probleme_active: sections.probleme.active,
+      section_probleme_titre: sections.probleme.titre,
+      section_probleme_items: sections.probleme.items,
+      section_benefices_active: sections.benefices.active,
+      section_benefices_titre: sections.benefices.titre,
+      section_benefices_items: sections.benefices.items,
+      section_temoignages_active: sections.temoignages.active,
+      section_temoignages_titre: sections.temoignages.titre,
+      section_temoignages_items: sections.temoignages.items,
+      section_faq_active: sections.faq.active,
+      section_faq_titre: sections.faq.titre,
+      section_faq_items: sections.faq.items,
+      section_garantie_active: sections.garantie.active,
+      section_garantie_texte: sections.garantie.texte,
+      section_garantie_icone: sections.garantie.icone,
+      section_composition_active: sections.composition.active,
+      section_composition_titre: sections.composition.titre,
+      section_composition_items: sections.composition.items,
+      section_utilisation_active: sections.utilisation.active,
+      section_utilisation_titre: sections.utilisation.titre,
+      section_utilisation_items: sections.utilisation.items,
       updated_at: new Date().toISOString()
     }
     if (editId) {
