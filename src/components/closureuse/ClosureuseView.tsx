@@ -101,7 +101,7 @@ export function ClosureuseView() {
 
       const { data: pd } = await supabase.from("profiles")
         .select("id, role, tenant_id, full_name, email, phone, is_active")
-        .eq("id", user.id).single();
+        .or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle();
       if (!pd) { router.replace("/login"); return; }
 
       const p = pd as Profile;
