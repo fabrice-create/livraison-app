@@ -2,21 +2,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Utilise NEXT_PUBLIC_SUPABASE_ANON_KEY en fallback si SERVICE_ROLE absent
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
 const CINETPAY_API_KEY = process.env.CINETPAY_API_KEY || ""
 const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID || ""
 
-// ── POST /api/payment/notify — webhook CinetPay ───────────
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { cpm_trans_id, cpm_site_id } = body
 
-    if (cpm_site_id !== CINETPAY_SITE_ID) {
+    if (CINETPAY_SITE_ID && cpm_site_id !== CINETPAY_SITE_ID) {
       return NextResponse.json({ error: "Site ID invalide" }, { status: 403 })
     }
 
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
     const verifyData = await verifyRes.json()
     const cpStatus = verifyData.data?.status
 
-    // Trouver le payment par référence
     const { data: payment } = await supabaseAdmin
       .from("payments")
       .select("*")
@@ -49,12 +47,10 @@ export async function POST(req: NextRequest) {
       const metadata = JSON.parse(verifyData.data?.metadata || "{}")
       const { tenant_id, plan, months = 1 } = metadata
 
-      // Calculer dates abonnement
       const startedAt = new Date()
       const expiresAt = new Date()
       expiresAt.setMonth(expiresAt.getMonth() + months)
 
-      // Créer subscription
       const { data: sub } = await supabaseAdmin
         .from("subscriptions")
         .insert({
@@ -71,14 +67,12 @@ export async function POST(req: NextRequest) {
         .select()
         .single()
 
-      // Mettre à jour payment
       await supabaseAdmin.from("payments").update({
         status: "success",
         paid_at: new Date().toISOString(),
         subscription_id: sub?.id || null,
       }).eq("id", payment.id)
 
-      // Mettre à jour tenant
       await supabaseAdmin.from("tenants").update({
         plan,
         subscription_status: "active",
@@ -97,12 +91,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── GET /api/payment/notify — vérification manuelle ───────
 export async function GET(req: NextRequest) {
   const ref = req.nextUrl.searchParams.get("ref")
   if (!ref) return NextResponse.json({ error: "ref manquant" }, { status: 400 })
 
-  const { data: payment } = await supabaseAdmin
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  const db = createClient(supabaseUrl, supabaseKey)
+
+  const { data: payment } = await db
     .from("payments")
     .select("*")
     .eq("reference", ref)
