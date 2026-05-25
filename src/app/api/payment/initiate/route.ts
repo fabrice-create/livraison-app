@@ -2,17 +2,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
 const CINETPAY_API_KEY  = process.env.CINETPAY_API_KEY  || ""
 const CINETPAY_SITE_ID  = process.env.CINETPAY_SITE_ID  || ""
 const APP_URL           = process.env.NEXT_PUBLIC_APP_URL || "https://shipivo.app"
 
-// ── POST /api/payment/initiate ────────────────────────────
-// Body: { tenant_id, plan, months, amount }
 export async function POST(req: NextRequest) {
   try {
     const { tenant_id, plan, months = 1, amount } = await req.json()
@@ -21,7 +18,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 })
     }
 
-    // Récupérer infos tenant
     const { data: tenant, error: tErr } = await supabaseAdmin
       .from("tenants")
       .select("name, email, phone, slug")
@@ -32,7 +28,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tenant introuvable" }, { status: 404 })
     }
 
-    // Créer payment record (pending)
+    const reference = `SHV-${tenant_id.slice(0,8)}-${Date.now()}`
+
     const { data: payment, error: pErr } = await supabaseAdmin
       .from("payments")
       .insert({
@@ -41,7 +38,7 @@ export async function POST(req: NextRequest) {
         currency: "FCFA",
         method: "cinetpay",
         status: "pending",
-        reference: `SHV-${tenant_id.slice(0,8)}-${Date.now()}`,
+        reference,
       })
       .select()
       .single()
@@ -50,15 +47,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erreur création paiement" }, { status: 500 })
     }
 
-    // Appel CinetPay
+    // Si CinetPay pas encore configuré, retourner erreur claire
+    if (!CINETPAY_API_KEY || !CINETPAY_SITE_ID) {
+      return NextResponse.json({
+        error: "CinetPay non configuré. Ajoute CINETPAY_API_KEY et CINETPAY_SITE_ID dans les variables Vercel."
+      }, { status: 503 })
+    }
+
     const cpPayload = {
       apikey: CINETPAY_API_KEY,
       site_id: CINETPAY_SITE_ID,
-      transaction_id: payment.reference,
+      transaction_id: reference,
       amount,
       currency: "XOF",
       description: `Shipivo — Plan ${plan} x${months} mois`,
-      return_url: `${APP_URL}/admin?payment=success&ref=${payment.reference}`,
+      return_url: `${APP_URL}/admin?payment=success&ref=${reference}`,
       notify_url: `${APP_URL}/api/payment/notify`,
       customer_name: tenant.name,
       customer_email: tenant.email || `${tenant.slug}@shipivo.app`,
@@ -81,12 +84,10 @@ export async function POST(req: NextRequest) {
     const cpData = await cpRes.json()
 
     if (cpData.code !== "201") {
-      // Marquer payment comme failed
       await supabaseAdmin.from("payments").update({ status: "failed" }).eq("id", payment.id)
       return NextResponse.json({ error: cpData.message || "Erreur CinetPay" }, { status: 400 })
     }
 
-    // Sauvegarder lien CinetPay
     await supabaseAdmin.from("payments").update({
       cinetpay_transaction_id: cpData.data?.payment_token,
       cinetpay_payment_url: cpData.data?.payment_url,
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
       success: true,
       payment_url: cpData.data?.payment_url,
       payment_id: payment.id,
-      reference: payment.reference,
+      reference,
     })
 
   } catch (err) {
