@@ -107,7 +107,7 @@ export function LivreurView() {
       if (error || !user) { router.replace("/login"); return; }
 
       const { data: pd } = await supabase.from("profiles")
-        .select("id, role, tenant_id, full_name, email, phone, is_active, is_available, last_seen")
+        .select("id, role, tenant_id, full_name, email, phone, is_active, is_available, last_seen, zone_id, zone_nom")
         .or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle();
       if (!pd) { router.replace("/login"); return; }
 
@@ -311,7 +311,14 @@ export function LivreurView() {
       <div style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: S.card, borderBottom: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: S.gold }}>{tenantName}</div>
-          <div style={{ fontSize: 10, color: S.text3 }}>🏍️ Livreur · {profile?.full_name}</div>
+          <div style={{ fontSize: 10, color: S.text3 }}>
+            🏍️ Livreur · {profile?.full_name}
+            {profile?.zone_nom && (
+              <span style={{ marginLeft:6, background:"rgba(245,158,11,0.15)", color:"#F59E0B", padding:"1px 6px", borderRadius:10, fontSize:9, fontWeight:700 }}>
+                🌍 {profile.zone_nom}
+              </span>
+            )}
+          </div>
         </div>
         <ProfileMenu
           name={profile?.full_name || "Livreur"}
