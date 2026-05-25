@@ -1164,7 +1164,7 @@ export function AdminView() {
     if (td) setTenantSlug(td.slug || "");
 
     // Tout en parallèle — beaucoup plus rapide
-    const [tenantRes, profilesRes, ordersRes, stockRes] = await Promise.all([
+    const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes] = await Promise.all([
       tid ? supabase.from("tenants")
         .select("driver_commission, closer_commission, currency, name")
         .eq("id", tid).single()
@@ -1180,6 +1180,8 @@ export function AdminView() {
       tid ? supabase.from("driver_stock")
         .select("id, driver_id, driver_name, product_name, quantity")
         .eq("tenant_id", tid)
+        : Promise.resolve({ data: [] }),
+      tid ? supabase.from("zones").select("*").eq("tenant_id", tid).eq("is_active", true)
         : Promise.resolve({ data: [] }),
     ]);
 
