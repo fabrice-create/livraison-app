@@ -547,31 +547,49 @@ export default function ParametresView({ tenantId }: Props) {
           </p>
         </div>
 
-        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>📋 Widget général (toute ta boutique)</p>
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 12, marginBottom: 8, overflowX: "auto" }}>
-          <pre style={{ color: S.info, fontSize: 11, margin: 0, whiteSpace: "pre", fontFamily: "monospace" }}>{`<script src="${typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"}/widget.js"
-  data-boutique="${tenantSlug}"
-  data-mode="form">
-</script>`}</pre>
-        </div>
-        <button onClick={() => {
-          const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
-          navigator.clipboard.writeText(`<script src="${base}/widget.js"\n  data-boutique="${tenantSlug}"\n  data-mode="form">\n</script>`)
-          setSuccess("Widget copié ✓")
-          setTimeout(() => setSuccess(""), 2000)
-        }} style={{ background: S.border, border: "none", borderRadius: 8, padding: "8px 16px", color: S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}>
-          📋 Copier le code
-        </button>
+        {/* Bloc de code copiable — helper inline */}
+        {(() => {
+          const base = typeof window !== "undefined" ? "https://shipivo.app" : "https://shipivo.app";
+          const code1 = `<script src="https://shipivo.app/widget.js"\n  data-boutique="${tenantSlug}"\n  data-mode="form">\n</script>`;
+          const code2 = `<script src="https://shipivo.app/widget.js"\n  data-boutique="${tenantSlug}"\n  data-produit-nom="Nom du produit"\n  data-produit-prix="5000"\n  data-mode="full">\n</script>`;
+          const code3 = `<iframe src="https://shipivo.app/widget?boutique=${tenantSlug}&mode=form" width="100%" height="500" frameborder="0"></iframe>`;
 
-        <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>🛍️ Widget avec produit depuis ton site externe</p>
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 12, marginBottom: 8, overflowX: "auto" }}>
-          <pre style={{ color: S.info, fontSize: 11, margin: 0, whiteSpace: "pre", fontFamily: "monospace" }}>{`<script src="shipivo.app/widget.js"
-  data-boutique="${tenantSlug}"
-  data-produit-nom="Nom du produit"
-  data-produit-prix="5000"
-  data-mode="full">
-</script>`}</pre>
-        </div>
+          const copyBlock = (code: string, label: string, key: string) => (
+            <div key={key} style={{ marginBottom: 16 }}>
+              <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, margin: "0 0 8px 0" }}>{label}</p>
+              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: `1px solid ${S.border}` }}>
+                  <span style={{ color: S.text3, fontSize: 11 }}>HTML</span>
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(code)
+                    setSuccess(`${label} copié ✓`)
+                    setTimeout(() => setSuccess(""), 2000)
+                  }} style={{
+                    background: success.includes(label) ? "#052E16" : S.card,
+                    border: `1px solid ${success.includes(label) ? "#4ADE8030" : S.border}`,
+                    borderRadius: 6, padding: "4px 10px",
+                    color: success.includes(label) ? "#4ADE80" : S.text2,
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 5
+                  }}>
+                    {success.includes(label) ? "✓ Copié !" : "📋 Copier"}
+                  </button>
+                </div>
+                <div style={{ padding: 12, overflowX: "auto" }}>
+                  <pre style={{ color: S.info, fontSize: 11, margin: 0, whiteSpace: "pre", fontFamily: "monospace" }}>{code}</pre>
+                </div>
+              </div>
+            </div>
+          );
+
+          return (
+            <>
+              {copyBlock(code1, "📋 Widget général (toute ta boutique)", "w1")}
+              {copyBlock(code2, "🛍️ Widget avec produit spécifique", "w2")}
+              {copyBlock(code3, "🖼️ Version iframe directe", "w3")}
+            </>
+          );
+        })()}
         <p style={{ color: S.text3, fontSize: 11, margin: 0, lineHeight: 1.7 }}>
           Remplace <strong style={{ color: S.text2 }}>Nom du produit</strong> et <strong style={{ color: S.text2 }}>5000</strong> par les vraies valeurs de ton site.
           Les commandes arrivent directement dans Shipivo — closureuse et livreur reçoivent normalement.
