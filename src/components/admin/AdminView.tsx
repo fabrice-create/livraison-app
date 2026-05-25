@@ -122,6 +122,7 @@ function Select({ label, name, value, onChange, options }: {
 // ─── Vue Dashboard — Phase 10 Analytics Pro ──────────────────
 function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks: DriverStock[] }) {
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
+  const [selectedZone, setSelectedZone] = useState<string>("all");
   const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total");
 
   function inPeriod(dateStr: string | null | undefined, p: string): boolean {
@@ -405,6 +406,7 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
   const [activeTab, setActiveTab] = useState("aujourd_hui");
   const [search, setSearch]       = useState("");
   const [driverFilter, setDriverFilter] = useState("Tous");
+  const [zoneFilter, setZoneFilter] = useState("Toutes");
 
   const now      = new Date();
   const todayStr = now.toDateString();
@@ -1101,6 +1103,7 @@ export function AdminView() {
   const [history, setHistory]           = useState<OrderHistory[]>([]);
   const [profile, setProfile]           = useState<Profile | null>(null);
   const [tenantId, setTenantId]         = useState<string>("");
+  const [zones, setZones]               = useState<Zone[]>([]);
   const [tenantSlug, setTenantSlug]     = useState<string>("");
   const [commissionRules, setCommissionRules] = useState({ driver: 2000, closer: 500 });
   const [authLoading, setAuthLoading]   = useState(true);
