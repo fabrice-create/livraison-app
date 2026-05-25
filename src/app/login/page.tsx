@@ -1,158 +1,167 @@
 "use client"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { getUserProfile, getRedirectByRole } from "@/lib/auth"
 
-const C = {
-  bg: "#0A0A0F", card: "#111118", border: "#1E1E2E",
-  gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
-  white: "#F8F8FC", muted: "#55556A", mutedLight: "#9898B0",
-  danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
-}
-
-function Logo() {
-  return (
-    <div style={{ textAlign: "center", marginBottom: 40 }}>
-      <a href="/" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 11, background: C.gold, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="28" height="28" viewBox="0 0 26 26" fill="none">
-            <rect x="2" y="2" width="22" height="5" rx="2.5" fill="#0A0A0F"/>
-            <rect x="2" y="2" width="5" height="12" rx="2.5" fill="#0A0A0F"/>
-            <rect x="2" y="10.5" width="22" height="5" rx="2.5" fill="#0A0A0F"/>
-            <rect x="19" y="10.5" width="5" height="12" rx="2.5" fill="#0A0A0F"/>
-            <rect x="2" y="19" width="22" height="5" rx="2.5" fill="#0A0A0F"/>
-          </svg>
-        </div>
-        <div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: C.white, letterSpacing: "-0.04em", lineHeight: 1, fontFamily: "Inter, sans-serif" }}>Shipivo</div>
-          <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.15em", marginTop: 3, fontFamily: "Inter, sans-serif" }}>SHIP SMARTER · DELIVER FASTER</div>
-        </div>
-      </a>
-    </div>
-  )
-}
-
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [checking, setChecking] = useState(true)
   const [error, setError] = useState("")
-  const [showPwd, setShowPwd] = useState(false)
-
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const profile = await getUserProfile(user.id)
-          if (profile && profile.is_active) {
-            window.location.href = getRedirectByRole(profile.role)
-            return
-          } else {
-            // Session active mais profil invalide — nettoyer
-            await supabase.auth.signOut()
-          }
-        }
-      } catch {
-        await supabase.auth.signOut()
-      }
-      setChecking(false)
-    }
-    checkSession()
-  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
-    // Déconnecter l'ancienne session avant tout — clé du fix
-    await supabase.auth.signOut()
+    try {
+      // 1. Déconnecter toute session existante
+      await supabase.auth.signOut()
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password
-    })
-    if (authError) {
-      setError(authError.message.includes("Invalid login") ? "Email ou mot de passe incorrect." : authError.message)
-      setLoading(false); return
+      // 2. Connexion
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      })
+
+      if (authError || !data.user) {
+        setError("Email ou mot de passe incorrect.")
+        setLoading(false)
+        return
+      }
+
+      // 3. Récupérer le profil
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, role, is_active, tenant_id, full_name")
+        .eq("id", data.user.id)
+        .single()
+
+      if (!profileData) {
+        setError("Compte non configuré. Contacte le support.")
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      if (!profileData.is_active) {
+        setError("Ton compte est désactivé.")
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      // 4. Redirection selon le rôle
+      const role = profileData.role?.toLowerCase().trim()
+      let url = "/admin"
+      if (role === "livreur") url = "/livreur"
+      else if (role === "closureuse") url = "/closureuse"
+
+      window.location.replace(url)
+
+    } catch (err) {
+      console.error("Erreur login:", err)
+      setError("Une erreur est survenue. Réessayez.")
+      setLoading(false)
     }
-    if (!data.user) { setError("Connexion échouée."); setLoading(false); return }
-
-    const profile = await getUserProfile(data.user.id)
-    if (!profile) {
-      setError("Compte non configuré. Contacte le support.")
-      await supabase.auth.signOut(); setLoading(false); return
-    }
-    if (!profile.is_active) {
-      setError("Ton compte est désactivé.")
-      await supabase.auth.signOut(); setLoading(false); return
-    }
-
-    // window.location.href force le rechargement complet — pas de cache de session
-    window.location.href = getRedirectByRole(profile.role)
-  }
-
-
-  if (checking) {
-    return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", gap: 6 }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: C.gold, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-          ))}
-        </div>
-        <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.5);opacity:1}}`}</style>
-      </div>
-    )
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: "Inter, -apple-system, sans-serif", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: "-20%", left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(245,158,11,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
-        <Logo />
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "36px 32px", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.white, margin: "0 0 6px 0" }}>Connexion</h1>
-          <p style={{ color: C.muted, fontSize: 14, margin: "0 0 28px 0" }}>Accède à ton espace de gestion</p>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="ton@email.com" autoComplete="email"
-                style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const }}
-                onFocus={e => e.target.style.borderColor = C.gold} onBlur={e => e.target.style.borderColor = C.border} />
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label style={{ display: "block", color: C.mutedLight, fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Mot de passe</label>
-              <div style={{ position: "relative" }}>
-                <input type={showPwd ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" autoComplete="current-password"
-                  style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 44px 12px 14px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box" as const }}
-                  onFocus={e => e.target.style.borderColor = C.gold} onBlur={e => e.target.style.borderColor = C.border} />
-                <button type="button" onClick={() => setShowPwd(v => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 16 }}>
-                  {showPwd ? "🙈" : "👁️"}
-                </button>
-              </div>
-            </div>
-            <div style={{ textAlign: "right", marginBottom: 20 }}>
-              <a href="/forgot-password" style={{ color: C.gold, fontSize: 13, textDecoration: "none", fontWeight: 500 }}>Mot de passe oublié ?</a>
-            </div>
-            {error && (
-              <div style={{ background: C.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: C.danger, fontSize: 13, display: "flex", gap: 8 }}>
-                ⚠️ {error}
-              </div>
-            )}
-            <button type="submit" disabled={loading} style={{ width: "100%", background: loading ? C.goldDim : `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`, border: "none", borderRadius: 10, padding: "13px", color: "#000", fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", minHeight: 46 }}>
-              {loading ? "Connexion en cours…" : "Se connecter →"}
-            </button>
-          </form>
+    <div style={{
+      minHeight: "100vh", background: "#0A0A0F",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "Inter, Arial, sans-serif", padding: 16
+    }}>
+      <div style={{ width: "100%", maxWidth: 400 }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 18,
+            background: "#F59E0B", display: "inline-flex",
+            alignItems: "center", justifyContent: "center", marginBottom: 16
+          }}>
+            <svg width="40" height="40" viewBox="0 0 26 26" fill="none">
+              <rect x="2" y="2" width="22" height="4" rx="2" fill="#0A0A0F"/>
+              <rect x="2" y="2" width="5" height="12" rx="2" fill="#0A0A0F"/>
+              <rect x="2" y="10" width="22" height="4" rx="2" fill="#0A0A0F"/>
+              <rect x="19" y="10" width="5" height="12" rx="2" fill="#0A0A0F"/>
+              <rect x="2" y="18" width="22" height="4" rx="2" fill="#0A0A0F"/>
+            </svg>
+          </div>
+          <h1 style={{ color: "#F59E0B", fontSize: 28, fontWeight: 800, margin: 0 }}>Shipivo</h1>
+          <p style={{ color: "#55556A", fontSize: 12, margin: "4px 0 0 0", letterSpacing: "0.1em" }}>
+            SHIP SMARTER · DELIVER FASTER
+          </p>
         </div>
-        <p style={{ textAlign: "center", color: C.muted, fontSize: 14, marginTop: 24 }}>
-          Pas encore de compte ?{" "}
-          <a href="/signup" style={{ color: C.gold, textDecoration: "none", fontWeight: 600 }}>Essai gratuit 14 jours →</a>
+
+        {/* Formulaire */}
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ color: "#9898B0", fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+              EMAIL
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="ton@email.com"
+              required
+              style={{
+                width: "100%", padding: "12px 14px",
+                background: "#111118", border: "1px solid #1E1E2E",
+                borderRadius: 10, color: "#F8F8FC", fontSize: 15,
+                outline: "none", boxSizing: "border-box"
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ color: "#9898B0", fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+              MOT DE PASSE
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={{
+                width: "100%", padding: "12px 14px",
+                background: "#111118", border: "1px solid #1E1E2E",
+                borderRadius: 10, color: "#F8F8FC", fontSize: 15,
+                outline: "none", boxSizing: "border-box"
+              }}
+            />
+          </div>
+
+          {error && (
+            <div style={{
+              background: "#450A0A", border: "1px solid #F8717130",
+              borderRadius: 8, padding: "10px 14px",
+              color: "#F87171", fontSize: 13, marginBottom: 16
+            }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%", padding: "14px",
+              background: loading ? "#D97706" : "#F59E0B",
+              border: "none", borderRadius: 10,
+              color: "#000", fontSize: 15, fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer"
+            }}
+          >
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
+
+        <p style={{ textAlign: "center", color: "#55556A", fontSize: 12, marginTop: 32 }}>
+          Shipivo © 2026
         </p>
       </div>
     </div>
