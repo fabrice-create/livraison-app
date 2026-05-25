@@ -77,7 +77,11 @@ export function ClosureuseView() {
         table: "orders",
       }, (payload) => {
         const newOrder = payload.new as Order;
-        setOrders(prev => [newOrder, ...prev]);
+        setOrders(prev => {
+          // Dédupliquer — ne pas ajouter si déjà présent
+          if (prev.some(o => o.id === newOrder.id)) return prev;
+          return [newOrder, ...prev];
+        });
         setNewOrdersCount(c => c + 1);
         // Son de notification
         try {
@@ -256,7 +260,8 @@ export function ClosureuseView() {
       closer_commission: 0, driver_commission: 0, commission_calculated: false,
     }]).select();
     if (error) { toast("Erreur : " + error.message, "error"); setCreateLoading(false); return; }
-    if (data) setOrders(prev => [...(data as Order[]), ...prev]);
+    // Ne PAS ajouter manuellement — le realtime gère l'INSERT automatiquement
+    // Sinon la commande apparaît en double
     setCreateForm({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" });
     setShowCreateForm(false);
     setTab("commandes");
