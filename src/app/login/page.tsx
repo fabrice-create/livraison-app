@@ -1,87 +1,153 @@
 "use client"
 import { useState } from "react"
 import { supabase } from "@/app/lib/supabase"
-import { getUserProfile, getRedirectByRole } from "@/lib/auth"
+import { createTenantAndAdmin } from "@/lib/auth"
+
+const S = {
+  bg: "#0A0A0F",
+  card: "#111118",
+  border: "#1E1E2E",
+  gold: "#F59E0B",
+  goldDark: "#D97706",
+  text: "#F8F8FC",
+  text2: "#9898B0",
+  text3: "#55556A",
+  red: "#F87171",
+  redBg: "#450A0A",
+  green: "#4ADE80",
+  greenBg: "#052E16",
+}
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<"login" | "register">("login")
+
+  // Login state
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [loadingLogin, setLoadingLogin] = useState(false)
+  const [errorLogin, setErrorLogin] = useState("")
+
+  // Register state
+  const [regEmail, setRegEmail] = useState("")
+  const [regPassword, setRegPassword] = useState("")
+  const [regName, setRegName] = useState("")
+  const [regBusiness, setRegBusiness] = useState("")
+  const [regPhone, setRegPhone] = useState("")
+  const [regCountry, setRegCountry] = useState("TG")
+  const [loadingReg, setLoadingReg] = useState(false)
+  const [errorReg, setErrorReg] = useState("")
+  const [successReg, setSuccessReg] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
-    setLoading(true)
-
+    setErrorLogin("")
+    setLoadingLogin(true)
     try {
-      // 1. Déconnecter toute session existante
       await supabase.auth.signOut()
-
-      // 2. Connexion
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password
       })
-
       if (authError || !data.user) {
-        setError("Email ou mot de passe incorrect.")
-        setLoading(false)
+        setErrorLogin("Email ou mot de passe incorrect.")
+        setLoadingLogin(false)
         return
       }
-
-      // 3. Récupérer le profil
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, role, is_active, tenant_id, full_name")
-        .eq("id", data.user.id)
-        .single()
+        .select("id, role, is_active")
+        .or(`user_id.eq.${data.user.id},id.eq.${data.user.id}`)
+        .maybeSingle()
 
       if (!profileData) {
-        setError("Compte non configuré. Contacte le support.")
+        setErrorLogin("Compte non configuré. Contacte le support.")
         await supabase.auth.signOut()
-        setLoading(false)
+        setLoadingLogin(false)
         return
       }
-
       if (!profileData.is_active) {
-        setError("Ton compte est désactivé.")
+        setErrorLogin("Ton compte est désactivé.")
         await supabase.auth.signOut()
-        setLoading(false)
+        setLoadingLogin(false)
         return
       }
-
-      // 4. Redirection selon le rôle
-      const role = profileData.role?.toLowerCase().trim()
+      const role = (profileData.role || "").toLowerCase().trim()
       let url = "/admin"
       if (role === "livreur") url = "/livreur"
       else if (role === "closureuse") url = "/closureuse"
-
+      else if (role === "super_admin") url = "/super-admin"
       window.location.replace(url)
-
-    } catch (err) {
-      console.error("Erreur login:", err)
-      setError("Une erreur est survenue. Réessayez.")
-      setLoading(false)
+    } catch {
+      setErrorLogin("Une erreur est survenue. Réessayez.")
+      setLoadingLogin(false)
     }
   }
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorReg("")
+    setSuccessReg("")
+    if (regPassword.length < 8) {
+      setErrorReg("Le mot de passe doit contenir au moins 8 caractères.")
+      return
+    }
+    setLoadingReg(true)
+    try {
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: regEmail.trim().toLowerCase(),
+        password: regPassword,
+      })
+      if (authError || !data.user) {
+        setErrorReg(authError?.message || "Erreur lors de l'inscription.")
+        setLoadingReg(false)
+        return
+      }
+      await createTenantAndAdmin({
+        userId: data.user.id,
+        email: regEmail.trim().toLowerCase(),
+        fullName: regName.trim(),
+        businessName: regBusiness.trim(),
+        phone: regPhone.trim(),
+        country: regCountry,
+      })
+      setSuccessReg("Compte créé avec succès ! Connectez-vous maintenant.")
+      setLoadingReg(false)
+      setTimeout(() => setMode("login"), 2000)
+    } catch (err: any) {
+      setErrorReg(err.message || "Erreur lors de la création du compte.")
+      setLoadingReg(false)
+    }
+  }
+
+  const countries = [
+    { code: "TG", name: "Togo" },
+    { code: "BJ", name: "Bénin" },
+    { code: "CI", name: "Côte d'Ivoire" },
+    { code: "SN", name: "Sénégal" },
+    { code: "ML", name: "Mali" },
+    { code: "BF", name: "Burkina Faso" },
+    { code: "GH", name: "Ghana" },
+    { code: "NG", name: "Nigeria" },
+    { code: "CM", name: "Cameroun" },
+    { code: "FR", name: "France" },
+  ]
+
   return (
     <div style={{
-      minHeight: "100vh", background: "#0A0A0F",
+      minHeight: "100vh", background: S.bg,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: "Inter, Arial, sans-serif", padding: 16
     }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
 
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
-            width: 72, height: 72, borderRadius: 18,
-            background: "#F59E0B", display: "inline-flex",
-            alignItems: "center", justifyContent: "center", marginBottom: 16
+            width: 68, height: 68, borderRadius: 18,
+            background: S.gold, display: "inline-flex",
+            alignItems: "center", justifyContent: "center", marginBottom: 12
           }}>
-            <svg width="40" height="40" viewBox="0 0 26 26" fill="none">
+            <svg width="38" height="38" viewBox="0 0 26 26" fill="none">
               <rect x="2" y="2" width="22" height="4" rx="2" fill="#0A0A0F"/>
               <rect x="2" y="2" width="5" height="12" rx="2" fill="#0A0A0F"/>
               <rect x="2" y="10" width="22" height="4" rx="2" fill="#0A0A0F"/>
@@ -89,78 +155,109 @@ export default function LoginPage() {
               <rect x="2" y="18" width="22" height="4" rx="2" fill="#0A0A0F"/>
             </svg>
           </div>
-          <h1 style={{ color: "#F59E0B", fontSize: 28, fontWeight: 800, margin: 0 }}>Shipivo</h1>
-          <p style={{ color: "#55556A", fontSize: 12, margin: "4px 0 0 0", letterSpacing: "0.1em" }}>
+          <h1 style={{ color: S.gold, fontSize: 26, fontWeight: 800, margin: 0 }}>Shipivo</h1>
+          <p style={{ color: S.text3, fontSize: 11, margin: "4px 0 0 0", letterSpacing: "0.1em" }}>
             SHIP SMARTER · DELIVER FASTER
           </p>
         </div>
 
-        {/* Formulaire */}
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ color: "#9898B0", fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              EMAIL
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="ton@email.com"
-              required
+        {/* Onglets */}
+        <div style={{
+          display: "flex", background: S.card,
+          border: `1px solid ${S.border}`, borderRadius: 12,
+          padding: 4, marginBottom: 24, gap: 4
+        }}>
+          {([["login", "Se connecter"], ["register", "Créer un compte"]] as const).map(([m, label]) => (
+            <button key={m} onClick={() => { setMode(m); setErrorLogin(""); setErrorReg(""); }}
               style={{
-                width: "100%", padding: "12px 14px",
-                background: "#111118", border: "1px solid #1E1E2E",
-                borderRadius: 10, color: "#F8F8FC", fontSize: 15,
-                outline: "none", boxSizing: "border-box"
-              }}
-            />
-          </div>
+                flex: 1, padding: "10px", borderRadius: 9, border: "none",
+                background: mode === m ? S.gold : "transparent",
+                color: mode === m ? "#000" : S.text2,
+                fontWeight: mode === m ? 700 : 500,
+                fontSize: 13, cursor: "pointer"
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ color: "#9898B0", fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              MOT DE PASSE
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              style={{
-                width: "100%", padding: "12px 14px",
-                background: "#111118", border: "1px solid #1E1E2E",
-                borderRadius: 10, color: "#F8F8FC", fontSize: 15,
-                outline: "none", boxSizing: "border-box"
-              }}
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              background: "#450A0A", border: "1px solid #F8717130",
-              borderRadius: 8, padding: "10px 14px",
-              color: "#F87171", fontSize: 13, marginBottom: 16
-            }}>
-              {error}
+        {/* Formulaire Connexion */}
+        {mode === "login" && (
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>EMAIL</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="ton@email.com" required
+                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
             </div>
-          )}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" required
+                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            {errorLogin && (
+              <div style={{ background: S.redBg, border: `1px solid ${S.red}30`, borderRadius: 8, padding: "10px 14px", color: S.red, fontSize: 13, marginBottom: 14 }}>
+                {errorLogin}
+              </div>
+            )}
+            <button type="submit" disabled={loadingLogin}
+              style={{ width: "100%", padding: "14px", background: loadingLogin ? S.goldDark : S.gold, border: "none", borderRadius: 10, color: "#000", fontSize: 15, fontWeight: 700, cursor: loadingLogin ? "not-allowed" : "pointer" }}>
+              {loadingLogin ? "Connexion..." : "Se connecter"}
+            </button>
+          </form>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%", padding: "14px",
-              background: loading ? "#D97706" : "#F59E0B",
-              border: "none", borderRadius: 10,
-              color: "#000", fontSize: 15, fontWeight: 700,
-              cursor: loading ? "not-allowed" : "pointer"
-            }}
-          >
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-        </form>
+        {/* Formulaire Inscription */}
+        {mode === "register" && (
+          <form onSubmit={handleRegister}>
+            {[
+              { label: "NOM COMPLET", value: regName, set: setRegName, placeholder: "Kofi Mensah", type: "text" },
+              { label: "NOM DE LA BOUTIQUE", value: regBusiness, set: setRegBusiness, placeholder: "THERAWOLF Shop", type: "text" },
+              { label: "EMAIL", value: regEmail, set: setRegEmail, placeholder: "ton@email.com", type: "email" },
+              { label: "TÉLÉPHONE", value: regPhone, set: setRegPhone, placeholder: "+228 90 00 00 00", type: "tel" },
+            ].map(({ label, value, set, placeholder, type }) => (
+              <div key={label} style={{ marginBottom: 12 }}>
+                <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>{label}</label>
+                <input type={type} value={value} onChange={e => set(e.target.value)}
+                  placeholder={placeholder} required
+                  style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            ))}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>PAYS</label>
+              <select value={regCountry} onChange={e => setRegCountry(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}>
+                {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
+              <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)}
+                placeholder="Min. 8 caractères" required minLength={8}
+                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            {errorReg && (
+              <div style={{ background: S.redBg, border: `1px solid ${S.red}30`, borderRadius: 8, padding: "10px 14px", color: S.red, fontSize: 13, marginBottom: 12 }}>
+                {errorReg}
+              </div>
+            )}
+            {successReg && (
+              <div style={{ background: S.greenBg, border: `1px solid ${S.green}30`, borderRadius: 8, padding: "10px 14px", color: S.green, fontSize: 13, marginBottom: 12 }}>
+                {successReg}
+              </div>
+            )}
+            <button type="submit" disabled={loadingReg}
+              style={{ width: "100%", padding: "14px", background: loadingReg ? S.goldDark : S.gold, border: "none", borderRadius: 10, color: "#000", fontSize: 15, fontWeight: 700, cursor: loadingReg ? "not-allowed" : "pointer" }}>
+              {loadingReg ? "Création..." : "Créer mon compte"}
+            </button>
+            <p style={{ color: S.text3, fontSize: 11, textAlign: "center", marginTop: 10 }}>
+              14 jours d&apos;essai gratuit · Sans carte bancaire
+            </p>
+          </form>
+        )}
 
-        <p style={{ textAlign: "center", color: "#55556A", fontSize: 12, marginTop: 32 }}>
+        <p style={{ textAlign: "center", color: S.text3, fontSize: 11, marginTop: 28 }}>
           Shipivo © 2026
         </p>
       </div>
