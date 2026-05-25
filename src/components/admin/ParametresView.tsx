@@ -596,6 +596,20 @@ export default function ParametresView({ tenantId }: Props) {
             <Field label="Pixel ID TikTok" value={settings.tiktok_pixel_id} onChange={set("tiktok_pixel_id")} inp={inp} placeholder="C..." />
           </Section>
 
+          {/* Lien catalogue */}
+          <Section title="🏪 Lien de ton catalogue">
+            <p style={{ color: S.text2, fontSize: 13, marginBottom: 12 }}>
+              Partage ce lien pour que tes clients voient tous tes produits.
+            </p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input readOnly value={`https://shipivo.app/commander/${tenantSlug}`} style={{ ...inp, flex: 1, color: S.info, fontSize: 11 }} />
+              <button onClick={() => { navigator.clipboard.writeText(`https://shipivo.app/commander/${tenantSlug}`); setCopied("catalogue"); setTimeout(() => setCopied(""), 2000) }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "catalogue" ? S.success : S.border}`, background: "transparent", color: copied === "catalogue" ? S.success : S.text3, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+                {copied === "catalogue" ? "✓ Copié !" : "📋 Copier"}
+              </button>
+            </div>
+          </Section>
+
           {/* Lien tracké */}
           <Section title="🔗 Liens trackés par source">
             {["facebook","tiktok","google","whatsapp","instagram","youtube","email"].map(src => {

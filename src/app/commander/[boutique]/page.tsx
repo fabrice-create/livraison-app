@@ -209,7 +209,7 @@ export default function CommanderPage() {
     if (tenant.ga_measurement_id) initGA(tenant.ga_measurement_id)
 
     const { data: prods } = await supabase
-      .from("products").select("id, name, price, description, image_url")
+      .from("products").select("id, name, price, description, image_url, slug")
       .eq("tenant_id", tenant.id).eq("is_active", true).order("name")
     setProducts(prods || [])
     setLoading(false)
@@ -562,7 +562,7 @@ export default function CommanderPage() {
                     <div key={product.id}
                       style={{ borderRadius: 20, overflow: "hidden", position: "relative", background: "#111118", border: `1px solid ${qty > 0 ? bc : "#ffffff0a"}` }}>
                       {/* Photo */}
-                      <div onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
+                      <div onClick={() => router.push(product.slug ? `/produit/${slug}/${product.slug}` : `/commander/${slug}/produit/${product.id}`)}
                         style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", cursor: "pointer", background: "#16161F" }}>
                         {product.image_url ? (
                           <img src={product.image_url} alt={product.name}
@@ -587,7 +587,7 @@ export default function CommanderPage() {
                       </div>
                       {/* Infos + bouton */}
                       <div style={{ padding: "8px 10px 10px" }}>
-                        <p onClick={() => router.push(`/commander/${slug}/produit/${product.id}`)}
+                        <p onClick={() => router.push(product.slug ? `/produit/${slug}/${product.slug}` : `/commander/${slug}/produit/${product.id}`)}
                           style={{ color: "#F8F8FC", fontSize: 12, fontWeight: 600, margin: "0 0 2px 0", lineHeight: 1.3, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
                           {product.name}
                         </p>
