@@ -98,7 +98,15 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     if (!nom.trim()) { setError("Nom requis."); return }
     if (!prix) { setError("Prix requis."); return }
     setSaving(true); setError("")
-    const slug = nom.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-")
+    // Slug sécurisé — gère les accents et caractères spéciaux
+    const slugBase = nom.trim()
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || "produit"
+    // Ajouter timestamp pour éviter les doublons
+    const slug = editId ? slugBase : `${slugBase}-${Date.now().toString(36)}`
     const payload = {
       tenant_id: tenantId, nom: nom.trim(), slug, prix: Number(prix),
       prix_barre: prixBarre ? Number(prixBarre) : null, devise, badge, is_active: isActive,
@@ -108,9 +116,11 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       updated_at: new Date().toISOString()
     }
     if (editId) {
-      await supabase.from("products").update(payload).eq("id", editId)
+      const { error } = await supabase.from("products").update(payload).eq("id", editId)
+      if (error) { setError("Erreur: " + error.message); setSaving(false); return }
     } else {
-      await supabase.from("products").insert(payload)
+      const { error } = await supabase.from("products").insert(payload)
+      if (error) { setError("Erreur: " + error.message); setSaving(false); return }
     }
     await loadProducts()
     setShowEditor(false); resetForm(); setSaving(false)
