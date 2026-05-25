@@ -77,7 +77,11 @@ export function ClosureuseView() {
         table: "orders",
       }, (payload) => {
         const newOrder = payload.new as Order;
-        setOrders(prev => [newOrder, ...prev]);
+        setOrders(prev => {
+          // Dédupliquer — ne pas ajouter si déjà présent
+          if (prev.some(o => o.id === newOrder.id)) return prev;
+          return [newOrder, ...prev];
+        });
         setNewOrdersCount(c => c + 1);
         // Son de notification
         try {
@@ -245,7 +249,9 @@ export function ClosureuseView() {
   };
 
   const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault(); setCreateLoading(true);
+    e.preventDefault();
+    if (createLoading) return; // Guard anti-double soumission
+    setCreateLoading(true);
     const { data, error } = await supabase.from("orders").insert([{
       ...createForm, quantity: Number(createForm.quantity), amount: Number(createForm.amount),
       status: "En attente", logistic_status: "En attente", payment_status: "Non payé",
@@ -254,7 +260,8 @@ export function ClosureuseView() {
       closer_commission: 0, driver_commission: 0, commission_calculated: false,
     }]).select();
     if (error) { toast("Erreur : " + error.message, "error"); setCreateLoading(false); return; }
-    if (data) setOrders(prev => [...(data as Order[]), ...prev]);
+    // Ne PAS ajouter manuellement — le realtime gère l'INSERT automatiquement
+    // Sinon la commande apparaît en double
     setCreateForm({ customer_name: "", phone: "", city: "", address: "", product: "", quantity: "1", amount: "", delivery_type: "" });
     setShowCreateForm(false);
     setTab("commandes");
@@ -275,7 +282,7 @@ export function ClosureuseView() {
     });
   };
 
-  const isEnCours = (o: Order) => o.status === "En attente" || o.status === "Confirmé";
+  const isEnCours = (o: Order) => ["En attente", "Confirmé", "Assigné", "En livraison"].includes(o.status ?? "");
   const today = new Date().toDateString();
   const todayCreated = orders.filter(o => new Date(o.created_at || "").toDateString() === today);
   const todayDelivered = orders.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
