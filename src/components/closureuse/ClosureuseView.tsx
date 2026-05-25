@@ -144,9 +144,11 @@ export function ClosureuseView() {
       setDrivers((driversRes.data || []) as Profile[]);
       setOrders((ordersRes.data || []) as Order[]);
       setDriverStocks((stockRes.data || []) as DriverStock[]);
+      setLoading(false);
 
     } catch (err) {
       console.error("Erreur init closureuse:", err);
+      setLoading(false);
       router.replace("/login");
     }
   };
