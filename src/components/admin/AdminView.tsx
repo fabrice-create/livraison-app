@@ -1136,7 +1136,9 @@ export function AdminView() {
 
     setProfile(p);
     const tid = (p as any).tenant_id || "";
-    setTenantId(tid);
+    setTenantId(tid)
+      const { data: td } = await supabase.from("tenants").select("slug").eq("id", tid).single()
+      if (td) setTenantSlug(td.slug || "");
 
     // Tout en parallèle — beaucoup plus rapide
     const [tenantRes, profilesRes, ordersRes, stockRes] = await Promise.all([
@@ -1381,6 +1383,7 @@ export function AdminView() {
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
+          {activeView === "zones"        && tenantId && <ZonesView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "clients"     && tenantId && <ClientsView tenantId={tenantId} />}
         {activeView === "import"      && tenantId && <ImportView tenantId={tenantId} />}
       </div>

@@ -104,6 +104,7 @@ export default function CommanderPage() {
   const [error, setError] = useState("")
   const [step, setStep] = useState<"catalogue" | "form">("catalogue")
   const [source, setSource] = useState("direct")
+  const [zoneInfo, setZoneInfo] = useState<{ id: string; nom: string; frais: number; devise: string } | null>(null)
   const { formatPrice, clientCurrency, ready: currencyReady } = useClientCurrency(boutique?.currency || "FCFA")
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY)
   const [showCountryPicker, setShowCountryPicker] = useState(false)
@@ -234,7 +235,8 @@ export default function CommanderPage() {
 
   const getQty = (id: string) => cart.find(i => i.id === id)?.quantity || 0
 
-  const fraisLivraison = boutique?.delivery_fee || 0
+  const fraisLivraison = zoneInfo ? zoneInfo.frais : (boutique?.delivery_fee || 0)
+  const deviseActive = zoneInfo ? zoneInfo.devise : (boutique?.currency || "FCFA")
   const totalProduits = cart.reduce((s, i) => s + i.price * i.quantity, 0)
   const totalFinal = totalProduits + fraisLivraison
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0)
@@ -280,6 +282,8 @@ export default function CommanderPage() {
         delivery_type: form.delivery_type,
         status: "En attente",
         source: source,
+        zone_id: zoneInfo?.id || null,
+        zone_nom: zoneInfo?.nom || null,
         note: form.note.trim() || null,
       })
 
