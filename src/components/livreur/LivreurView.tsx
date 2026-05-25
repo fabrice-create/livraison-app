@@ -150,9 +150,11 @@ export function LivreurView() {
 
       setOrders((ordersRes.data || []) as Order[]);
       setStock((stockRes.data || []) as DriverStock[]);
+      setLoading(false);
 
     } catch (err) {
       console.error("Erreur init livreur:", err);
+      setLoading(false);
       router.replace("/login");
     }
   }
