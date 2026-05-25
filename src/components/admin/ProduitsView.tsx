@@ -1,563 +1,631 @@
 "use client"
-
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/app/lib/supabase"
-import { compressImage, formatFileSize } from "@/lib/imageUtils"
 
 const S = {
-  gold: "#F59E0B", goldDark: "#D97706", goldDim: "#92610A",
-  bg: "#0A0A0F", card: "#111118", card2: "#16161F", border: "#1E1E2E",
-  text: "#F8F8FC", text2: "#9898B0", text3: "#55556A",
-  danger: "#F87171", dangerBg: "rgba(248,113,113,0.08)",
-  success: "#4ADE80", info: "#60A5FA",
+  bg:"#0A0A0F", card:"#111118", card2:"#16161F", border:"#1E1E2E",
+  gold:"#F59E0B", goldDk:"#D97706", white:"#F8F8FC",
+  muted:"#55556A", muted2:"#9898B0", success:"#4ADE80",
+  danger:"#F87171", dangerBg:"rgba(248,113,113,0.08)", info:"#60A5FA",
 }
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  description?: string
-  image_url?: string
-  badge?: string
+const FONTS = ["Inter","Poppins","Montserrat","Playfair Display","Bebas Neue","Lato"]
+const BADGES = ["","NOUVEAU","PROMO","BEST-SELLER","RUPTURE"]
+const THEMES = [
+  {id:"dark", label:"🌙 Sombre"},
+  {id:"light", label:"☀️ Clair"},
+]
+
+type Product = {
+  id?: string
+  tenant_id?: string
+  nom: string
+  slug: string
+  description: string
+  prix: number
+  prix_barre: number | null
+  devise: string
+  badge: string
   is_active: boolean
-  created_at: string
-  images?: ProductImage[]
+  image_principale: string
+  images: string[]
+  hero_titre: string
+  hero_sous_titre: string
+  hero_cta_texte: string
+  section_probleme_active: boolean
+  section_probleme_titre: string
+  section_probleme_items: {emoji:string;texte:string}[]
+  section_benefices_active: boolean
+  section_benefices_titre: string
+  section_benefices_items: {emoji:string;titre:string;texte:string}[]
+  section_composition_active: boolean
+  section_composition_titre: string
+  section_composition_items: {nom:string;description:string}[]
+  section_temoignages_active: boolean
+  section_temoignages_titre: string
+  section_temoignages_items: {nom:string;ville:string;texte:string;note:number}[]
+  section_comparaison_active: boolean
+  section_comparaison_titre: string
+  section_comparaison_items: {critere:string;nous:boolean;concurrent:boolean}[]
+  section_faq_active: boolean
+  section_faq_titre: string
+  section_faq_items: {question:string;reponse:string}[]
+  section_garantie_active: boolean
+  section_garantie_texte: string
+  section_garantie_icone: string
+  section_utilisation_active: boolean
+  section_utilisation_titre: string
+  section_utilisation_items: {etape:number;titre:string;texte:string}[]
+  countdown_active: boolean
+  countdown_texte: string
+  countdown_end: string
+  theme: string
+  font: string
+  couleur_fond: string
+  couleur_accent: string
+  couleur_texte: string
 }
 
-interface ProductImage {
-  id: string
-  image_url: string
-  position: number
+const EMPTY: Product = {
+  nom:"", slug:"", description:"", prix:0, prix_barre:null, devise:"FCFA",
+  badge:"", is_active:true, image_principale:"", images:[],
+  hero_titre:"", hero_sous_titre:"", hero_cta_texte:"Commander maintenant",
+  section_probleme_active:false, section_probleme_titre:"Vous souffrez de ça ?", section_probleme_items:[],
+  section_benefices_active:false, section_benefices_titre:"Pourquoi choisir ce produit ?", section_benefices_items:[],
+  section_composition_active:false, section_composition_titre:"Composition", section_composition_items:[],
+  section_temoignages_active:false, section_temoignages_titre:"Ce qu\'ils en disent", section_temoignages_items:[],
+  section_comparaison_active:false, section_comparaison_titre:"Pourquoi nous ?", section_comparaison_items:[],
+  section_faq_active:false, section_faq_titre:"Questions fréquentes", section_faq_items:[],
+  section_garantie_active:false, section_garantie_texte:"Satisfait ou remboursé 30 jours", section_garantie_icone:"🛡️",
+  section_utilisation_active:false, section_utilisation_titre:"Comment ça marche ?", section_utilisation_items:[],
+  countdown_active:false, countdown_texte:"Offre expire dans", countdown_end:"",
+  theme:"dark", font:"Poppins", couleur_fond:"#080810", couleur_accent:"#F59E0B", couleur_texte:"#F8F8FC",
 }
 
-interface Props {
-  tenantId: string
-  tenantSlug?: string
-}
+interface Props { tenantId: string; tenantSlug: string; brandColor?: string }
 
-const EMPTY = { name: "", price: "", description: "", badge: "" }
-
-export default function ProduitsView({ tenantId, tenantSlug }: Props) {
+export default function ProduitsView({ tenantId, tenantSlug, brandColor }: Props) {
   const [products, setProducts] = useState<Product[]>([])
-  const [slug, setSlug] = useState(tenantSlug || "")
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
-  const [form, setForm] = useState(EMPTY)
-
-  // Images multiples
-  const [mainImageFile, setMainImageFile] = useState<File | null>(null)
-  const [mainImagePreview, setMainImagePreview] = useState("")
-  const [mainImageInfo, setMainImageInfo] = useState("")
-  const [extraImages, setExtraImages] = useState<{ file: File; preview: string }[]>([])
-  const [existingImages, setExistingImages] = useState<ProductImage[]>([])
-
-  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [tab, setTab] = useState<"base"|"design"|"sections"|"apercu">("base")
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [copied, setCopied] = useState<string>("")
-  const [widgetProduct, setWidgetProduct] = useState<Product | null>(null)
-  const [widgetMode, setWidgetMode] = useState<"form" | "full">("form")
-  const [widgetType, setWidgetType] = useState<"script" | "iframe">("iframe")
-  const mainFileRef = useRef<HTMLInputElement>(null)
-  const extraFileRef = useRef<HTMLInputElement>(null)
+  const [copied, setCopied] = useState("")
 
-  useEffect(() => { loadData() }, [tenantId])
+  useEffect(() => { loadProducts() }, [tenantId])
 
-  const loadData = async () => {
+  const loadProducts = async () => {
     setLoading(true)
-    if (!slug) {
-      const { data: tenant } = await supabase
-        .from("tenants").select("slug").eq("id", tenantId).single()
-      if (tenant) setSlug(tenant.slug)
-    }
-    const { data } = await supabase
-      .from("products").select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-
-    if (data) {
-      // Charger les images pour chaque produit
-      const productIds = data.map(p => p.id)
-      const { data: imgs } = await supabase
-        .from("product_images")
-        .select("*")
-        .in("product_id", productIds)
-        .order("position")
-
-      const productsWithImages = data.map(p => ({
-        ...p,
-        images: imgs?.filter(i => i.product_id === p.id) || []
-      }))
-      setProducts(productsWithImages)
-    }
+    const { data } = await supabase.from("products").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false })
+    setProducts((data || []) as Product[])
     setLoading(false)
   }
 
-  const getBaseUrl = () => {
-    if (typeof window === "undefined") return "shipivo.app"
-    return window.location.origin
-  }
-
-  const getWidgetCode = (p: Product, mode: "form" | "full", type: "script" | "iframe") => {
-    const base = typeof window !== "undefined" ? window.location.origin : "https://shipivo.app"
-    if (type === "iframe") {
-      return `<iframe
-  src="${base}/widget?boutique=${slug}&produit=${p.id}&mode=${mode}"
-  style="width:100%;min-height:500px;border:none;border-radius:12px;"
-  frameborder="0"
-  scrolling="no">
-</iframe>`
-    }
-    return `<script src="${base}/widget.js"
-  data-boutique="${slug}"
-  data-produit="${p.id}"
-  data-mode="${mode}">
-</script>`
-  }
-
-  const getLienBoutique = () => `https://${getBaseUrl()}/commander/${slug}`
-  const getLienProduit = (p: Product) => `https://${getBaseUrl()}/commander/${slug}?produit=${p.id}`
-
-  const copyToClipboard = async (text: string, key: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(key)
-      setTimeout(() => setCopied(""), 2000)
-    } catch { setError("Impossible de copier") }
-  }
-
-  const resetForm = () => {
-    setForm(EMPTY)
-    setEditing(null)
-    setMainImageFile(null)
-    setMainImagePreview("")
-    setMainImageInfo("")
-    setExtraImages([])
-    setExistingImages([])
+  const startNew = () => {
+    setEditing({ ...EMPTY, couleur_accent: brandColor || "#F59E0B" })
+    setTab("base")
     setError("")
-    setShowForm(false)
   }
 
-  const startEdit = async (p: Product) => {
-    setEditing(p)
-    setForm({ name: p.name, price: String(p.price), description: p.description || "", badge: p.badge || "" })
-    setMainImagePreview(p.image_url || "")
-    setMainImageFile(null)
-    setMainImageInfo("")
-    setExtraImages([])
-    // Charger images existantes
-    const { data: imgs } = await supabase
-      .from("product_images")
-      .select("*")
-      .eq("product_id", p.id)
-      .order("position")
-    setExistingImages(imgs || [])
-    setShowForm(true)
-  }
-
-  const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setMainImagePreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-    setMainImageInfo("Compression en cours...")
-    const compressed = await compressImage(file, 800, 0.82)
-    setMainImageFile(compressed)
-    setMainImageInfo(`✓ Optimisé : ${formatFileSize(compressed.size)}`)
-  }
-
-  const handleExtraImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    const remaining = 9 - existingImages.length - extraImages.length
-    const toAdd = files.slice(0, remaining)
-    for (const file of toAdd) {
-      // Comprimer immédiatement au moment de la sélection
-      const compressed = await compressImage(file, 800, 0.82)
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        setExtraImages(prev => [...prev, { file: compressed, preview: ev.target?.result as string }])
-      }
-      reader.readAsDataURL(compressed)
-    }
-  }
-
-  const removeExtraImage = (index: number) => {
-    setExtraImages(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const removeExistingImage = async (img: ProductImage) => {
-    await supabase.from("product_images").delete().eq("id", img.id)
-    setExistingImages(prev => prev.filter(i => i.id !== img.id))
-  }
-
-  const uploadImage = async (file: File): Promise<string | null> => {
-    const fileName = `products/${tenantId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`
-    const { error: err } = await supabase.storage
-      .from("shipivo-images").upload(fileName, file, { contentType: "image/jpeg", upsert: false })
-    if (err) { setError("Erreur upload : " + err.message); return null }
-    const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
-    return data.publicUrl
+  const startEdit = (p: Product) => {
+    setEditing({ ...p })
+    setTab("base")
+    setError("")
   }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setError("Nom requis"); return }
-    if (!form.price || isNaN(Number(form.price))) { setError("Prix invalide"); return }
+    if (!editing) return
+    if (!editing.nom) { setError("Nom du produit requis."); return }
+    if (!editing.prix) { setError("Prix requis."); return }
     setSaving(true); setError("")
 
-    // Upload image principale
-    let imageUrl = editing?.image_url || null
-    if (mainImageFile) {
-      setUploading(true)
-      const url = await uploadImage(mainImageFile)
-      setUploading(false)
-      if (!url) { setSaving(false); return }
-      imageUrl = url
-    }
+    const slug = editing.slug || editing.nom.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-")
+    const payload = { ...editing, slug, tenant_id: tenantId, updated_at: new Date().toISOString() }
 
-    let productId: string | null = editing?.id || null
-
-    if (editing) {
-      const { error: err } = await supabase.from("products").update({
-        name: form.name.trim(),
-        price: Number(form.price),
-        description: form.description.trim() || null,
-        image_url: imageUrl,
-        badge: form.badge || null,
-      }).eq("id", editing.id)
-      if (err) { setError(err.message); setSaving(false); return }
-      productId = editing.id
+    let err
+    if (editing.id) {
+      const res = await supabase.from("products").update(payload).eq("id", editing.id)
+      err = res.error
     } else {
-      // Insérer le produit et récupérer l'id généré
-      const { data: inserted, error: err } = await supabase
-        .from("products")
-        .insert({
-          tenant_id: tenantId,
-          name: form.name.trim(),
-          price: Number(form.price),
-          description: form.description.trim() || null,
-          image_url: imageUrl,
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (err) { setError("Erreur création produit: " + err.message); setSaving(false); return }
-      if (!inserted) { setError("Produit non créé"); setSaving(false); return }
-      productId = inserted.id
+      const res = await supabase.from("products").insert({ ...payload })
+      err = res.error
     }
 
-    // Upload images supplémentaires (déjà compressées)
-    if (extraImages.length > 0 && productId) {
-      setUploading(true)
-      for (let i = 0; i < extraImages.length; i++) {
-        const url = await uploadImage(extraImages[i].file)
-        if (url) {
-          await supabase.from("product_images").insert({
-            product_id: productId,
-            tenant_id: tenantId,
-            image_url: url,
-            position: existingImages.length + i,
-          })
-        }
-      }
-      setUploading(false)
-    }
-
-    setSuccess(editing ? "Produit modifié ✓" : "Produit ajouté ✓")
-    setTimeout(() => setSuccess(""), 3000)
-    resetForm()
-    loadData()
+    if (err) { setError(err.message); setSaving(false); return }
+    await loadProducts()
+    setEditing(null)
     setSaving(false)
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Supprimer ce produit ?")) return
-    await supabase.from("product_images").delete().eq("product_id", id)
+    if (!confirm("Supprimer ce produit ?")) return
     await supabase.from("products").delete().eq("id", id)
-    setProducts(prev => prev.filter(p => p.id !== id))
+    await loadProducts()
   }
 
-  const inp = {
-    width: "100%", background: S.bg, border: `1px solid ${S.border}`,
-    borderRadius: 8, padding: "10px 12px", color: S.text, fontSize: 14,
-    outline: "none", boxSizing: "border-box" as const,
+  const toggleActive = async (p: Product) => {
+    await supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id!)
+    await loadProducts()
   }
 
-  if (loading) return (
-    <div style={{ padding: 32, textAlign: "center", color: S.text2 }}>Chargement...</div>
+  const inp: React.CSSProperties = {
+    width:"100%", background:S.bg, border:`1px solid ${S.border}`, borderRadius:8,
+    padding:"10px 12px", color:S.white, fontSize:13, outline:"none", boxSizing:"border-box" as const, fontFamily:"inherit"
+  }
+
+  const sectionToggle = (key: keyof Product) => (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${(editing as any)[key]?S.gold:S.border}` }}>
+      <span style={{ color:S.white, fontSize:13, fontWeight:600 }}>{sectionLabel(key as string)}</span>
+      <button onClick={() => setEditing(e => e ? {...e, [key]: !(e as any)[key]} : e)}
+        style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer",
+          background:(editing as any)[key]?"rgba(74,222,128,0.15)":S.bg,
+          color:(editing as any)[key]?S.success:S.muted }}>
+        {(editing as any)[key] ? "✅ Activée" : "Activer"}
+      </button>
+    </div>
   )
 
-  return (
-    <div style={{ fontFamily: "Inter, sans-serif", color: S.text }}>
+  const sectionLabel = (key: string) => ({
+    section_probleme_active:"😣 Section Problème",
+    section_benefices_active:"✅ Section Bénéfices",
+    section_composition_active:"🧪 Section Composition",
+    section_temoignages_active:"⭐ Section Témoignages",
+    section_comparaison_active:"🏆 Section Comparaison",
+    section_faq_active:"❓ Section FAQ",
+    section_garantie_active:"🛡️ Section Garantie",
+    section_utilisation_active:"📋 Section Mode d\'emploi",
+    countdown_active:"⏰ Compte à rebours",
+  }[key] || key)
 
-      {/* Lien boutique */}
-      {slug && (
-        <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <div>
-            <p style={{ color: S.text3, fontSize: 11, margin: "0 0 2px 0", fontWeight: 600 }}>LIEN DE TA BOUTIQUE</p>
-            <p style={{ color: S.info, fontSize: 12, margin: 0, wordBreak: "break-all" }}>{getLienBoutique()}</p>
-          </div>
-          <button onClick={() => copyToClipboard(getLienBoutique(), "boutique")}
-            style={{ background: copied === "boutique" ? S.success : S.border, border: "none", borderRadius: 6, padding: "6px 12px", color: copied === "boutique" ? "#000" : S.text, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-            {copied === "boutique" ? "✓ Copié" : "📋 Copier"}
+  const addItem = (key: keyof Product, template: object) =>
+    setEditing(e => e ? {...e, [key]: [...((e as any)[key] || []), template]} : e)
+
+  const removeItem = (key: keyof Product, idx: number) =>
+    setEditing(e => e ? {...e, [key]: ((e as any)[key] || []).filter((_: unknown, i: number) => i !== idx)} : e)
+
+  const updateItem = (key: keyof Product, idx: number, field: string, value: string | number | boolean) =>
+    setEditing(e => {
+      if (!e) return e
+      const arr = [...((e as any)[key] || [])]
+      arr[idx] = { ...arr[idx], [field]: value }
+      return { ...e, [key]: arr }
+    })
+
+  const pageUrl = editing?.id
+    ? `https://shipivo.app/produit/${tenantSlug}/${editing.slug}`
+    : null
+
+  if (loading) return <p style={{ color:S.muted, textAlign:"center", padding:32 }}>Chargement...</p>
+
+  // ── Éditeur ouvert ──
+  if (editing) return (
+    <div>
+      {/* Header éditeur */}
+      <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:20, flexWrap:"wrap" }}>
+        <button onClick={() => setEditing(null)} style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:13, cursor:"pointer" }}>
+          ← Retour
+        </button>
+        <p style={{ color:S.white, fontSize:15, fontWeight:700, margin:0, flex:1 }}>
+          {editing.id ? `✏️ ${editing.nom}` : "➕ Nouveau produit"}
+        </p>
+        {pageUrl && (
+          <button onClick={() => { navigator.clipboard.writeText(pageUrl); setCopied("url"); setTimeout(()=>setCopied(""),2000) }}
+            style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${copied==="url"?S.success:S.border}`, background:"transparent", color:copied==="url"?S.success:S.muted2, fontSize:12, cursor:"pointer" }}>
+            {copied==="url" ? "✓ Lien copié !" : "🔗 Copier le lien"}
           </button>
+        )}
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding:"8px 20px", borderRadius:8, border:"none", background:saving?S.muted:`linear-gradient(135deg,${S.gold},${S.goldDk})`, color:"#000", fontSize:13, fontWeight:700, cursor:saving?"not-allowed":"pointer" }}>
+          {saving ? "Enregistrement..." : "✅ Enregistrer"}
+        </button>
+      </div>
+
+      {error && <div style={{ background:S.dangerBg, border:"1px solid rgba(248,113,113,0.2)", borderRadius:8, padding:"10px 14px", marginBottom:14, color:S.danger, fontSize:13 }}>⚠️ {error}</div>}
+
+      {/* Tabs */}
+      <div style={{ display:"flex", gap:4, marginBottom:20, background:S.card, borderRadius:12, padding:4, flexWrap:"wrap" }}>
+        {([["base","📦 Produit"],["design","🎨 Design"],["sections","📋 Sections"],["apercu","👁️ Aperçu"]] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ flex:1, padding:"9px 12px", borderRadius:9, border:"none", fontSize:13, fontWeight:600, cursor:"pointer", minWidth:80,
+              background:tab===id?S.gold:"transparent", color:tab===id?"#000":S.muted2 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab Base ── */}
+      {tab === "base" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Nom du produit *</label>
+              <input value={editing.nom} onChange={e => setEditing(p => p ? {...p, nom:e.target.value, slug:e.target.value.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-")} : p)} style={inp} placeholder="Ex: THERAWOLF Baume 50ml" />
+            </div>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Badge</label>
+              <select value={editing.badge} onChange={e => setEditing(p => p?{...p,badge:e.target.value}:p)} style={inp}>
+                {BADGES.map(b => <option key={b} value={b}>{b || "Aucun"}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Description courte</label>
+            <textarea value={editing.description} onChange={e => setEditing(p => p?{...p,description:e.target.value}:p)} style={{...inp, resize:"none", height:80}} placeholder="Description du produit..." />
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Prix * ({editing.devise})</label>
+              <input type="number" value={editing.prix} onChange={e => setEditing(p => p?{...p,prix:Number(e.target.value)}:p)} style={inp} />
+            </div>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Prix barré</label>
+              <input type="number" value={editing.prix_barre || ""} onChange={e => setEditing(p => p?{...p,prix_barre:e.target.value?Number(e.target.value):null}:p)} style={inp} placeholder="0" />
+            </div>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Devise</label>
+              <select value={editing.devise} onChange={e => setEditing(p => p?{...p,devise:e.target.value}:p)} style={inp}>
+                {["FCFA","XOF","XAF","USD","EUR","GHS","NGN"].map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Image principale (URL)</label>
+            <input value={editing.image_principale} onChange={e => setEditing(p => p?{...p,image_principale:e.target.value}:p)} style={inp} placeholder="https://..." />
+            {editing.image_principale && <img src={editing.image_principale} alt="" style={{ marginTop:8, height:80, borderRadius:8, objectFit:"cover" }} />}
+          </div>
+
+          <div>
+            <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Images supplémentaires (URLs, une par ligne)</label>
+            <textarea value={editing.images.join("\n")} onChange={e => setEditing(p => p?{...p,images:e.target.value.split("\n").filter(u=>u.trim())}:p)} style={{...inp, resize:"none", height:80}} placeholder="https://image1.jpg&#10;https://image2.jpg" />
+          </div>
+
+          <div style={{ background:S.card2, borderRadius:12, padding:"14px 16px" }}>
+            <p style={{ color:S.muted2, fontSize:12, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>✍️ Textes Hero</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <div>
+                <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Titre accrocheur</label>
+                <input value={editing.hero_titre} onChange={e => setEditing(p => p?{...p,hero_titre:e.target.value}:p)} style={inp} placeholder="Ex: Dites adieu à la douleur chronique" />
+              </div>
+              <div>
+                <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Sous-titre</label>
+                <input value={editing.hero_sous_titre} onChange={e => setEditing(p => p?{...p,hero_sous_titre:e.target.value}:p)} style={inp} placeholder="Ex: La solution naturelle que des milliers de personnes utilisent" />
+              </div>
+              <div>
+                <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Texte du bouton commander</label>
+                <input value={editing.hero_cta_texte} onChange={e => setEditing(p => p?{...p,hero_cta_texte:e.target.value}:p)} style={inp} placeholder="Commander maintenant" />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <span style={{ color:S.muted2, fontSize:13 }}>Produit actif</span>
+            <button onClick={() => setEditing(p => p?{...p,is_active:!p.is_active}:p)}
+              style={{ padding:"5px 14px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer",
+                background:editing.is_active?"rgba(74,222,128,0.15)":S.card2, color:editing.is_active?S.success:S.muted }}>
+              {editing.is_active ? "✅ Actif" : "Inactif"}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Messages */}
-      {error && <div style={{ background: S.dangerBg, border: `1px solid rgba(248,113,113,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
-      {success && <div style={{ background: "rgba(74,222,128,0.08)", border: `1px solid rgba(74,222,128,0.2)`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, color: S.success, fontSize: 13 }}>✅ {success}</div>}
+      {/* ── Tab Design ── */}
+      {tab === "design" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div>
+            <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:8 }}>Thème</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {THEMES.map(t => (
+                <button key={t.id} onClick={() => setEditing(p => p?{...p,theme:t.id,couleur_fond:t.id==="dark"?"#080810":"#FFFFFF",couleur_texte:t.id==="dark"?"#F8F8FC":"#111118"}:p)}
+                  style={{ flex:1, padding:"10px", borderRadius:10, border:`2px solid ${editing.theme===t.id?S.gold:S.border}`, background:editing.theme===t.id?"rgba(245,158,11,0.08)":"transparent", color:editing.theme===t.id?S.gold:S.muted2, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Bouton ajouter */}
-      {!showForm && (
-        <button onClick={() => { setShowForm(true); setEditing(null); setForm(EMPTY); setMainImagePreview(""); setExtraImages([]); setExistingImages([]) }}
-          style={{ width: "100%", background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 10, padding: "12px", color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>
+          <div>
+            <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:8 }}>Police</label>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {FONTS.map(f => (
+                <button key={f} onClick={() => setEditing(p => p?{...p,font:f}:p)}
+                  style={{ padding:"7px 14px", borderRadius:20, border:`1px solid ${editing.font===f?S.gold:S.border}`, background:editing.font===f?"rgba(245,158,11,0.1)":"transparent", color:editing.font===f?S.gold:S.muted2, fontSize:13, cursor:"pointer", fontFamily:f }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Couleur de fond</label>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input type="color" value={editing.couleur_fond} onChange={e => setEditing(p => p?{...p,couleur_fond:e.target.value}:p)} style={{ width:40, height:36, borderRadius:8, border:`1px solid ${S.border}`, cursor:"pointer", background:"none" }} />
+                <input value={editing.couleur_fond} onChange={e => setEditing(p => p?{...p,couleur_fond:e.target.value}:p)} style={{...inp, flex:1}} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Couleur accent</label>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input type="color" value={editing.couleur_accent} onChange={e => setEditing(p => p?{...p,couleur_accent:e.target.value}:p)} style={{ width:40, height:36, borderRadius:8, border:`1px solid ${S.border}`, cursor:"pointer", background:"none" }} />
+                <input value={editing.couleur_accent} onChange={e => setEditing(p => p?{...p,couleur_accent:e.target.value}:p)} style={{...inp, flex:1}} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Couleur texte</label>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input type="color" value={editing.couleur_texte} onChange={e => setEditing(p => p?{...p,couleur_texte:e.target.value}:p)} style={{ width:40, height:36, borderRadius:8, border:`1px solid ${S.border}`, cursor:"pointer", background:"none" }} />
+                <input value={editing.couleur_texte} onChange={e => setEditing(p => p?{...p,couleur_texte:e.target.value}:p)} style={{...inp, flex:1}} />
+              </div>
+            </div>
+          </div>
+
+          {/* Compte à rebours */}
+          <div style={{ background:S.card2, borderRadius:12, padding:"14px 16px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <p style={{ color:S.white, fontSize:13, fontWeight:700, margin:0 }}>⏰ Compte à rebours</p>
+              <button onClick={() => setEditing(p => p?{...p,countdown_active:!p.countdown_active}:p)}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer",
+                  background:editing.countdown_active?"rgba(74,222,128,0.15)":S.bg, color:editing.countdown_active?S.success:S.muted }}>
+                {editing.countdown_active ? "✅ Activé" : "Activer"}
+              </button>
+            </div>
+            {editing.countdown_active && (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <div>
+                  <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Texte</label>
+                  <input value={editing.countdown_texte} onChange={e => setEditing(p => p?{...p,countdown_texte:e.target.value}:p)} style={inp} placeholder="Offre expire dans" />
+                </div>
+                <div>
+                  <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Date/heure de fin</label>
+                  <input type="datetime-local" value={editing.countdown_end?.slice(0,16)||""} onChange={e => setEditing(p => p?{...p,countdown_end:e.target.value}:p)} style={inp} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Sections ── */}
+      {tab === "sections" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <p style={{ color:S.muted2, fontSize:13, marginBottom:4 }}>Active les sections que tu veux afficher sur ta page de vente :</p>
+
+          {/* Problème */}
+          {sectionToggle("section_probleme_active")}
+          {editing.section_probleme_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_probleme_titre} onChange={e => setEditing(p => p?{...p,section_probleme_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Titre de la section" />
+              {editing.section_probleme_items.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <input value={item.emoji} onChange={e => updateItem("section_probleme_items",i,"emoji",e.target.value)} style={{...inp, width:60}} placeholder="😣" />
+                  <input value={item.texte} onChange={e => updateItem("section_probleme_items",i,"texte",e.target.value)} style={{...inp, flex:1}} placeholder="Description du problème" />
+                  <button onClick={() => removeItem("section_probleme_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => addItem("section_probleme_items",{emoji:"😣",texte:""})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter un problème</button>
+            </div>
+          )}
+
+          {/* Bénéfices */}
+          {sectionToggle("section_benefices_active")}
+          {editing.section_benefices_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_benefices_titre} onChange={e => setEditing(p => p?{...p,section_benefices_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Titre de la section" />
+              {editing.section_benefices_items.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                  <input value={item.emoji} onChange={e => updateItem("section_benefices_items",i,"emoji",e.target.value)} style={{...inp, width:60}} placeholder="✅" />
+                  <input value={item.titre} onChange={e => updateItem("section_benefices_items",i,"titre",e.target.value)} style={{...inp, flex:1, minWidth:120}} placeholder="Titre du bénéfice" />
+                  <input value={item.texte} onChange={e => updateItem("section_benefices_items",i,"texte",e.target.value)} style={{...inp, flex:2, minWidth:200}} placeholder="Description" />
+                  <button onClick={() => removeItem("section_benefices_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => addItem("section_benefices_items",{emoji:"✅",titre:"",texte:""})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter un bénéfice</button>
+            </div>
+          )}
+
+          {/* Témoignages */}
+          {sectionToggle("section_temoignages_active")}
+          {editing.section_temoignages_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_temoignages_titre} onChange={e => setEditing(p => p?{...p,section_temoignages_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Titre de la section" />
+              {editing.section_temoignages_items.map((item, i) => (
+                <div key={i} style={{ background:S.bg, borderRadius:8, padding:10, marginBottom:10, border:`1px solid ${S.border}` }}>
+                  <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+                    <input value={item.nom} onChange={e => updateItem("section_temoignages_items",i,"nom",e.target.value)} style={{...inp, flex:1}} placeholder="Nom" />
+                    <input value={item.ville} onChange={e => updateItem("section_temoignages_items",i,"ville",e.target.value)} style={{...inp, flex:1}} placeholder="Ville" />
+                    <select value={item.note} onChange={e => updateItem("section_temoignages_items",i,"note",Number(e.target.value))} style={{...inp, width:70}}>
+                      {[5,4,3,2,1].map(n => <option key={n} value={n}>{n}⭐</option>)}
+                    </select>
+                    <button onClick={() => removeItem("section_temoignages_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                  </div>
+                  <textarea value={item.texte} onChange={e => updateItem("section_temoignages_items",i,"texte",e.target.value)} style={{...inp, resize:"none", height:60}} placeholder="Témoignage..." />
+                </div>
+              ))}
+              <button onClick={() => addItem("section_temoignages_items",{nom:"",ville:"",texte:"",note:5})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter un témoignage</button>
+            </div>
+          )}
+
+          {/* FAQ */}
+          {sectionToggle("section_faq_active")}
+          {editing.section_faq_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_faq_titre} onChange={e => setEditing(p => p?{...p,section_faq_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Titre de la section" />
+              {editing.section_faq_items.map((item, i) => (
+                <div key={i} style={{ background:S.bg, borderRadius:8, padding:10, marginBottom:8, border:`1px solid ${S.border}` }}>
+                  <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+                    <input value={item.question} onChange={e => updateItem("section_faq_items",i,"question",e.target.value)} style={{...inp, flex:1}} placeholder="Question ?" />
+                    <button onClick={() => removeItem("section_faq_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                  </div>
+                  <textarea value={item.reponse} onChange={e => updateItem("section_faq_items",i,"reponse",e.target.value)} style={{...inp, resize:"none", height:60}} placeholder="Réponse..." />
+                </div>
+              ))}
+              <button onClick={() => addItem("section_faq_items",{question:"",reponse:""})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter une FAQ</button>
+            </div>
+          )}
+
+          {/* Garantie */}
+          {sectionToggle("section_garantie_active")}
+          {editing.section_garantie_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <div style={{ display:"flex", gap:8 }}>
+                <input value={editing.section_garantie_icone} onChange={e => setEditing(p => p?{...p,section_garantie_icone:e.target.value}:p)} style={{...inp, width:60}} placeholder="🛡️" />
+                <input value={editing.section_garantie_texte} onChange={e => setEditing(p => p?{...p,section_garantie_texte:e.target.value}:p)} style={{...inp, flex:1}} placeholder="Satisfait ou remboursé 30 jours" />
+              </div>
+            </div>
+          )}
+
+          {/* Composition */}
+          {sectionToggle("section_composition_active")}
+          {editing.section_composition_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_composition_titre} onChange={e => setEditing(p => p?{...p,section_composition_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Composition, Ingrédients, Matières..." />
+              {editing.section_composition_items.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <input value={item.nom} onChange={e => updateItem("section_composition_items",i,"nom",e.target.value)} style={{...inp, flex:1}} placeholder="Nom de l'ingrédient" />
+                  <input value={item.description} onChange={e => updateItem("section_composition_items",i,"description",e.target.value)} style={{...inp, flex:2}} placeholder="Description / bienfaits" />
+                  <button onClick={() => removeItem("section_composition_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => addItem("section_composition_items",{nom:"",description:""})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter un ingrédient</button>
+            </div>
+          )}
+
+          {/* Mode d'emploi */}
+          {sectionToggle("section_utilisation_active")}
+          {editing.section_utilisation_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_utilisation_titre} onChange={e => setEditing(p => p?{...p,section_utilisation_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Comment ça marche ?" />
+              {editing.section_utilisation_items.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <span style={{ color:S.gold, fontSize:18, fontWeight:800, flexShrink:0, paddingTop:8 }}>{i+1}</span>
+                  <input value={item.titre} onChange={e => updateItem("section_utilisation_items",i,"titre",e.target.value)} style={{...inp, flex:1}} placeholder="Titre de l'étape" />
+                  <input value={item.texte} onChange={e => updateItem("section_utilisation_items",i,"texte",e.target.value)} style={{...inp, flex:2}} placeholder="Description" />
+                  <button onClick={() => removeItem("section_utilisation_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => addItem("section_utilisation_items",{etape:editing.section_utilisation_items.length+1,titre:"",texte:""})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter une étape</button>
+            </div>
+          )}
+
+          {/* Comparaison */}
+          {sectionToggle("section_comparaison_active")}
+          {editing.section_comparaison_active && (
+            <div style={{ background:S.card2, borderRadius:10, padding:"12px 14px", marginBottom:8, border:`1px solid ${S.border}` }}>
+              <input value={editing.section_comparaison_titre} onChange={e => setEditing(p => p?{...p,section_comparaison_titre:e.target.value}:p)} style={{...inp, marginBottom:10}} placeholder="Pourquoi nous ?" />
+              {editing.section_comparaison_items.map((item, i) => (
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:8, alignItems:"center" }}>
+                  <input value={item.critere} onChange={e => updateItem("section_comparaison_items",i,"critere",e.target.value)} style={{...inp, flex:2}} placeholder="Critère" />
+                  <button onClick={() => updateItem("section_comparaison_items",i,"nous",!item.nous)}
+                    style={{ padding:"6px 12px", borderRadius:8, border:"none", fontSize:12, cursor:"pointer", background:item.nous?"rgba(74,222,128,0.15)":S.bg, color:item.nous?S.success:S.muted }}>
+                    Nous: {item.nous ? "✅" : "❌"}
+                  </button>
+                  <button onClick={() => updateItem("section_comparaison_items",i,"concurrent",!item.concurrent)}
+                    style={{ padding:"6px 12px", borderRadius:8, border:"none", fontSize:12, cursor:"pointer", background:item.concurrent?"rgba(74,222,128,0.15)":S.bg, color:item.concurrent?S.success:S.muted }}>
+                    Conc: {item.concurrent ? "✅" : "❌"}
+                  </button>
+                  <button onClick={() => removeItem("section_comparaison_items",i)} style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, cursor:"pointer" }}>✕</button>
+                </div>
+              ))}
+              <button onClick={() => addItem("section_comparaison_items",{critere:"",nous:true,concurrent:false})} style={{ padding:"6px 14px", borderRadius:8, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:12, cursor:"pointer", width:"100%" }}>+ Ajouter un critère</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab Aperçu ── */}
+      {tab === "apercu" && (
+        <div style={{ textAlign:"center" }}>
+          <p style={{ color:S.muted2, fontSize:13, marginBottom:16 }}>Voici comment apparaîtra ta page de vente :</p>
+          {pageUrl ? (
+            <a href={pageUrl} target="_blank" rel="noreferrer"
+              style={{ display:"inline-block", padding:"12px 24px", borderRadius:10, background:`linear-gradient(135deg,${S.gold},${S.goldDk})`, color:"#000", fontSize:14, fontWeight:700, textDecoration:"none", marginBottom:16 }}>
+              👁️ Voir la page de vente
+            </a>
+          ) : (
+            <p style={{ color:S.danger, fontSize:13 }}>Enregistre d\'abord le produit pour voir l\'aperçu.</p>
+          )}
+          <div style={{ background:S.card, borderRadius:12, padding:16, textAlign:"left" }}>
+            <p style={{ color:S.muted2, fontSize:12, fontWeight:700, marginBottom:8 }}>Lien à partager :</p>
+            {pageUrl ? (
+              <div style={{ display:"flex", gap:8 }}>
+                <div style={{ flex:1, background:S.bg, borderRadius:8, padding:"8px 12px", fontFamily:"monospace", fontSize:11, color:S.info, wordBreak:"break-all" }}>{pageUrl}</div>
+                <button onClick={() => { navigator.clipboard.writeText(pageUrl); setCopied("url2"); setTimeout(()=>setCopied(""),2000) }}
+                  style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${copied==="url2"?S.success:S.border}`, background:"transparent", color:copied==="url2"?S.success:S.muted2, fontSize:12, cursor:"pointer" }}>
+                  {copied==="url2" ? "✓" : "Copier"}
+                </button>
+              </div>
+            ) : <p style={{ color:S.muted, fontSize:13 }}>Disponible après enregistrement.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Liste des produits ──
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, flexWrap:"wrap", gap:10 }}>
+        <div>
+          <p style={{ color:S.white, fontSize:15, fontWeight:700, margin:"0 0 4px" }}>📦 Mes produits</p>
+          <p style={{ color:S.muted2, fontSize:13, margin:0 }}>Crée et personnalise tes pages de vente.</p>
+        </div>
+        <button onClick={startNew}
+          style={{ padding:"9px 18px", borderRadius:10, border:"none", background:`linear-gradient(135deg,${S.gold},${S.goldDk})`, color:"#000", fontSize:13, fontWeight:700, cursor:"pointer" }}>
           + Nouveau produit
         </button>
-      )}
+      </div>
 
-      {/* Formulaire */}
-      {showForm && (
-        <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <h3 style={{ color: S.text, fontSize: 15, fontWeight: 700, margin: "0 0 16px 0" }}>
-            {editing ? "✏️ Modifier le produit" : "➕ Nouveau produit"}
-          </h3>
-
-          {/* Nom */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nom du produit *</label>
-            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Crème visage hydratante" style={inp}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Prix */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Prix *</label>
-            <input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="Ex: 5000" style={inp}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Description */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Description</label>
-            <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Décris ton produit..." rows={3}
-              style={{ ...inp, resize: "none", fontFamily: "Inter, sans-serif" }}
-              onFocus={e => e.target.style.borderColor = S.gold} onBlur={e => e.target.style.borderColor = S.border} />
-          </div>
-
-          {/* Photo principale */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>📸 Photo principale *</label>
-            <div onClick={() => mainFileRef.current?.click()} style={{ width: 120, height: 120, border: `2px dashed ${mainImagePreview ? S.gold : S.border}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: S.bg }}>
-              {mainImagePreview ? (
-                <img src={mainImagePreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontSize: 32 }}>📷</span>
-              )}
-            </div>
-            <input ref={mainFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleMainImageChange} style={{ display: "none" }} />
-            {mainImageInfo && <p style={{ color: S.success, fontSize: 11, margin: "6px 0 0 0" }}>{mainImageInfo}</p>}
-          </div>
-
-          {/* Photos supplémentaires */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
-              📸 Photos supplémentaires ({existingImages.length + extraImages.length}/9)
-            </label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-
-              {/* Images existantes */}
-              {existingImages.map(img => (
-                <div key={img.id} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.border}` }}>
-                  <img src={img.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <button onClick={() => removeExistingImage(img)}
-                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
-                </div>
-              ))}
-
-              {/* Nouvelles images */}
-              {extraImages.map((img, i) => (
-                <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: `1px solid ${S.gold}` }}>
-                  <img src={img.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <button onClick={() => removeExtraImage(i)}
-                    style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: S.danger, border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>×</button>
-                </div>
-              ))}
-
-              {/* Bouton ajouter photo */}
-              {existingImages.length + extraImages.length < 9 && (
-                <div onClick={() => extraFileRef.current?.click()}
-                  style={{ width: 72, height: 72, border: `2px dashed ${S.border}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: S.text3 }}>
-                  +
-                </div>
-              )}
-            </div>
-            <input ref={extraFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleExtraImagesChange} style={{ display: "none" }} />
-          </div>
-
-          {/* Badge produit */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", color: S.text2, fontSize: 12, fontWeight: 500, marginBottom: 8 }}>Badge (optionnel)</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["", "PROMO", "NOUVEAU", "BEST-SELLER", "SOLDE"].map(b => (
-                <button key={b} type="button" onClick={() => setForm(p => ({ ...p, badge: b }))}
-                  style={{ padding: "6px 14px", borderRadius: 8, border: `2px solid ${form.badge === b ? S.gold : S.border}`, background: form.badge === b ? "rgba(245,158,11,0.1)" : "transparent", color: form.badge === b ? S.gold : S.text2, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  {b === "" ? "Aucun" : b}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Boutons */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={resetForm} style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              Annuler
-            </button>
-            <button onClick={handleSave} disabled={saving || uploading}
-              style={{ flex: 2, background: (saving || uploading) ? S.goldDim : `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: (saving || uploading) ? "not-allowed" : "pointer" }}>
-              {uploading ? "⬆️ Upload..." : saving ? "Enregistrement..." : editing ? "Modifier" : "Ajouter le produit"}
-            </button>
-          </div>
+      {products.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"60px 20px", background:S.card, borderRadius:14, border:`1px solid ${S.border}` }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>📦</div>
+          <p style={{ color:S.white, fontSize:15, fontWeight:700, margin:"0 0 8px" }}>Aucun produit créé</p>
+          <p style={{ color:S.muted2, fontSize:13, margin:"0 0 20px" }}>Crée ton premier produit et personnalise ta page de vente.</p>
+          <button onClick={startNew} style={{ padding:"10px 24px", borderRadius:10, border:"none", background:`linear-gradient(135deg,${S.gold},${S.goldDk})`, color:"#000", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+            + Créer un produit
+          </button>
         </div>
-      )}
-
-      {/* Liste produits */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {products.length === 0 && !showForm && (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: S.text3 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
-            <p>Aucun produit. Crée ton premier produit !</p>
-          </div>
-        )}
-
-        {products.map(p => {
-          const allImages = [p.image_url, ...(p.images?.map(i => i.image_url) || [])].filter(Boolean)
-          return (
-            <div key={p.id} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 12, display: "flex", gap: 12, alignItems: "flex-start" }}>
-
-              {/* Photo + galerie */}
-              <div style={{ flexShrink: 0 }}>
-                {p.image_url ? (
-                  <div style={{ position: "relative" }}>
-                    <img src={p.image_url} alt={p.name} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
-                    {allImages.length > 1 && (
-                      <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.7)", borderRadius: 4, padding: "1px 5px", fontSize: 10, color: "#fff", fontWeight: 700 }}>
-                        +{allImages.length - 1}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ width: 80, height: 80, background: S.card2, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>
-                )}
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {products.map(p => (
+            <div key={p.id} style={{ background:S.card, border:`1px solid ${p.is_active?S.border:"rgba(248,113,113,0.2)"}`, borderRadius:14, padding:"14px 16px", display:"flex", gap:14, alignItems:"center", flexWrap:"wrap" }}>
+              {p.image_principale ? (
+                <img src={p.image_principale} alt={p.nom} style={{ width:56, height:56, borderRadius:10, objectFit:"cover", flexShrink:0 }} />
+              ) : (
+                <div style={{ width:56, height:56, borderRadius:10, background:S.card2, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>📦</div>
+              )}
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <p style={{ color:S.white, fontSize:14, fontWeight:700, margin:0 }}>{p.nom}</p>
+                  {p.badge && <span style={{ background:"rgba(245,158,11,0.15)", color:S.gold, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>{p.badge}</span>}
+                  {!p.is_active && <span style={{ background:S.dangerBg, color:S.danger, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>Inactif</span>}
+                </div>
+                <p style={{ color:S.gold, fontSize:14, fontWeight:800, margin:"0 0 2px" }}>
+                  {p.prix.toLocaleString("fr-FR")} {p.devise}
+                  {p.prix_barre && <span style={{ color:S.muted, fontSize:12, fontWeight:400, textDecoration:"line-through", marginLeft:8 }}>{p.prix_barre.toLocaleString("fr-FR")}</span>}
+                </p>
+                <p style={{ color:S.muted2, fontSize:11, margin:0 }}>/{tenantSlug}/{p.slug}</p>
               </div>
-
-              {/* Infos */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: S.text, fontSize: 14, fontWeight: 700, margin: "0 0 2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
-                <p style={{ color: S.gold, fontSize: 15, fontWeight: 800, margin: "0 0 4px 0" }}>{Number(p.price).toLocaleString("fr-FR")} FCFA</p>
-                {p.description && <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</p>}
-
-                {/* Liens */}
-                {slug && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button onClick={() => copyToClipboard(getLienProduit(p), `p_${p.id}`)}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: copied === `p_${p.id}` ? S.success : S.info, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
-                      {copied === `p_${p.id}` ? "✓ Copié" : "🔗 Lien"}
-                    </button>
-                    <button onClick={() => { setWidgetProduct(p); setWidgetMode("form") }}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "3px 8px", color: S.gold, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>
-                      {'</>'}  Widget
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => startEdit(p)}
-                  style={{ background: S.border, border: "none", borderRadius: 6, padding: "6px 10px", color: S.text2, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
-                  ✏️
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                <button onClick={() => toggleActive(p)} style={{ padding:"6px 12px", borderRadius:8, border:`1px solid ${S.border}`, background:"transparent", color:p.is_active?S.success:S.muted, fontSize:12, cursor:"pointer" }}>
+                  {p.is_active ? "✅ Actif" : "Inactif"}
                 </button>
-                <button onClick={() => handleDelete(p.id)}
-                  style={{ background: S.dangerBg, border: "none", borderRadius: 6, padding: "6px 10px", color: S.danger, fontSize: 12, cursor: "pointer", fontWeight: 500 }}>
+                <button onClick={() => startEdit(p)} style={{ padding:"6px 12px", borderRadius:8, border:`1px solid ${S.border}`, background:"transparent", color:S.gold, fontSize:12, cursor:"pointer" }}>
+                  ✏️ Éditer
+                </button>
+                <a href={`https://shipivo.app/produit/${tenantSlug}/${p.slug}`} target="_blank" rel="noreferrer"
+                  style={{ padding:"6px 12px", borderRadius:8, border:`1px solid ${S.border}`, background:"transparent", color:S.info, fontSize:12, cursor:"pointer", textDecoration:"none" }}>
+                  👁️ Voir
+                </a>
+                <button onClick={() => handleDelete(p.id!)} style={{ padding:"6px 12px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, fontSize:12, cursor:"pointer" }}>
                   🗑️
                 </button>
               </div>
             </div>
-          )
-        })}
-      </div>
-      {/* Modal Widget */}
-      {widgetProduct && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ color: S.text, fontSize: 16, fontWeight: 700, margin: 0 }}>🔌 Code Widget — {widgetProduct.name}</h3>
-              <button onClick={() => setWidgetProduct(null)}
-                style={{ background: "none", border: "none", color: S.text2, fontSize: 20, cursor: "pointer" }}>×</button>
-            </div>
-
-            {/* Choix type intégration */}
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Méthode d&apos;intégration :</p>
-              <div style={{ display: "flex", gap: 8 }}>
-                {(["iframe", "script"] as const).map(t => (
-                  <button key={t} onClick={() => setWidgetType(t)}
-                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetType === t ? S.gold : S.border}`, background: widgetType === t ? "rgba(245,158,11,0.1)" : "transparent", color: widgetType === t ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    {t === "iframe" ? "🖼️ iframe (Elementor, Wix)" : "⚡ Script (WordPress, Shopify)"}
-                  </button>
-                ))}
-              </div>
-              <p style={{ color: S.text3, fontSize: 11, margin: "6px 0 0 0" }}>
-                {widgetType === "iframe" ? "✅ Recommandé pour Elementor, Wix, et la plupart des sites." : "Pour les sites qui acceptent les scripts externes."}
-              </p>
-            </div>
-
-            {/* Choix mode */}
-            <div style={{ marginBottom: 16 }}>
-              <p style={{ color: S.text2, fontSize: 12, fontWeight: 600, margin: "0 0 8px 0" }}>Contenu affiché :</p>
-              <div style={{ display: "flex", gap: 8 }}>
-                {(["form", "full"] as const).map(m => (
-                  <button key={m} onClick={() => setWidgetMode(m)}
-                    style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${widgetMode === m ? S.gold : S.border}`, background: widgetMode === m ? "rgba(245,158,11,0.1)" : "transparent", color: widgetMode === m ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    {m === "form" ? "📝 Formulaire seul" : "🖼️ Produit + Formulaire"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Code à copier */}
-            <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 10, padding: 14, marginBottom: 12, overflowX: "auto" }}>
-              <pre style={{ color: S.info, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", fontFamily: "monospace" }}>
-                {getWidgetCode(widgetProduct, widgetMode, widgetType)}
-              </pre>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => copyToClipboard(getWidgetCode(widgetProduct, widgetMode, widgetType), "widget")}
-                style={{ flex: 1, background: `linear-gradient(135deg,${S.gold},${S.goldDark})`, border: "none", borderRadius: 8, padding: "10px", color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {copied === "widget" ? "✓ Copié !" : "📋 Copier le code"}
-              </button>
-              <button onClick={() => setWidgetProduct(null)}
-                style={{ flex: 1, background: S.border, border: "none", borderRadius: 8, padding: "10px", color: S.text2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                Fermer
-              </button>
-            </div>
-
-            {/* Instructions */}
-            <div style={{ marginTop: 14, background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 8, padding: "10px 14px" }}>
-              <p style={{ color: S.success, fontSize: 12, fontWeight: 600, margin: "0 0 6px 0" }}>📋 Comment l'utiliser :</p>
-              <p style={{ color: S.text2, fontSize: 11, margin: 0, lineHeight: 1.7 }}>
-                1. Copie le code ci-dessus<br/>
-                2. Colle-le dans ton site WordPress, Shopify, YouCan...<br/>
-                3. Le formulaire apparaît automatiquement<br/>
-                4. Les commandes arrivent directement dans Shipivo
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>
