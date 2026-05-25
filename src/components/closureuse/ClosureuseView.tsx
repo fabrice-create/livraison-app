@@ -254,6 +254,7 @@ export function ClosureuseView() {
     setCreateLoading(true);
     const { data, error } = await supabase.from("orders").insert([{
       ...createForm, quantity: Number(createForm.quantity), amount: Number(createForm.amount),
+      tenant_id: profile?.tenant_id,
       status: "En attente", logistic_status: "En attente", payment_status: "Non payé",
       cash_collected: false, is_assigned: false,
       closer_id: profile?.id, closer_name: profile?.full_name,
