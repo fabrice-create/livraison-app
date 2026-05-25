@@ -2,6 +2,18 @@
 // SHIPIVO — Types partagés
 // ============================================================
 
+export type Zone = {
+  id: string
+  tenant_id: string
+  nom: string
+  pays: string
+  emoji: string
+  frais_livraison: number
+  devise: string
+  is_active: boolean
+  created_at?: string
+}
+
 export type Order = {
   id: number
   customer_name: string
@@ -34,6 +46,8 @@ export type Order = {
   source?: string | null
   note?: string | null
   tenant_id?: string | null
+  zone_id?: string | null
+  zone_nom?: string | null
 }
 
 export type Profile = {
@@ -46,6 +60,8 @@ export type Profile = {
   is_active?: boolean
   is_available?: boolean | null
   last_seen?: string | null
+  zone_id?: string | null
+  zone_nom?: string | null
 }
 
 export type DriverStock = {
