@@ -89,7 +89,7 @@ export default function ProduitsView({ tenantId, tenantSlug, brandColor }: Props
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState<"base"|"design"|"sections"|"apercu">("base")
+  const [tab, setTab] = useState<string>("base")
   const [error, setError] = useState("")
   const [copied, setCopied] = useState("")
 
@@ -225,8 +225,8 @@ export default function ProduitsView({ tenantId, tenantSlug, brandColor }: Props
 
       {/* Tabs */}
       <div style={{ display:"flex", gap:4, marginBottom:20, background:S.card, borderRadius:12, padding:4, flexWrap:"wrap" }}>
-        {([["base","📦 Produit"],["design","🎨 Design"],["sections","📋 Sections"],["apercu","👁️ Aperçu"]] as const).map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
+        {([["base","📦 Produit"],["design","🎨 Design"],["sections","📋 Sections"],["apercu","👁️ Aperçu"]]).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id as string)}
             style={{ flex:1, padding:"9px 12px", borderRadius:9, border:"none", fontSize:13, fontWeight:600, cursor:"pointer", minWidth:80,
               background:tab===id?S.gold:"transparent", color:tab===id?"#000":S.muted2 }}>
             {label}
