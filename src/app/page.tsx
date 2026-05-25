@@ -97,6 +97,7 @@ function useCountUp(target: number, duration = 2000) {
 
 export default function LandingPage() {
   const router = useRouter()
+  const [checking, setChecking] = useState(true)
   const [scrolled, setScrolled] = useState(false)
   const [checking, setChecking] = useState(true)
 
@@ -143,6 +144,21 @@ export default function LandingPage() {
   const c2 = useCountUp(340)
   const c3 = useCountUp(94)
 
+  // Vérifier session — redirect si déjà connecté
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setChecking(false); return }
+      const { data: sa } = await supabase.from("super_admins").select("id").eq("user_id", user.id).maybeSingle()
+      if (sa) { router.replace("/super-admin"); return }
+      const { data: profile } = await supabase.from("profiles").select("role, is_active").or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
+      if (!profile || !profile.is_active) { setChecking(false); return }
+      const role = (profile.role || "").trim().toLowerCase()
+      if (role === "livreur") { router.replace("/livreur"); return }
+      if (role === "closureuse") { router.replace("/closureuse"); return }
+      router.replace("/admin")
+    })
+  }, [])
+
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40)
     window.addEventListener("scroll", fn)
@@ -161,6 +177,13 @@ export default function LandingPage() {
     btnPrimary: { padding: "14px 28px", borderRadius: 12, border: "none", background: `linear-gradient(135deg,${C.gold},${C.goldDk})`, color: "#000", fontSize: 15, fontWeight: 800, cursor: "pointer", width: "100%", letterSpacing: "-0.01em" },
     btnSecondary: { padding: "14px 28px", borderRadius: 12, border: `1px solid ${C.border2}`, background: "transparent", color: C.muted3, fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%" },
   }
+
+  if (checking) return (
+    <div style={{ minHeight:"100vh", background:"#07070C", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ width:36, height:36, borderRadius:"50%", border:"3px solid #1C1C2E", borderTopColor:"#F59E0B", animation:"spin 0.8s linear infinite" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"Inter,system-ui,sans-serif", color:C.white, overflowX:"hidden" }}>
