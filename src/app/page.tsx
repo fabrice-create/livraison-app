@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/app/lib/supabase"
 
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/app/lib/supabase"
+
 const C = {
   bg:       "#07070C",
   card:     "#0F0F18",
@@ -95,56 +99,21 @@ function useCountUp(target: number, duration = 2000) {
   return val
 }
 
+
 export default function LandingPage() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
-  const [scrolled, setScrolled] = useState(false)
-  const [checking, setChecking] = useState(true)
 
-  // Si déjà connecté → redirect direct sans passer par la landing
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setChecking(false); return }
-
-      // Vérifier super admin
-      const { data: sa } = await supabase.from("super_admins").select("id").eq("user_id", user.id).maybeSingle()
-      if (sa) { router.replace("/super-admin"); return }
-
-      // Vérifier profil
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, is_active")
-        .or(`user_id.eq.${user.id},id.eq.${user.id}`)
-        .maybeSingle()
-
-      if (!profile || !profile.is_active) { setChecking(false); return }
-
-      const role = (profile.role || "").trim().toLowerCase()
-      if (role === "livreur")     { router.replace("/livreur");    return }
-      if (role === "closureuse")  { router.replace("/closureuse"); return }
-      router.replace("/admin")
-    }
-    checkSession()
-  }, [])
-
-  if (checking) return (
-    <div style={{ minHeight:"100vh", background:"#07070C", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ textAlign:"center" }}>
-        <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid #1C1C2E", borderTopColor:"#F59E0B", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
-        <p style={{ color:"#6E6E90", fontSize:14 }}>Chargement...</p>
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </div>
-  )
-  const [openFaq, setOpenFaq] = useState<number|null>(null)
-  const [annual, setAnnual] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  // ── TOUS LES HOOKS EN PREMIER — avant tout return ──
+  const [checking, setChecking]   = useState(true)
+  const [scrolled, setScrolled]   = useState(false)
+  const [openFaq, setOpenFaq]     = useState<number|null>(null)
+  const [annual, setAnnual]       = useState(false)
+  const [menuOpen, setMenuOpen]   = useState(false)
   const c1 = useCountUp(14800)
   const c2 = useCountUp(340)
   const c3 = useCountUp(94)
 
-  // Vérifier session — redirect si déjà connecté
+  // Session check
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setChecking(false); return }
@@ -153,7 +122,7 @@ export default function LandingPage() {
       const { data: profile } = await supabase.from("profiles").select("role, is_active").or(`user_id.eq.${user.id},id.eq.${user.id}`).maybeSingle()
       if (!profile || !profile.is_active) { setChecking(false); return }
       const role = (profile.role || "").trim().toLowerCase()
-      if (role === "livreur") { router.replace("/livreur"); return }
+      if (role === "livreur")    { router.replace("/livreur");    return }
       if (role === "closureuse") { router.replace("/closureuse"); return }
       router.replace("/admin")
     })
@@ -178,13 +147,16 @@ export default function LandingPage() {
     btnSecondary: { padding: "14px 28px", borderRadius: 12, border: `1px solid ${C.border2}`, background: "transparent", color: C.muted3, fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%" },
   }
 
+  // ── Spinner pendant vérification session ──
   if (checking) return (
     <div style={{ minHeight:"100vh", background:"#07070C", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ width:36, height:36, borderRadius:"50%", border:"3px solid #1C1C2E", borderTopColor:"#F59E0B", animation:"spin 0.8s linear infinite" }} />
+      <div style={{ textAlign:"center" }}>
+        <div style={{ width:40, height:40, borderRadius:"50%", border:"3px solid #1C1C2E", borderTopColor:"#F59E0B", animation:"spin 0.8s linear infinite", margin:"0 auto 16px" }} />
+        <p style={{ color:"#6E6E90", fontSize:13 }}>Chargement...</p>
+      </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
-
   return (
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"Inter,system-ui,sans-serif", color:C.white, overflowX:"hidden" }}>
 
