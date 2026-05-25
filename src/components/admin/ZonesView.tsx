@@ -97,6 +97,8 @@ export default function ZonesView({ tenantId, tenantSlug }: Props) {
   const [editZone, setEditZone] = useState<Zone | null>(null)
   const [assignModal, setAssignModal] = useState<Zone | null>(null)
   const [filteredPays, setFilteredPays] = useState(PAYS_PRESETS)
+  const [products, setProducts] = useState<{id:string;nom:string;slug:string}[]>([])
+  const [showProducts, setShowProducts] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     nom: "", pays: "", emoji: "🌍", frais_livraison: 0, devise: "FCFA"
@@ -114,6 +116,11 @@ export default function ZonesView({ tenantId, tenantSlug }: Props) {
     ])
     setZones((zonesRes.data || []) as Zone[])
     setProfiles((profilesRes.data || []) as Profile[])
+    // Charger les produits actifs
+    const { data: prods } = await supabase
+      .from("products").select("id, nom, slug")
+      .eq("tenant_id", tenantId).eq("is_active", true).not("slug", "is", null)
+    setProducts((prods || []) as {id:string;nom:string;slug:string}[])
     setLoading(false)
   }
 
@@ -325,25 +332,67 @@ export default function ZonesView({ tenantId, tenantSlug }: Props) {
                 {/* Liens */}
                 <div style={{ padding:"12px 18px" }}>
                   <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase" as const, letterSpacing:"0.08em", margin:"0 0 10px" }}>🔗 Liens de vente</p>
-                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  
+                  {/* Liens catalogue par source */}
+                  <p style={{ color:S.muted2, fontSize:11, margin:"0 0 6px", fontWeight:600 }}>📦 Catalogue — tous les produits</p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:14 }}>
                     {[
-                      { label:"Boutique", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}`, color:S.white },
-                      { label:"Pub Facebook", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=facebook`, color:"#1877F2" },
-                      { label:"Pub TikTok", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=tiktok`, color:"#FF0050" },
+                      { label:"Facebook", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=facebook`, color:"#1877F2" },
+                      { label:"TikTok", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=tiktok`, color:"#FF0050" },
                       { label:"WhatsApp", url:`${boutiquBase}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=whatsapp`, color:"#25D366" },
                     ].map(l => (
                       <div key={l.label} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ color:S.muted2, fontSize:11, width:80, flexShrink:0 }}>{l.label}</span>
-                        <div style={{ flex:1, background:S.bg, border:`1px solid ${S.border}`, borderRadius:6, padding:"6px 10px", fontFamily:"monospace", fontSize:10, color:S.muted2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
+                        <span style={{ color:l.color, fontSize:11, width:70, flexShrink:0, fontWeight:600 }}>{l.label}</span>
+                        <div style={{ flex:1, background:S.bg, border:`1px solid ${S.border}`, borderRadius:6, padding:"5px 8px", fontFamily:"monospace", fontSize:10, color:S.muted2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
                           {l.url}
                         </div>
-                        <button onClick={() => copy(l.url, `${zone.id}-${l.label}`)}
-                          style={{ padding:"6px 10px", borderRadius:6, border:`1px solid ${copied===`${zone.id}-${l.label}`?"#4ADE80":S.border}`, background:"transparent", color:copied===`${zone.id}-${l.label}`?"#4ADE80":S.muted2, fontSize:11, cursor:"pointer", flexShrink:0 }}>
-                          {copied===`${zone.id}-${l.label}` ? "✓" : "Copier"}
+                        <button onClick={() => copy(l.url, `${zone.id}-cat-${l.label}`)}
+                          style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${copied===`${zone.id}-cat-${l.label}`?"#4ADE80":S.border}`, background:"transparent", color:copied===`${zone.id}-cat-${l.label}`?"#4ADE80":S.muted2, fontSize:11, cursor:"pointer", flexShrink:0 }}>
+                          {copied===`${zone.id}-cat-${l.label}` ? "✓" : "Copier"}
                         </button>
                       </div>
                     ))}
                   </div>
+
+                  {/* Liens pages de vente par produit */}
+                  {products.length > 0 && (
+                    <div>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <p style={{ color:S.muted2, fontSize:11, margin:0, fontWeight:600 }}>🎯 Pages de vente — par produit</p>
+                        <button onClick={() => setShowProducts(showProducts === zone.id ? null : zone.id)}
+                          style={{ padding:"3px 10px", borderRadius:20, border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:11, cursor:"pointer" }}>
+                          {showProducts === zone.id ? "Masquer" : "Afficher"}
+                        </button>
+                      </div>
+                      {showProducts === zone.id && (
+                        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                          {products.map(p => (
+                            <div key={p.id} style={{ background:S.bg, borderRadius:8, padding:"10px 12px", border:`1px solid ${S.border}` }}>
+                              <p style={{ color:S.white, fontSize:12, fontWeight:700, margin:"0 0 8px" }}>📄 {p.nom}</p>
+                              <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                                {[
+                                  { label:"Facebook", url:`https://shipivo.app/produit/${tenantSlug}/${p.slug}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=facebook`, color:"#1877F2" },
+                                  { label:"TikTok", url:`https://shipivo.app/produit/${tenantSlug}/${p.slug}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=tiktok`, color:"#FF0050" },
+                                  { label:"WhatsApp", url:`https://shipivo.app/produit/${tenantSlug}/${p.slug}?zone=${encodeURIComponent(zone.nom.toLowerCase())}&src=whatsapp`, color:"#25D366" },
+                                ].map(l => (
+                                  <div key={l.label} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                    <span style={{ color:l.color, fontSize:10, width:65, flexShrink:0, fontWeight:600 }}>{l.label}</span>
+                                    <div style={{ flex:1, background:S.card, border:`1px solid ${S.border}`, borderRadius:5, padding:"4px 8px", fontFamily:"monospace", fontSize:9, color:S.muted2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
+                                      {l.url}
+                                    </div>
+                                    <button onClick={() => copy(l.url, `${zone.id}-${p.id}-${l.label}`)}
+                                      style={{ padding:"4px 8px", borderRadius:5, border:`1px solid ${copied===`${zone.id}-${p.id}-${l.label}`?"#4ADE80":S.border}`, background:"transparent", color:copied===`${zone.id}-${p.id}-${l.label}`?"#4ADE80":S.muted2, fontSize:10, cursor:"pointer", flexShrink:0 }}>
+                                      {copied===`${zone.id}-${p.id}-${l.label}` ? "✓" : "Copier"}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )
