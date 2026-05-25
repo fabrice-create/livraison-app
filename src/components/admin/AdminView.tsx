@@ -228,6 +228,20 @@ function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; 
   return (
     <div style={{ fontFamily: "Inter, sans-serif" }}>
 
+      {/* Filtre par zone */}
+      {zones.length > 0 && (
+        <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ color:"#55556A", fontSize:12, fontWeight:600 }}>🌍</span>
+          <button onClick={() => setSelectedZone("all")} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone==="all"?"#F59E0B":"#1E1E2E"}`, background:selectedZone==="all"?"rgba(245,158,11,0.1)":"transparent", color:selectedZone==="all"?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+            Toutes
+          </button>
+          {zones.map((z: Zone) => (
+            <button key={z.id} onClick={() => setSelectedZone(z.nom)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone===z.nom?"#F59E0B":"#1E1E2E"}`, background:selectedZone===z.nom?"rgba(245,158,11,0.1)":"transparent", color:selectedZone===z.nom?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+              {z.emoji} {z.nom}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Filtre période */}
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
         {(["today","7d","30d","all"] as const).map(p => (
