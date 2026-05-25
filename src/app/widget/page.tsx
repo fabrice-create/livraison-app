@@ -38,6 +38,8 @@ function WidgetContent() {
   const produitImage = searchParams?.get("produit_image") || ""
   const mode = searchParams?.get("mode") || "form"
   const couleur = searchParams?.get("couleur") || "#F59E0B"
+  const bgTransparent = searchParams?.get("bg") === "transparent"
+  const btnText = searchParams?.get("btn") || "Commander — Paiement à la livraison"
 
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null)
   const [product, setProduct] = useState<Product | null>(null)
@@ -98,18 +100,26 @@ function WidgetContent() {
     detect()
   }, [])
 
-  // Envoyer la hauteur au parent
+  // Envoyer la hauteur au parent — resize auto
   useEffect(() => {
     const sendHeight = () => {
       if (containerRef.current) {
-        const h = containerRef.current.scrollHeight
+        // scrollHeight + padding pour éviter la scrollbar
+        const h = containerRef.current.scrollHeight + 16
         window.parent.postMessage({ type: "shipivo-resize", height: h }, "*")
       }
     }
+    // Envoyer immédiatement puis à chaque changement
     sendHeight()
-    const obs = new ResizeObserver(sendHeight)
+    const timer = setTimeout(sendHeight, 300)
+    const timer2 = setTimeout(sendHeight, 800)
+    const obs = new ResizeObserver(() => { sendHeight() })
     if (containerRef.current) obs.observe(containerRef.current)
-    return () => obs.disconnect()
+    return () => {
+      obs.disconnect()
+      clearTimeout(timer)
+      clearTimeout(timer2)
+    }
   })
 
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + (boutique?.currency || "FCFA")
@@ -157,6 +167,8 @@ function WidgetContent() {
     setSubmitting(false)
   }
 
+  const bgColor = bgTransparent ? "transparent" : C.bg
+
   if (loading) return (
     <div ref={containerRef} style={{ background: "transparent", padding: 24, textAlign: "center", color: C.muted, fontFamily: "Inter, sans-serif" }}>
       Chargement...
@@ -164,7 +176,7 @@ function WidgetContent() {
   )
 
   if (success) return (
-    <div ref={containerRef} style={{ background: C.bg, borderRadius: 12, padding: 24, textAlign: "center", fontFamily: "Inter, sans-serif" }}>
+    <div ref={containerRef} style={{ background: bgColor, borderRadius: bgTransparent ? 0 : 12, padding: 24, textAlign: "center", fontFamily: "Inter, sans-serif" }}>
       <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
       <h3 style={{ color: C.white, margin: "0 0 8px 0", fontSize: 18, fontWeight: 700 }}>Commande envoyée !</h3>
       <p style={{ color: C.muted, fontSize: 14, margin: 0, lineHeight: 1.6 }}>
@@ -288,7 +300,7 @@ function WidgetContent() {
 
         <button onClick={handleSubmit} disabled={submitting}
           style={{ width: "100%", background: submitting ? "#92610A" : bc, border: "none", borderRadius: 10, padding: "14px", color: "#000", fontSize: 15, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer", marginTop: 4 }}>
-          {submitting ? "Envoi..." : "✅ Commander — Paiement à la livraison"}
+          {submitting ? "Envoi..." : `✅ ${btnText}`}
         </button>
       </div>
     </div>
