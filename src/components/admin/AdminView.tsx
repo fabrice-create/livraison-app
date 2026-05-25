@@ -120,10 +120,14 @@ function Select({ label, name, value, onChange, options }: {
 }
 
 // ─── Vue Dashboard — Phase 10 Analytics Pro ──────────────────
-function DashboardView({ orders, driverStocks }: { orders: Order[]; driverStocks: DriverStock[] }) {
+function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; driverStocks: DriverStock[]; zones?: Zone[] }) {
   const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
   const [selectedZone, setSelectedZone] = useState<string>("all");
   const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total");
+
+  const ordersForZone = selectedZone === "all"
+    ? orders
+    : orders.filter(o => o.zone_nom === selectedZone)
 
   function inPeriod(dateStr: string | null | undefined, p: string): boolean {
     if (!dateStr) return false;
