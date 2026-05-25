@@ -85,6 +85,35 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setUploadingImg(false)
   }
 
+  const uploadGalleryImage = async (file: File) => {
+    setUploadingGallery(true)
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
+      const fileName = `produits/${tenantId}/galerie-${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from("shipivo-images").upload(fileName, file, { upsert: true, contentType: file.type })
+      if (error) { alert("Erreur: " + error.message); setUploadingGallery(false); return }
+      const { data: urlData } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+      setImagesGalerie(prev => [...prev, urlData.publicUrl])
+    } catch { alert("Erreur upload galerie") }
+    setUploadingGallery(false)
+  }
+
+  const moveSection = (idx: number, dir: -1|1) => {
+    const arr = [...sectionsOrdre]
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= arr.length) return
+    ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+    setSectionsOrdre(arr)
+  }
+
+  const sectionLabels: Record<string,string> = {
+    galerie:"🖼️ Galerie photos", description:"📝 Description",
+    probleme:"😣 Problème", benefices:"✅ Bénéfices",
+    utilisation:"📋 Mode d'emploi", composition:"🧪 Composition",
+    temoignages:"⭐ Témoignages", comparaison:"🏆 Comparaison",
+    faq:"❓ FAQ", garantie:"🛡️ Garantie", formulaire:"🛒 Formulaire"
+  }
+
   const resetForm = () => {
     setNom(""); setPrix(""); setPrixBarre(""); setDevise("FCFA"); setBadge("")
     setImagePrincipale(""); setDescription(""); setHeroTitre(""); setHeroSousTitre("")
@@ -208,9 +237,9 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       {error && <div style={{ background: S.dangerBg, border: "1px solid rgba(248,113,113,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, color: S.danger, fontSize: 13 }}>⚠️ {error}</div>}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: S.card, borderRadius: 12, padding: 4 }}>
-        {[["base","📦 Produit"],["design","🎨 Design"],["apercu","👁️ Aperçu"]].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", background: tab === id ? S.gold : "transparent", color: tab === id ? "#000" : S.muted2 }}>
+      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: S.card, borderRadius: 12, padding: 4, flexWrap: "wrap" }}>
+        {[["base","📦 Produit"],["galerie","🖼️ Galerie"],["sections","📋 Sections"],["ordre","↕️ Ordre"],["design","🎨 Design"],["apercu","👁️ Aperçu"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", minWidth: 70, background: tab === id ? S.gold : "transparent", color: tab === id ? "#000" : S.muted2 }}>
             {label}
           </button>
         ))}
@@ -347,6 +376,193 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Tab Galerie ── */}
+      {tab === "galerie" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ color: S.muted2, fontSize: 13 }}>Ajoute plusieurs photos de ton produit. La galerie apparaît sur ta page de vente avec des miniatures cliquables.</p>
+          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={e => { const f=e.target.files?.[0]; if(f) uploadGalleryImage(f) }} />
+          <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingGallery}
+            style={{ padding:"12px", borderRadius:10, border:`1px dashed ${S.gold}`, background:"rgba(245,158,11,0.05)", color:S.gold, fontSize:13, fontWeight:600, cursor:uploadingGallery?"not-allowed":"pointer" }}>
+            {uploadingGallery ? "⏳ Upload..." : "📁 Ajouter une photo à la galerie"}
+          </button>
+          {imagesGalerie.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+              {imagesGalerie.map((img, i) => (
+                <div key={i} style={{ position:"relative" }}>
+                  <img src={img} alt="" style={{ width:90, height:90, borderRadius:10, objectFit:"cover", border:`2px solid ${S.border}` }} />
+                  <button onClick={() => setImagesGalerie(prev => prev.filter((_,j)=>j!==i))}
+                    style={{ position:"absolute", top:-8, right:-8, width:22, height:22, borderRadius:"50%", border:"none", background:S.danger, color:"#fff", fontSize:12, cursor:"pointer" }}>×</button>
+                  {i > 0 && <button onClick={() => { const arr=[...imagesGalerie]; [arr[i],arr[i-1]]=[arr[i-1],arr[i]]; setImagesGalerie(arr) }}
+                    style={{ position:"absolute", bottom:-8, left:-8, width:22, height:22, borderRadius:"50%", border:"none", background:S.gold, color:"#000", fontSize:12, cursor:"pointer" }}>←</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          <p style={{ color:S.muted, fontSize:11 }}>Glisse les photos pour les réordonner. La 1ère est l'image principale.</p>
+        </div>
+      )}
+
+      {/* ── Tab Sections ── */}
+      {tab === "sections" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ color: S.muted2, fontSize: 13, marginBottom: 4 }}>Active les sections et remplis le contenu. Pour changer l'ordre, va dans l'onglet ↕️ Ordre.</p>
+
+          {/* Problème */}
+          <div style={{ background:S.card2, borderRadius:12, border:`1px solid ${sections.probleme.active?S.gold:S.border}`, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px" }}>
+              <span style={{ color:S.white, fontSize:13, fontWeight:700 }}>😣 Section Problème</span>
+              <button onClick={() => setSections(s=>({...s,probleme:{...s.probleme,active:!s.probleme.active}}))}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:sections.probleme.active?"rgba(74,222,128,0.15)":S.bg, color:sections.probleme.active?S.success:S.muted }}>
+                {sections.probleme.active?"✅ Activée":"Activer"}
+              </button>
+            </div>
+            {sections.probleme.active && (
+              <div style={{ padding:"0 14px 14px", borderTop:`1px solid ${S.border}` }}>
+                <input value={sections.probleme.titre} onChange={e=>setSections(s=>({...s,probleme:{...s.probleme,titre:e.target.value}}))}
+                  style={{...inp,marginTop:10,marginBottom:10}} placeholder="Titre de la section" />
+                {sections.probleme.items.map((item,i)=>(
+                  <div key={i} style={{ display:"flex",gap:8,marginBottom:8 }}>
+                    <input value={item.emoji} onChange={e=>{const arr=[...sections.probleme.items];arr[i]={...arr[i],emoji:e.target.value};setSections(s=>({...s,probleme:{...s.probleme,items:arr}}))}} style={{...inp,width:60}} placeholder="😣" />
+                    <input value={item.texte} onChange={e=>{const arr=[...sections.probleme.items];arr[i]={...arr[i],texte:e.target.value};setSections(s=>({...s,probleme:{...s.probleme,items:arr}}))}} style={{...inp,flex:1}} placeholder="Description du problème" />
+                    <button onClick={()=>setSections(s=>({...s,probleme:{...s.probleme,items:s.probleme.items.filter((_,j)=>j!==i)}}))} style={{padding:"4px 10px",borderRadius:8,border:"none",background:S.dangerBg,color:S.danger,cursor:"pointer"}}>✕</button>
+                  </div>
+                ))}
+                <button onClick={()=>setSections(s=>({...s,probleme:{...s.probleme,items:[...s.probleme.items,{emoji:"😣",texte:""}]}}))}
+                  style={{padding:"6px 14px",borderRadius:8,border:`1px dashed ${S.border}`,background:"transparent",color:S.muted2,fontSize:12,cursor:"pointer",width:"100%"}}>+ Ajouter un problème</button>
+              </div>
+            )}
+          </div>
+
+          {/* Bénéfices */}
+          <div style={{ background:S.card2, borderRadius:12, border:`1px solid ${sections.benefices.active?S.gold:S.border}`, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px" }}>
+              <span style={{ color:S.white, fontSize:13, fontWeight:700 }}>✅ Section Bénéfices</span>
+              <button onClick={() => setSections(s=>({...s,benefices:{...s.benefices,active:!s.benefices.active}}))}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:sections.benefices.active?"rgba(74,222,128,0.15)":S.bg, color:sections.benefices.active?S.success:S.muted }}>
+                {sections.benefices.active?"✅ Activée":"Activer"}
+              </button>
+            </div>
+            {sections.benefices.active && (
+              <div style={{ padding:"0 14px 14px", borderTop:`1px solid ${S.border}` }}>
+                <input value={sections.benefices.titre} onChange={e=>setSections(s=>({...s,benefices:{...s.benefices,titre:e.target.value}}))} style={{...inp,marginTop:10,marginBottom:10}} placeholder="Titre" />
+                {sections.benefices.items.map((item,i)=>(
+                  <div key={i} style={{ background:S.bg, borderRadius:8, padding:10, marginBottom:8, border:`1px solid ${S.border}` }}>
+                    <div style={{ display:"flex",gap:8,marginBottom:6 }}>
+                      <input value={item.emoji} onChange={e=>{const arr=[...sections.benefices.items];arr[i]={...arr[i],emoji:e.target.value};setSections(s=>({...s,benefices:{...s.benefices,items:arr}}))}} style={{...inp,width:60}} placeholder="✅" />
+                      <input value={item.titre} onChange={e=>{const arr=[...sections.benefices.items];arr[i]={...arr[i],titre:e.target.value};setSections(s=>({...s,benefices:{...s.benefices,items:arr}}))}} style={{...inp,flex:1}} placeholder="Titre du bénéfice" />
+                      <button onClick={()=>setSections(s=>({...s,benefices:{...s.benefices,items:s.benefices.items.filter((_,j)=>j!==i)}}))} style={{padding:"4px 10px",borderRadius:8,border:"none",background:S.dangerBg,color:S.danger,cursor:"pointer"}}>✕</button>
+                    </div>
+                    <input value={item.texte} onChange={e=>{const arr=[...sections.benefices.items];arr[i]={...arr[i],texte:e.target.value};setSections(s=>({...s,benefices:{...s.benefices,items:arr}}))}} style={inp} placeholder="Description" />
+                  </div>
+                ))}
+                <button onClick={()=>setSections(s=>({...s,benefices:{...s.benefices,items:[...s.benefices.items,{emoji:"✅",titre:"",texte:""}]}}))}
+                  style={{padding:"6px 14px",borderRadius:8,border:`1px dashed ${S.border}`,background:"transparent",color:S.muted2,fontSize:12,cursor:"pointer",width:"100%"}}>+ Ajouter un bénéfice</button>
+              </div>
+            )}
+          </div>
+
+          {/* Témoignages */}
+          <div style={{ background:S.card2, borderRadius:12, border:`1px solid ${sections.temoignages.active?S.gold:S.border}`, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px" }}>
+              <span style={{ color:S.white, fontSize:13, fontWeight:700 }}>⭐ Section Témoignages</span>
+              <button onClick={() => setSections(s=>({...s,temoignages:{...s.temoignages,active:!s.temoignages.active}}))}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:sections.temoignages.active?"rgba(74,222,128,0.15)":S.bg, color:sections.temoignages.active?S.success:S.muted }}>
+                {sections.temoignages.active?"✅ Activée":"Activer"}
+              </button>
+            </div>
+            {sections.temoignages.active && (
+              <div style={{ padding:"0 14px 14px", borderTop:`1px solid ${S.border}` }}>
+                <input value={sections.temoignages.titre} onChange={e=>setSections(s=>({...s,temoignages:{...s.temoignages,titre:e.target.value}}))} style={{...inp,marginTop:10,marginBottom:10}} placeholder="Titre" />
+                {sections.temoignages.items.map((item,i)=>(
+                  <div key={i} style={{ background:S.bg, borderRadius:10, padding:12, marginBottom:10, border:`1px solid ${S.border}` }}>
+                    <div style={{ display:"flex",gap:8,marginBottom:8 }}>
+                      <input value={item.nom} onChange={e=>{const arr=[...sections.temoignages.items];arr[i]={...arr[i],nom:e.target.value};setSections(s=>({...s,temoignages:{...s.temoignages,items:arr}}))}} style={{...inp,flex:1}} placeholder="Nom" />
+                      <input value={item.ville} onChange={e=>{const arr=[...sections.temoignages.items];arr[i]={...arr[i],ville:e.target.value};setSections(s=>({...s,temoignages:{...s.temoignages,items:arr}}))}} style={{...inp,flex:1}} placeholder="Ville" />
+                      <select value={item.note} onChange={e=>{const arr=[...sections.temoignages.items];arr[i]={...arr[i],note:Number(e.target.value)};setSections(s=>({...s,temoignages:{...s.temoignages,items:arr}}))}} style={{...inp,width:70}}>
+                        {[5,4,3,2,1].map(n=><option key={n} value={n}>{n}⭐</option>)}
+                      </select>
+                      <button onClick={()=>setSections(s=>({...s,temoignages:{...s.temoignages,items:s.temoignages.items.filter((_,j)=>j!==i)}}))} style={{padding:"4px 10px",borderRadius:8,border:"none",background:S.dangerBg,color:S.danger,cursor:"pointer"}}>✕</button>
+                    </div>
+                    <input value={item.photo||""} onChange={e=>{const arr=[...sections.temoignages.items];arr[i]={...arr[i],photo:e.target.value};setSections(s=>({...s,temoignages:{...s.temoignages,items:arr}}))}} style={{...inp,marginBottom:8}} placeholder="Photo (URL optionnel)" />
+                    <textarea value={item.texte} onChange={e=>{const arr=[...sections.temoignages.items];arr[i]={...arr[i],texte:e.target.value};setSections(s=>({...s,temoignages:{...s.temoignages,items:arr}}))}} style={{...inp,resize:"none",height:70}} placeholder="Témoignage..." />
+                  </div>
+                ))}
+                <button onClick={()=>setSections(s=>({...s,temoignages:{...s.temoignages,items:[...s.temoignages.items,{nom:"",ville:"",texte:"",note:5,photo:""}]}}))}
+                  style={{padding:"6px 14px",borderRadius:8,border:`1px dashed ${S.border}`,background:"transparent",color:S.muted2,fontSize:12,cursor:"pointer",width:"100%"}}>+ Ajouter un témoignage</button>
+              </div>
+            )}
+          </div>
+
+          {/* FAQ */}
+          <div style={{ background:S.card2, borderRadius:12, border:`1px solid ${sections.faq.active?S.gold:S.border}`, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px" }}>
+              <span style={{ color:S.white, fontSize:13, fontWeight:700 }}>❓ Section FAQ</span>
+              <button onClick={() => setSections(s=>({...s,faq:{...s.faq,active:!s.faq.active}}))}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:sections.faq.active?"rgba(74,222,128,0.15)":S.bg, color:sections.faq.active?S.success:S.muted }}>
+                {sections.faq.active?"✅ Activée":"Activer"}
+              </button>
+            </div>
+            {sections.faq.active && (
+              <div style={{ padding:"0 14px 14px", borderTop:`1px solid ${S.border}` }}>
+                <input value={sections.faq.titre} onChange={e=>setSections(s=>({...s,faq:{...s.faq,titre:e.target.value}}))} style={{...inp,marginTop:10,marginBottom:10}} placeholder="Titre" />
+                {sections.faq.items.map((item,i)=>(
+                  <div key={i} style={{ background:S.bg, borderRadius:8, padding:10, marginBottom:8, border:`1px solid ${S.border}` }}>
+                    <div style={{ display:"flex",gap:8,marginBottom:6 }}>
+                      <input value={item.question} onChange={e=>{const arr=[...sections.faq.items];arr[i]={...arr[i],question:e.target.value};setSections(s=>({...s,faq:{...s.faq,items:arr}}))}} style={{...inp,flex:1}} placeholder="Question ?" />
+                      <button onClick={()=>setSections(s=>({...s,faq:{...s.faq,items:s.faq.items.filter((_,j)=>j!==i)}}))} style={{padding:"4px 10px",borderRadius:8,border:"none",background:S.dangerBg,color:S.danger,cursor:"pointer"}}>✕</button>
+                    </div>
+                    <textarea value={item.reponse} onChange={e=>{const arr=[...sections.faq.items];arr[i]={...arr[i],reponse:e.target.value};setSections(s=>({...s,faq:{...s.faq,items:arr}}))}} style={{...inp,resize:"none",height:60}} placeholder="Réponse..." />
+                  </div>
+                ))}
+                <button onClick={()=>setSections(s=>({...s,faq:{...s.faq,items:[...s.faq.items,{question:"",reponse:""}]}}))}
+                  style={{padding:"6px 14px",borderRadius:8,border:`1px dashed ${S.border}`,background:"transparent",color:S.muted2,fontSize:12,cursor:"pointer",width:"100%"}}>+ Ajouter une FAQ</button>
+              </div>
+            )}
+          </div>
+
+          {/* Garantie */}
+          <div style={{ background:S.card2, borderRadius:12, border:`1px solid ${sections.garantie.active?S.gold:S.border}`, overflow:"hidden" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px" }}>
+              <span style={{ color:S.white, fontSize:13, fontWeight:700 }}>🛡️ Garantie</span>
+              <button onClick={() => setSections(s=>({...s,garantie:{...s.garantie,active:!s.garantie.active}}))}
+                style={{ padding:"4px 12px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:sections.garantie.active?"rgba(74,222,128,0.15)":S.bg, color:sections.garantie.active?S.success:S.muted }}>
+                {sections.garantie.active?"✅ Activée":"Activer"}
+              </button>
+            </div>
+            {sections.garantie.active && (
+              <div style={{ padding:"0 14px 14px", borderTop:`1px solid ${S.border}`, display:"flex", gap:8, marginTop:10 }}>
+                <input value={sections.garantie.icone} onChange={e=>setSections(s=>({...s,garantie:{...s.garantie,icone:e.target.value}}))} style={{...inp,width:60}} placeholder="🛡️" />
+                <input value={sections.garantie.texte} onChange={e=>setSections(s=>({...s,garantie:{...s.garantie,texte:e.target.value}}))} style={{...inp,flex:1}} placeholder="Satisfait ou remboursé 30 jours" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Ordre des sections ── */}
+      {tab === "ordre" && (
+        <div>
+          <p style={{ color:S.muted2, fontSize:13, marginBottom:16 }}>
+            Glisse les sections dans l'ordre que tu veux. Le formulaire peut être mis n'importe où.
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {sectionsOrdre.map((key, i) => (
+              <div key={key} style={{ display:"flex", gap:10, alignItems:"center", background:S.card2, borderRadius:12, padding:"12px 14px", border:`1px solid ${S.border}` }}>
+                <span style={{ fontSize:18, flexShrink:0 }}>{sectionLabels[key]?.split(" ")[0]}</span>
+                <span style={{ color:S.white, fontSize:13, flex:1, fontWeight:600 }}>{sectionLabels[key]?.split(" ").slice(1).join(" ")}</span>
+                <div style={{ display:"flex", gap:4 }}>
+                  <button onClick={() => moveSection(i, -1)} disabled={i===0}
+                    style={{ width:30,height:30,borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:i===0?S.muted:S.gold,fontSize:14,cursor:i===0?"default":"pointer" }}>↑</button>
+                  <button onClick={() => moveSection(i, 1)} disabled={i===sectionsOrdre.length-1}
+                    style={{ width:30,height:30,borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:i===sectionsOrdre.length-1?S.muted:S.gold,fontSize:14,cursor:i===sectionsOrdre.length-1?"default":"pointer" }}>↓</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ color:S.muted2, fontSize:11, marginTop:12 }}>N'oublie pas de cliquer sur Enregistrer pour sauvegarder l'ordre.</p>
         </div>
       )}
 
