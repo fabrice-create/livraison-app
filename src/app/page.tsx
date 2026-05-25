@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/app/lib/supabase"
 
 const C = {
   bg:       "#07070C",
@@ -97,6 +98,36 @@ function useCountUp(target: number, duration = 2000) {
 export default function LandingPage() {
   const router = useRouter()
   const [scrolled, setScrolled] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  // Si déjà connecté → redirect direct sans passer par la landing
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setChecking(false); return }
+
+      // Vérifier super admin
+      const { data: sa } = await supabase.from("super_admins").select("id").eq("user_id", user.id).maybeSingle()
+      if (sa) { router.replace("/super-admin"); return }
+
+      // Vérifier profil
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, is_active")
+        .or(`user_id.eq.${user.id},id.eq.${user.id}`)
+        .maybeSingle()
+
+      if (!profile || !profile.is_active) { setChecking(false); return }
+
+      const role = (profile.role || "").trim().toLowerCase()
+      if (role === "livreur")     { router.replace("/livreur");    return }
+      if (role === "closureuse")  { router.replace("/closureuse"); return }
+      router.replace("/admin")
+    }
+    checkSession()
+  }, [])
+
+  if (checking) return null
   const [openFaq, setOpenFaq] = useState<number|null>(null)
   const [annual, setAnnual] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
