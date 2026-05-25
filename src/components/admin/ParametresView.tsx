@@ -665,42 +665,54 @@ export default function ParametresView({ tenantId }: Props) {
               Intègre le formulaire de commande Shipivo sur n&apos;importe quel site — WordPress, Elementor, Shopify, Wix, Webflow ou tout autre plateforme.
             </p>
 
-            {/* Méthode recommandée */}
+            {/* Méthode recommandée — style Tally */}
             <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-              <p style={{ color: S.gold, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>⭐ Méthode recommandée — Formulaire HTML direct</p>
+              <p style={{ color: S.gold, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>⭐ Code universel — Elementor, Shopify, Wix, Webflow</p>
               <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px", lineHeight: 1.6 }}>
-                Fonctionne partout sans problème de sécurité. Compatible Elementor, Shopify, Wix, Webflow.
+                Colle ce code dans un bloc <strong style={{color:S.white}}>HTML</strong> Elementor. Le formulaire s&apos;affiche directement.
               </p>
-              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, wordBreak: "break-all" as const, lineHeight: 1.8 }}>
-                {`<script src="https://shipivo.app/widget-form.js"
-  data-boutique="${tenantSlug}"
-  data-couleur="#F59E0B">
-</script>`}
+              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
+                <div>{`<iframe`}</div>
+                <div style={{paddingLeft:16}}>{`data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}"`}</div>
+                <div style={{paddingLeft:16}}>{`loading="lazy" width="100%" height="520"`}</div>
+                <div style={{paddingLeft:16}}>{`frameborder="0" style="border-radius:12px;border:none;">`}</div>
+                <div>{`</iframe>`}</div>
+                <div style={{marginTop:6}}>{`<script>`}</div>
+                <div style={{paddingLeft:16}}>{`var d=document,w="https://shipivo.app/widget-embed.js",`}</div>
+                <div style={{paddingLeft:16}}>{`v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};`}</div>
+                <div style={{paddingLeft:16}}>{`if(window.Shipivo)v();`}</div>
+                <div style={{paddingLeft:16}}>{`else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}`}</div>
+                <div>{`</script>`}</div>
               </div>
               <button onClick={() => {
-                const code = `<script src="https://shipivo.app/widget-form.js" data-boutique="${tenantSlug}" data-couleur="#F59E0B"></script>`
+                const code = `<iframe data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}" loading="lazy" width="100%" height="520" frameborder="0" style="border-radius:12px;border:none;"></iframe><script>var d=document,w="https://shipivo.app/widget-embed.js",v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};if(window.Shipivo)v();else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}<\/script>`
                 navigator.clipboard.writeText(code)
-                setCopied("widget-form")
+                setCopied("widget-tally")
                 setTimeout(() => setCopied(""), 2000)
-              }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "widget-form" ? S.success : S.border}`, background: "transparent", color: copied === "widget-form" ? S.success : S.text3, fontSize: 12, cursor: "pointer" }}>
-                {copied === "widget-form" ? "✓ Code copié !" : "📋 Copier le code"}
+              }} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${copied === "widget-tally" ? S.success : S.border}`, background: "transparent", color: copied === "widget-tally" ? S.success : S.text3, fontSize: 12, cursor: "pointer" }}>
+                {copied === "widget-tally" ? "✓ Code copié !" : "📋 Copier le code"}
               </button>
             </div>
 
             {/* Avec produit spécifique */}
             <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>📦 Avec un produit spécifique</p>
-              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px" }}>Pour pré-remplir le produit et le prix dans le formulaire :</p>
-              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, wordBreak: "break-all" as const, lineHeight: 1.8 }}>
-                {`<script src="https://shipivo.app/widget-form.js"
-  data-boutique="${tenantSlug}"
-  data-produit="Nom du produit"
-  data-prix="15000"
-  data-couleur="#F59E0B">
-</script>`}
+              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px" }}>Remplace <strong style={{color:S.white}}>NOM_PRODUIT</strong> et <strong style={{color:S.white}}>15000</strong> par ton produit et son prix :</p>
+              <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
+                <div>{`<iframe`}</div>
+                <div style={{paddingLeft:16, color:"#FCD34D"}}>{`data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=15000&mode=full"`}</div>
+                <div style={{paddingLeft:16}}>{`loading="lazy" width="100%" height="620"`}</div>
+                <div style={{paddingLeft:16}}>{`frameborder="0" style="border-radius:12px;border:none;">`}</div>
+                <div>{`</iframe>`}</div>
+                <div style={{marginTop:6}}>{`<script>`}</div>
+                <div style={{paddingLeft:16}}>{`var d=document,w="https://shipivo.app/widget-embed.js",`}</div>
+                <div style={{paddingLeft:16}}>{`v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};`}</div>
+                <div style={{paddingLeft:16}}>{`if(window.Shipivo)v();`}</div>
+                <div style={{paddingLeft:16}}>{`else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}`}</div>
+                <div>{`</script>`}</div>
               </div>
               <button onClick={() => {
-                const code = `<script src="https://shipivo.app/widget-form.js" data-boutique="${tenantSlug}" data-produit="Nom du produit" data-prix="15000" data-couleur="#F59E0B"></script>`
+                const code = `<iframe data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=15000&mode=full" loading="lazy" width="100%" height="620" frameborder="0" style="border-radius:12px;border:none;"></iframe><script>var d=document,w="https://shipivo.app/widget-embed.js",v=function(){window.Shipivo&&window.Shipivo.loadEmbeds()};if(window.Shipivo)v();else{var s=d.createElement("script");s.src=w;s.onload=v;d.body.appendChild(s);}<\/script>`
                 navigator.clipboard.writeText(code)
                 setCopied("widget-produit")
                 setTimeout(() => setCopied(""), 2000)
