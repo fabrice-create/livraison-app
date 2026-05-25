@@ -73,7 +73,7 @@ const EMPTY: Product = {
   section_probleme_active:false, section_probleme_titre:"Vous souffrez de ça ?", section_probleme_items:[],
   section_benefices_active:false, section_benefices_titre:"Pourquoi choisir ce produit ?", section_benefices_items:[],
   section_composition_active:false, section_composition_titre:"Composition", section_composition_items:[],
-  section_temoignages_active:false, section_temoignages_titre:"Ce qu\'ils en disent", section_temoignages_items:[],
+  section_temoignages_active:false, section_temoignages_titre:"Ce ququ'ils en disent", section_temoignages_items:[],
   section_comparaison_active:false, section_comparaison_titre:"Pourquoi nous ?", section_comparaison_items:[],
   section_faq_active:false, section_faq_titre:"Questions fréquentes", section_faq_items:[],
   section_garantie_active:false, section_garantie_texte:"Satisfait ou remboursé 30 jours", section_garantie_icone:"🛡️",
@@ -174,7 +174,7 @@ export default function ProduitsView({ tenantId, tenantSlug, brandColor }: Props
     section_comparaison_active:"🏆 Section Comparaison",
     section_faq_active:"❓ Section FAQ",
     section_garantie_active:"🛡️ Section Garantie",
-    section_utilisation_active:"📋 Section Mode d\'emploi",
+    section_utilisation_active:"📋 Section Mode d'emploi",
     countdown_active:"⏰ Compte à rebours",
   }[key] || key)
 
@@ -546,7 +546,7 @@ export default function ProduitsView({ tenantId, tenantSlug, brandColor }: Props
               👁️ Voir la page de vente
             </a>
           ) : (
-            <p style={{ color:S.danger, fontSize:13 }}>Enregistre d\'abord le produit pour voir l\'aperçu.</p>
+            <p style={{ color:S.danger, fontSize:13 }}>Enregistre d'abord le produit pour voir l'aperçu.perçu.</p>
           )}
           <div style={{ background:S.card, borderRadius:12, padding:16, textAlign:"left" }}>
             <p style={{ color:S.muted2, fontSize:12, fontWeight:700, marginBottom:8 }}>Lien à partager :</p>
