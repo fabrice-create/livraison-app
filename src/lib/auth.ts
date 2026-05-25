@@ -1,7 +1,7 @@
 import { supabase } from "@/app/lib/supabase"
 import { COUNTRY_CURRENCY } from "@/lib/utils"
 
-export type UserRole = "super_admin" | "admin" | "closureuse" | "livreur" | "partenaire"
+export type UserRole = "super_admin" | "admin" | "closureuse" | "livreur" | "partenaire" | "manager"
 
 export interface UserProfile {
   id: string
@@ -12,10 +12,11 @@ export interface UserProfile {
   is_active: boolean
 }
 
-export function getRedirectByRole(role: UserRole): string {
+export function getRedirectByRole(role: string): string {
   switch (role) {
     case "super_admin": return "/super-admin"
     case "admin":       return "/admin"
+    case "manager":     return "/admin"
     case "closureuse":  return "/closureuse"
     case "livreur":     return "/livreur"
     case "partenaire":  return "/partenaire"
@@ -24,33 +25,38 @@ export function getRedirectByRole(role: UserRole): string {
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  // 1. Vérifier super_admin — cherche par user_id OU par id
-  const { data: superAdmin } = await supabase
-    .from("super_admins")
-    .select("id, full_name, user_id")
-    .or(`user_id.eq.${userId},id.eq.${userId}`)
-    .single()
+  try {
+    // 1. Vérifier super_admin
+    const { data: superAdmin } = await supabase
+      .from("super_admins")
+      .select("id, full_name, user_id")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle()
 
-  if (superAdmin) {
-    return {
-      id: userId,
-      role: "super_admin",
-      tenant_id: null,
-      full_name: superAdmin.full_name,
-      phone: null,
-      is_active: true,
+    if (superAdmin) {
+      return {
+        id: userId,
+        role: "super_admin",
+        tenant_id: null,
+        full_name: superAdmin.full_name,
+        phone: null,
+        is_active: true,
+      }
     }
+
+    // 2. Profil standard — chercher par user_id OU par id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, user_id, role, tenant_id, full_name, phone, is_active")
+      .or(`user_id.eq.${userId},id.eq.${userId}`)
+      .maybeSingle()
+
+    if (!profile) return null
+    return profile as UserProfile
+
+  } catch {
+    return null
   }
-
-  // 2. Profil standard
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role, tenant_id, full_name, phone, is_active")
-    .eq("user_id", userId)
-    .single()
-
-  if (!profile) return null
-  return profile as UserProfile
 }
 
 export async function createTenantAndAdmin(params: {
