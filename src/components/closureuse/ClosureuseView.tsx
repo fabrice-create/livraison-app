@@ -129,14 +129,14 @@ export function ClosureuseView() {
       const [driversRes, ordersRes, stockRes] = await Promise.all([
         tid ? supabase.from("profiles")
           .select("id, full_name, role, is_active, is_available")
-          .eq("tenant_id", tid).eq("is_active", true).eq("role", "livreur")
+          .eq("tenant_id", tid).eq("is_active", true).ilike("role", "livreur")
           : Promise.resolve({ data: [] }),
         tid ? supabase.from("orders")
           .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id")
           .eq("tenant_id", tid).order("id", { ascending: false }).limit(300)
           : Promise.resolve({ data: [] }),
         tid ? supabase.from("driver_stock")
-          .select("id, driver_id, driver_name, product_name, quantity")
+          .select("id, driver_id, driver_name, product_name, quantity, tenant_id")
           .eq("tenant_id", tid)
           : Promise.resolve({ data: [] }),
       ]);
@@ -157,7 +157,7 @@ export function ClosureuseView() {
     // Charger en parallèle pour aller plus vite
     const [ordersRes, profilesRes] = await Promise.all([
       supabase.from("orders").select("*").eq("tenant_id", tenantId).order("id", { ascending: false }),
-      supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId)
+      supabase.from("profiles").select("*").ilike("role", "livreur").eq("tenant_id", tenantId).eq("is_active", true)
     ]);
     setOrders((ordersRes.data as Order[]) || []);
     const driverList = (profilesRes.data as Profile[]) || [];
@@ -165,8 +165,15 @@ export function ClosureuseView() {
     // Charger stock seulement si des livreurs existent
     if (driverList.length > 0) {
       const driverIds = driverList.map(d => d.id);
-      const { data: sd } = await supabase.from("driver_stock").select("*").in("driver_id", driverIds);
-      setDriverStocks((sd as DriverStock[]) || []);
+      // Charger par driver_ids ET par tenant_id (pour couvrir les anciennes entrées sans tenant_id)
+      const [stockByDriver, stockByTenant] = await Promise.all([
+        supabase.from("driver_stock").select("*").in("driver_id", driverIds),
+        supabase.from("driver_stock").select("*").eq("tenant_id", tenantId),
+      ]);
+      const allStock = [...(stockByDriver.data || []), ...(stockByTenant.data || [])];
+      // Dédupliquer par id
+      const uniqueStock = Array.from(new Map(allStock.map(s => [s.id, s])).values());
+      setDriverStocks((uniqueStock as DriverStock[]) || []);
     } else {
       setDriverStocks([]);
     }
