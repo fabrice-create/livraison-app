@@ -669,7 +669,7 @@ export default function ParametresView({ tenantId }: Props) {
             <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <p style={{ color: S.gold, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>⭐ Code universel — Elementor, Shopify, Wix, Webflow</p>
               <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px", lineHeight: 1.6 }}>
-                Colle ce code dans un bloc <strong style={{color:S.white}}>HTML</strong> Elementor. Le formulaire s&apos;affiche directement.
+                Colle ce code dans un bloc <strong style={{color:S.text}}>HTML</strong> Elementor. Le formulaire s&apos;affiche directement.
               </p>
               <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
                 <div>{`<iframe`}</div>
@@ -697,7 +697,7 @@ export default function ParametresView({ tenantId }: Props) {
             {/* Avec produit spécifique */}
             <div style={{ background: S.card2, border: `1px solid ${S.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <p style={{ color: S.text2, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>📦 Avec un produit spécifique</p>
-              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px" }}>Remplace <strong style={{color:S.white}}>NOM_PRODUIT</strong> et <strong style={{color:S.white}}>15000</strong> par ton produit et son prix :</p>
+              <p style={{ color: S.text2, fontSize: 13, margin: "0 0 12px" }}>Remplace <strong style={{color:S.text}}>NOM_PRODUIT</strong> et <strong style={{color:S.text}}>15000</strong> par ton produit et son prix :</p>
               <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: 11, color: S.info, marginBottom: 10, lineHeight: 1.9, overflowX: "auto" as const }}>
                 <div>{`<iframe`}</div>
                 <div style={{paddingLeft:16, color:"#FCD34D"}}>{`data-shipivo-src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=15000&mode=full"`}</div>
