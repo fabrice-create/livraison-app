@@ -78,17 +78,23 @@ export default function ProductPage() {
     load()
   }, [boutique, slug])
 
-  // Sticky CTA — scroll listener simple et fiable
+  // Sticky CTA — scroll listener, monté après chargement produit
   useEffect(() => {
+    if (!product) return
     const onScroll = () => {
       const scrollY = window.scrollY
-      const heroBottom = heroRef.current ? heroRef.current.offsetTop + heroRef.current.offsetHeight : 400
-      const formTop = formRef.current ? formRef.current.offsetTop - window.innerHeight * 0.8 : 99999
-      setShowSticky(scrollY > heroBottom && scrollY < formTop)
+      const heroBottom = heroRef.current
+        ? heroRef.current.getBoundingClientRect().bottom + scrollY
+        : 400
+      const formTop = formRef.current
+        ? formRef.current.getBoundingClientRect().top + scrollY - window.innerHeight * 0.5
+        : 99999
+      setShowSticky(scrollY > heroBottom - 100 && scrollY < formTop)
     }
     window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll() // déclencher une fois au montage
     return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+  }, [product])
 
   useEffect(() => {
     if (!product?.countdown_active || !product?.countdown_end) return
