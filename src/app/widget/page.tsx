@@ -204,10 +204,34 @@ function WidgetContent() {
   )
 
   return (
-    <div ref={containerRef} style={{ background:BG, borderRadius:16, padding:20, fontFamily:FONT }}>
+    <div id="shipivo-widget" ref={containerRef} style={{ background:BG, borderRadius:16, padding:16, fontFamily:FONT, maxWidth:"100%", overflow:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=${FONT.replace(/ /g,"+")}:wght@400;500;600;700;800&display=swap');
         @keyframes spin{to{transform:rotate(360deg)}}
+        /* Reset WordPress styles */
+        #shipivo-widget, #shipivo-widget * { box-sizing: border-box !important; font-family: ${FONT}, Inter, sans-serif !important; }
+        #shipivo-widget input, #shipivo-widget select, #shipivo-widget textarea {
+          all: unset !important;
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          background: ${CARD} !important;
+          border: 1.5px solid ${BORDER} !important;
+          border-radius: 10px !important;
+          padding: 10px 12px !important;
+          color: ${TX} !important;
+          font-size: 13px !important;
+          font-family: ${FONT}, Inter, sans-serif !important;
+          line-height: 1.4 !important;
+          margin: 0 !important;
+          outline: none !important;
+        }
+        #shipivo-widget input:focus, #shipivo-widget select:focus, #shipivo-widget textarea:focus {
+          border-color: ${AC} !important;
+          box-shadow: 0 0 0 3px ${AC}25 !important;
+        }
+        #shipivo-widget button { cursor: pointer !important; }
+        #shipivo-widget p, #shipivo-widget h3, #shipivo-widget label { margin: 0 !important; padding: 0 !important; }
         .sw-inp:focus{ border-color:${AC} !important; box-shadow:0 0 0 3px ${AC}20 !important; }
       `}</style>
 
