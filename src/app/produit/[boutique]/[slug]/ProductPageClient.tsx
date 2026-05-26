@@ -64,6 +64,14 @@ export default function ProductPage() {
   const [touchStart, setTouchStart] = useState(0)
   const [heroLoaded, setHeroLoaded] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
   const formRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
 
@@ -211,20 +219,15 @@ export default function ProductPage() {
   const renderHero = () => (
     <div ref={heroRef} style={{ position:"relative", background:BG, overflow:"hidden" }}>
       <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 70% 60% at 70% 30%, ${AC}1A 0%, transparent 65%)`, pointerEvents:"none" }} />
-      <style>{`
-        @media (max-width: 768px) {
-          .hero-grid { grid-template-columns: 1fr !important; }
-          .hero-col-right { border-left: none !important; padding-left: 16px !important; padding-right: 16px !important; }
-          .hero-col-left { padding: 24px 16px 0 !important; }
-        }
-      `}</style>
-      <div className="hero-grid" style={{
+      {/* layout grid */}
+      <div style={{
         maxWidth:1200, margin:"0 auto",
-        display:"grid", gridTemplateColumns:"1fr 1fr",
-        minHeight:560
+        display:"grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+        minHeight: isMobile ? "auto" : 560
       }}>
         {/* COL GAUCHE — Galerie */}
-        <div className="hero-col-left" style={{ padding:"48px 32px 48px 48px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+        <div style={{ padding: isMobile ? "24px 16px 0" : "48px 32px 48px 48px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
           {allImages.length > 0 ? (
             <div>
               <div style={{ borderRadius:20, overflow:"hidden", background:"#111118", position:"relative", marginBottom:12 }}
@@ -254,7 +257,7 @@ export default function ProductPage() {
         </div>
 
         {/* COL DROITE — Infos */}
-        <div className="hero-col-right" style={{ padding:"48px 48px 48px 32px", display:"flex", flexDirection:"column", justifyContent:"center", borderLeft:`1px solid rgba(255,255,255,0.05)` }}>
+        <div style={{ padding: isMobile ? "16px 16px 32px" : "48px 48px 48px 32px", display:"flex", flexDirection:"column", justifyContent:"center", borderLeft: isMobile ? "none" : `1px solid rgba(255,255,255,0.05)` }}>
           {product.badge && (
             <div style={{ marginBottom:14 }}>
               <span className="badge-animated" style={{ display:"inline-flex", alignItems:"center", gap:7, background:`${AC}18`, border:`1px solid ${AC}40`, borderRadius:20, padding:"5px 14px", fontSize:11, fontWeight:700, color:AC, letterSpacing:"0.9px", textTransform:"uppercase" }}>
