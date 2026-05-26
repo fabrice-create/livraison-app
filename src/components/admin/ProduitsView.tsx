@@ -205,7 +205,12 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       .replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"produit"
     const slug = editId ? slugBase : `${slugBase}-${Date.now().toString(36)}`
     const payload = {
-      tenant_id:tenantId, nom:nom.trim(), slug,
+      tenant_id:tenantId,
+      // Colonnes originales NOT NULL
+      name: nom.trim(),
+      price: Number(prix),
+      // Colonnes étendues
+      nom:nom.trim(), slug,
       prix:Number(prix), prix_barre:prixBarre?Number(prixBarre):null,
       devise, badge, is_active:isActive, image_principale:imagePrincipale,
       page_content: JSON.stringify(content),
