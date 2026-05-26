@@ -408,13 +408,14 @@ export default function ProductPage() {
         if (!product.description) return null
         return <DescriptionBlock key="description" html={product.description} accentColor={AC} />
 
-      case "probleme":
-        if (!product.section_probleme_active || !product.section_probleme_items?.length) return null
+      case "probleme": {
+        const problemeItems = product.section_probleme_items || []
+        if (!product.section_probleme_active || !problemeItems.length) return null
         return (
           <div key="probleme" style={{ marginBottom:36 }}>
             <h2 style={{ fontFamily:"'Syne',sans-serif",fontSize:"clamp(20px,5vw,28px)",fontWeight:800,marginBottom:20,textAlign:"center",color:TX }}>{product.section_probleme_titre}</h2>
             <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-              {product.section_probleme_items.map((item,i)=>(
+              {problemeItems.map((item,i)=>(
                 <div key={i} style={{ display:"flex",gap:14,alignItems:"flex-start",background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.18)",borderRadius:14,padding:"14px 16px" }}>
                   <span style={{ fontSize:26,flexShrink:0,marginTop:2 }}>{item.emoji}</span>
                   <p style={{ color:`${TX}BB`,fontSize:15,lineHeight:1.65,margin:0 }}>{item.texte}</p>
@@ -423,14 +424,16 @@ export default function ProductPage() {
             </div>
           </div>
         )
+      }
 
-      case "benefices":
-        if (!product.section_benefices_active || !product.section_benefices_items?.length) return null
+      case "benefices": {
+        const beneficesItems = product.section_benefices_items || []
+        if (!product.section_benefices_active || !beneficesItems.length) return null
         return (
           <div key="benefices" style={{ marginBottom:36 }}>
             <h2 style={{ fontFamily:"'Syne',sans-serif",fontSize:"clamp(20px,5vw,28px)",fontWeight:800,marginBottom:20,textAlign:"center",color:TX }}>{product.section_benefices_titre}</h2>
             <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              {product.section_benefices_items.map((item,i)=>(
+              {beneficesItems.map((item,i)=>(
                 <div key={i} style={{ display:"flex",gap:16,alignItems:"flex-start",background:`${AC}0C`,border:`1px solid ${AC}20`,borderRadius:16,padding:"16px 18px" }}>
                   <span style={{ fontSize:30,flexShrink:0 }}>{item.emoji}</span>
                   <div>
