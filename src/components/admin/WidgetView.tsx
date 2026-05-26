@@ -27,12 +27,17 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
   const [btnStyle, setBtnStyle] = useState("full")
   const [titre, setTitre] = useState("Commander maintenant")
   const [sousTitre, setSousTitre] = useState("Paiement à la livraison · Livraison rapide")
+  const [redirectUrl, setRedirectUrl] = useState("")
+  const [merciTitre, setMerciTitre] = useState("Merci pour votre commande !")
+  const [merciMessage, setMerciMessage] = useState("Notre équipe vous appellera bientôt pour confirmer.")
+  const [merciBtn, setMerciBtn] = useState("Retour à la boutique")
+  const [merciBtnUrl, setMerciBtnUrl] = useState("")
   const [copied, setCopied] = useState(false)
   const [activeCode, setActiveCode] = useState<"produit"|"boutique">("produit")
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("tenants").select("widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre").eq("id", tenantId).single()
+      const { data } = await supabase.from("tenants").select("widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre,widget_redirect_url,widget_merci_titre,widget_merci_message,widget_merci_bouton_texte,widget_merci_bouton_url").eq("id", tenantId).single()
       if (data) {
         if (data.widget_couleur) setCouleur(data.widget_couleur)
         if (data.widget_fond) setFond(data.widget_fond)
@@ -41,6 +46,11 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
         if (data.widget_btn_style) setBtnStyle(data.widget_btn_style)
         if (data.widget_titre) setTitre(data.widget_titre)
         if (data.widget_sous_titre) setSousTitre(data.widget_sous_titre)
+        if (data.widget_redirect_url) setRedirectUrl(data.widget_redirect_url)
+        if (data.widget_merci_titre) setMerciTitre(data.widget_merci_titre)
+        if (data.widget_merci_message) setMerciMessage(data.widget_merci_message)
+        if (data.widget_merci_bouton_texte) setMerciBtn(data.widget_merci_bouton_texte)
+        if (data.widget_merci_bouton_url) setMerciBtnUrl(data.widget_merci_bouton_url)
       }
     }
     load()
@@ -52,6 +62,11 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
       widget_couleur: couleur, widget_fond: fond, widget_police: police,
       widget_btn_text: btnText, widget_btn_style: btnStyle,
       widget_titre: titre, widget_sous_titre: sousTitre,
+      widget_redirect_url: redirectUrl || null,
+      widget_merci_titre: merciTitre,
+      widget_merci_message: merciMessage,
+      widget_merci_bouton_texte: merciBtn,
+      widget_merci_bouton_url: merciBtnUrl || null,
     }).eq("id", tenantId)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -190,6 +205,47 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
                   {b.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Page de remerciement */}
+          <div style={{ background:S.card, borderRadius:12, padding:"14px 16px", border:`1px solid ${S.border}` }}>
+            <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 12px" }}>🎉 Après la commande</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <div>
+                <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>
+                  Rediriger vers WordPress (optionnel)
+                </label>
+                <input value={redirectUrl} onChange={e=>setRedirectUrl(e.target.value)}
+                  style={inp} placeholder="https://forako.shop/merci/" />
+                <p style={{ color:S.muted, fontSize:11, margin:"4px 0 0" }}>
+                  Si renseigné → redirige vers cette page 3s après la commande
+                </p>
+              </div>
+              <div style={{ borderTop:`1px solid ${S.border}`, paddingTop:10 }}>
+                <p style={{ color:S.muted2, fontSize:11, fontWeight:600, margin:"0 0 8px" }}>
+                  OU — Page de remerciement Shipivo :
+                </p>
+                <div>
+                  <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Titre</label>
+                  <input value={merciTitre} onChange={e=>setMerciTitre(e.target.value)} style={inp} placeholder="Merci pour votre commande !" />
+                </div>
+                <div style={{ marginTop:8 }}>
+                  <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Message</label>
+                  <textarea value={merciMessage} onChange={e=>setMerciMessage(e.target.value)}
+                    style={{...inp, resize:"none", height:60}} placeholder="Notre équipe vous appellera bientôt..." />
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:8 }}>
+                  <div>
+                    <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Texte bouton retour</label>
+                    <input value={merciBtn} onChange={e=>setMerciBtn(e.target.value)} style={inp} placeholder="Retour à la boutique" />
+                  </div>
+                  <div>
+                    <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>URL bouton retour</label>
+                    <input value={merciBtnUrl} onChange={e=>setMerciBtnUrl(e.target.value)} style={inp} placeholder="https://forako.shop" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
