@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { supabase } from "@/app/lib/supabase"
+import { useParams, useSearchParams } from "next/navigation"
 
 // Composant dédié au rendu HTML riche — injection via ref côté client uniquement
 function DescriptionBlock({ html, accentColor }: { html: string; accentColor: string }) {
@@ -31,8 +33,6 @@ function DescriptionBlock({ html, accentColor }: { html: string; accentColor: st
     </div>
   )
 }
-import { supabase } from "@/app/lib/supabase"
-import { useParams, useSearchParams } from "next/navigation"
 
 // ─── Types ───────────────────────────────────────────────
 type Product = {
