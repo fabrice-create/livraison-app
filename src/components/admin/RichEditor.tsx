@@ -15,6 +15,17 @@ type Props = {
   tenantId?: string
 }
 
+// Convertit texte brut en HTML structuré si nécessaire
+function toHTML(val: string): string {
+  if (!val) return ""
+  // Déjà du HTML — contient des balises
+  if (/<[a-z][\s\S]*>/i.test(val)) return val
+  // Texte brut — chaque ligne devient un <p>
+  return val.split("\n")
+    .map(line => line.trim() ? `<p>${line}</p>` : "<p></p>")
+    .join("")
+}
+
 const BTN = (props: React.ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean }) => {
   const { active, children, style, ...rest } = props
   return (
@@ -52,7 +63,7 @@ export default function RichEditor({ value, onChange, tenantId }: Props) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: "Écris la description de ton produit ici..." }),
     ],
-    content: value || "",
+    content: toHTML(value),
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: {
@@ -71,8 +82,8 @@ export default function RichEditor({ value, onChange, tenantId }: Props) {
   // Sync external value changes
   useEffect(() => {
     if (!editor) return
-    if (editor.getHTML() !== value) {
-      editor.commands.setContent(value || "", false)
+    if (editor.getHTML() !== toHTML(value)) {
+      editor.commands.setContent(toHTML(value), false)
     }
   }, [value])
 
