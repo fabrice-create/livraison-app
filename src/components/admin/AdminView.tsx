@@ -13,6 +13,7 @@ import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import ZonesView from "@/components/admin/ZonesView";
+import WidgetView from "@/components/admin/WidgetView";
 import FinancesView from "@/components/admin/FinancesView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -1352,6 +1353,7 @@ export function AdminView() {
     { id: "parametres",  label: "⚙️ Paramètres" },
     { id: "zones",       label: "🌍 Zones" },
     { id: "clients",     label: "👥 Clients" },
+    { id: "widget",      label: "🎛️ Widget" },
     { id: "import",      label: "📥 Import" },
   ];
   // Manager voit seulement : Dashboard, Commandes, Créer, Stock
@@ -1412,6 +1414,7 @@ export function AdminView() {
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
           {activeView === "zones"        && tenantId && <ZonesView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "clients"     && tenantId && <ClientsView tenantId={tenantId} />}
+        {activeView === "widget"      && tenantId && <WidgetView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "import"      && tenantId && <ImportView tenantId={tenantId} />}
       </div>
     </div>
