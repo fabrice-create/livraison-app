@@ -54,6 +54,8 @@ export default function RichEditor({ value, onChange, tenantId }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const uploadingRef = useRef(false)
 
+  const isInitialized = useRef(false)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -77,15 +79,14 @@ export default function RichEditor({ value, onChange, tenantId }: Props) {
         ].join(";"),
       },
     },
+    onCreate: () => { isInitialized.current = true }
   })
 
-  // Sync external value changes
+  // Sync uniquement au chargement initial (quand on ouvre un produit existant)
   useEffect(() => {
-    if (!editor) return
-    if (editor.getHTML() !== toHTML(value)) {
-      editor.commands.setContent(toHTML(value), false)
-    }
-  }, [value])
+    if (!editor || isInitialized.current) return
+    editor.commands.setContent(toHTML(value), false)
+  }, [editor])
 
   const uploadImage = async (file: File) => {
     if (uploadingRef.current) return
