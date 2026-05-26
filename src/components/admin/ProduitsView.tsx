@@ -136,6 +136,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
   // Onglet base
   const [nom, setNom] = useState("")
+  const [originalSlug, setOriginalSlug] = useState("")
   const [prix, setPrix] = useState("")
   const [prixBarre, setPrixBarre] = useState("")
   const [devise, setDevise] = useState("FCFA")
@@ -178,6 +179,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const resetForm = () => {
     setNom(""); setPrix(""); setPrixBarre(""); setDevise("FCFA"); setBadge("")
     setIsActive(true); setImagePrincipale(""); setContent(defaultContent)
+    setOriginalSlug("")
     setEditId(null); setTab("base"); setError("")
   }
 
@@ -186,7 +188,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const openEdit = async (id: string) => {
     const { data } = await supabase.from("products").select("*").eq("id", id).single()
     if (!data) return
-    setNom(data.nom||""); setPrix(String(data.prix||""))
+    setNom(data.nom||data.name||""); setPrix(String(data.prix||data.price||""))
+    setOriginalSlug(data.slug||"")
     setPrixBarre(data.prix_barre?String(data.prix_barre):"")
     setDevise(data.devise||"FCFA"); setBadge(data.badge||"")
     setIsActive(data.is_active!==false); setImagePrincipale(data.image_principale||"")
@@ -203,7 +206,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setSaving(true); setError("")
     const slugBase = nom.trim().toLowerCase().normalize("NFD")
       .replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"produit"
-    const slug = editId ? slugBase : `${slugBase}-${Date.now().toString(36)}`
+    const slug = editId ? (originalSlug || slugBase) : `${slugBase}-${Date.now().toString(36)}`
     const payload = {
       tenant_id:tenantId,
       // Colonnes originales NOT NULL
