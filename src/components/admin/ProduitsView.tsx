@@ -1,6 +1,8 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
+import dynamic from "next/dynamic"
+const RichEditor = dynamic(() => import("./RichEditor"), { ssr: false, loading: () => <div style={{height:200,background:"rgba(255,255,255,0.03)",borderRadius:14,border:"1px solid rgba(255,255,255,0.1)"}} /> })
 
 const S = {
   bg:"#0A0A0F", card:"#111118", card2:"#16161F", border:"#1E1E2E",
@@ -275,8 +277,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
           </div>
 
           <div>
-            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} style={{ ...inp, resize: "none", height: 70 }} placeholder="Description du produit..." />
+            <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 6 }}>Description (texte riche)</label>
+            <RichEditor value={description} onChange={setDescription} tenantId={tenantId} />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
