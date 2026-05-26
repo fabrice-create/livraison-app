@@ -373,11 +373,18 @@ export default function ProductPage() {
 
       case "description":
         if (!product.description) return null
+        // Décoder les entités HTML si la valeur est échappée
+        const descHTML = product.description
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
         return (
           <div key="description" style={{ marginBottom:28 }}>
             <div
               className="rich-content"
-              dangerouslySetInnerHTML={{ __html: product.description }}
+              dangerouslySetInnerHTML={{ __html: descHTML }}
             />
           </div>
         )
