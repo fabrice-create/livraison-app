@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { useParams, useSearchParams } from "next/navigation"
 
@@ -58,9 +58,7 @@ export default function ProductPage() {
   const [touchStart, setTouchStart] = useState(0)
   const [heroLoaded, setHeroLoaded] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
-  const [formVisible, setFormVisible] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
-  const stickyObserverRef = useRef<IntersectionObserver | null>(null)
   const heroRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -76,33 +74,21 @@ export default function ProductPage() {
       }
       setLoading(false)
       setTimeout(() => setHeroLoaded(true), 80)
-
-  // Observer sticky CTA — apparaît après le hero, disparaît quand formulaire visible
-  useEffect(() => {
-    if (!heroRef.current || !formRef.current) return
-
-    // Observer le hero — quand il sort du viewport, afficher le sticky
-    const heroObs = new IntersectionObserver(
-      ([entry]) => { if (!formVisible) setShowSticky(!entry.isIntersecting) },
-      { threshold: 0 }
-    )
-    heroObs.observe(heroRef.current)
-
-    // Observer le formulaire — quand il entre dans le viewport, cacher le sticky
-    const formObs = new IntersectionObserver(
-      ([entry]) => {
-        setFormVisible(entry.isIntersecting)
-        setShowSticky(!entry.isIntersecting)
-      },
-      { threshold: 0.2 }
-    )
-    formObs.observe(formRef.current)
-
-    return () => { heroObs.disconnect(); formObs.disconnect() }
-  }, [product, heroLoaded])
     }
     load()
   }, [boutique, slug])
+
+  // Sticky CTA — scroll listener simple et fiable
+  useEffect(() => {
+    const onScroll = () => {
+      const scrollY = window.scrollY
+      const heroBottom = heroRef.current ? heroRef.current.offsetTop + heroRef.current.offsetHeight : 400
+      const formTop = formRef.current ? formRef.current.offsetTop - window.innerHeight * 0.8 : 99999
+      setShowSticky(scrollY > heroBottom && scrollY < formTop)
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   useEffect(() => {
     if (!product?.countdown_active || !product?.countdown_end) return
