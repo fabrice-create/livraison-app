@@ -58,6 +58,10 @@ type PageContent = {
   // Garantie
   garantie_texte: string
   garantie_icone: string
+  // Offres groupées
+  offres_actif: boolean
+  offres_titre: string
+  offres: { quantite: number; label: string; prix: number; populaire: boolean; badge: string }[]
   // Design
   couleur: string
   fond: string
@@ -110,6 +114,13 @@ const defaultContent: PageContent = {
   temoignages: [],
   garantie_texte: "Satisfait ou remboursé 30 jours",
   garantie_icone: "🛡️",
+  offres_actif: false,
+  offres_titre: "Choisissez votre offre",
+  offres: [
+    { quantite:1, label:"1 unité", prix:0, populaire:false, badge:"" },
+    { quantite:2, label:"2 unités", prix:0, populaire:false, badge:"-10%" },
+    { quantite:3, label:"3 unités", prix:0, populaire:true, badge:"-20% 🔥" },
+  ],
   couleur: "#F59E0B",
   fond: "#09090F",
 }
@@ -120,6 +131,7 @@ const TABS = [
   ["medias","🖼️ Médias"],
   ["problemes","😣 Problèmes"],
   ["solution","💊 Solution"],
+  ["offres","🎁 Offres"],
   ["preuves","⭐ Preuves"],
   ["design","🎨 Design"],
   ["apercu","👁️ Aperçu"],
@@ -678,6 +690,97 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       )}
 
       {/* ── PREUVES ── */}
+      {/* ══ OFFRES GROUPÉES ══ */}
+      {tab === "offres" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:S.card2, borderRadius:12, padding:"12px 16px" }}>
+            <div>
+              <p style={{ color:S.white, fontSize:14, fontWeight:700, margin:"0 0 2px" }}>🎁 Offres groupées</p>
+              <p style={{ color:S.muted2, fontSize:12, margin:0 }}>Augmente le panier moyen avec des packs</p>
+            </div>
+            <button onClick={()=>upContent({offres_actif:!content.offres_actif})}
+              style={{ padding:"6px 16px", borderRadius:20, border:"none", fontSize:12, fontWeight:700, cursor:"pointer", background:content.offres_actif?"rgba(74,222,128,0.15)":S.dangerBg, color:content.offres_actif?S.success:S.danger }}>
+              {content.offres_actif ? "✅ Activé" : "❌ Désactivé"}
+            </button>
+          </div>
+
+          {content.offres_actif && (
+            <>
+              <div>
+                <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:6 }}>Titre de la section</label>
+                <input value={content.offres_titre} onChange={e=>upContent({offres_titre:e.target.value})}
+                  style={inp} placeholder="Choisissez votre offre" />
+              </div>
+
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {content.offres.map((offre, i) => (
+                  <div key={i} style={{ background:S.card2, borderRadius:12, padding:14, border:`1px solid ${offre.populaire?S.gold:S.border}` }}>
+                    <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+                      <div style={{ flex:1, minWidth:120 }}>
+                        <label style={{ display:"block", color:S.muted2, fontSize:11, marginBottom:4 }}>Label</label>
+                        <input value={offre.label}
+                          onChange={e=>{const arr=[...content.offres];arr[i]={...arr[i],label:e.target.value};upContent({offres:arr})}}
+                          style={inp} placeholder="3 unités" />
+                      </div>
+                      <div style={{ width:100 }}>
+                        <label style={{ display:"block", color:S.muted2, fontSize:11, marginBottom:4 }}>Quantité</label>
+                        <input type="number" value={offre.quantite}
+                          onChange={e=>{const arr=[...content.offres];arr[i]={...arr[i],quantite:Number(e.target.value)};upContent({offres:arr})}}
+                          style={inp} placeholder="3" />
+                      </div>
+                      <div style={{ width:130 }}>
+                        <label style={{ display:"block", color:S.muted2, fontSize:11, marginBottom:4 }}>Prix total</label>
+                        <input type="number" value={offre.prix}
+                          onChange={e=>{const arr=[...content.offres];arr[i]={...arr[i],prix:Number(e.target.value)};upContent({offres:arr})}}
+                          style={inp} placeholder="33000" />
+                      </div>
+                      <div style={{ width:120 }}>
+                        <label style={{ display:"block", color:S.muted2, fontSize:11, marginBottom:4 }}>Badge</label>
+                        <input value={offre.badge}
+                          onChange={e=>{const arr=[...content.offres];arr[i]={...arr[i],badge:e.target.value};upContent({offres:arr})}}
+                          style={inp} placeholder="-20% 🔥" />
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <button onClick={()=>{const arr=[...content.offres];arr[i]={...arr[i],populaire:!arr[i].populaire};upContent({offres:arr})}}
+                        style={{ padding:"4px 12px", borderRadius:20, border:`1px solid ${offre.populaire?S.gold:S.border}`, background:offre.populaire?"rgba(245,158,11,0.1)":"transparent", color:offre.populaire?S.gold:S.muted2, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                        {offre.populaire ? "⭐ POPULAIRE" : "Marquer populaire"}
+                      </button>
+                      <button onClick={()=>upContent({offres:content.offres.filter((_,j)=>j!==i)})}
+                        style={{ padding:"4px 10px", borderRadius:8, border:"none", background:S.dangerBg, color:S.danger, fontSize:12, cursor:"pointer" }}>✕ Supprimer</button>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={()=>upContent({offres:[...content.offres,{quantite:content.offres.length+1,label:`${content.offres.length+1} unité(s)`,prix:0,populaire:false,badge:""}]})}
+                  style={{ padding:"12px", borderRadius:10, border:`1px dashed ${S.border}`, background:"transparent", color:S.muted2, fontSize:13, cursor:"pointer" }}>
+                  + Ajouter une offre
+                </button>
+              </div>
+
+              {/* Aperçu */}
+              {content.offres.length > 0 && (
+                <div style={{ background:S.card2, borderRadius:12, padding:14, border:`1px solid ${S.border}` }}>
+                  <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 12px" }}>👁️ Aperçu</p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {content.offres.map((offre, i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:10, border:`2px solid ${offre.populaire?content.couleur:S.border}`, background:offre.populaire?`${content.couleur}08`:"transparent", position:"relative" }}>
+                        {offre.populaire && (
+                          <span style={{ position:"absolute", top:-10, right:12, background:content.couleur, color:"#000", fontSize:10, fontWeight:800, padding:"2px 10px", borderRadius:20 }}>⭐ POPULAIRE</span>
+                        )}
+                        <div style={{ width:20, height:20, borderRadius:"50%", border:`2px solid ${offre.populaire?content.couleur:S.border}`, background:offre.populaire?content.couleur:"transparent", flexShrink:0 }} />
+                        <span style={{ color:S.white, fontSize:13, fontWeight:600, flex:1 }}>{offre.label}</span>
+                        {offre.badge && <span style={{ background:`${content.couleur}20`, color:content.couleur, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>{offre.badge}</span>}
+                        <span style={{ color:content.couleur, fontSize:16, fontWeight:900 }}>{offre.prix.toLocaleString("fr-FR")} {devise||"FCFA"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {tab === "preuves" && (
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           {/* Témoignage WhatsApp */}
