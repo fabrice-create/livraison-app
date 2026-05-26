@@ -78,13 +78,11 @@ export default function ProductPage() {
     load()
   }, [boutique, slug])
 
-  // Sticky CTA — logique simple et bulletproof
+  // Sticky CTA — écoute window ET document (fix overflow-x:hidden sur html/body)
   useEffect(() => {
     if (!product) return
     const onScroll = () => {
-      const scrollY = window.scrollY
-      // Apparaît après 300px de scroll
-      // Disparaît quand le formulaire est dans le viewport
+      const scrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop
       const formEl = formRef.current
       if (!formEl) {
         setShowSticky(scrollY > 300)
@@ -95,8 +93,12 @@ export default function ProductPage() {
       setShowSticky(scrollY > 300 && !formInView)
     }
     window.addEventListener("scroll", onScroll, { passive: true })
+    document.addEventListener("scroll", onScroll, { passive: true })
     onScroll()
-    return () => window.removeEventListener("scroll", onScroll)
+    return () => {
+      window.removeEventListener("scroll", onScroll)
+      document.removeEventListener("scroll", onScroll)
+    }
   }, [product])
 
   useEffect(() => {
