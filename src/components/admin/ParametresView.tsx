@@ -322,6 +322,186 @@ function AbonnementTab({ tenantId }: { tenantId: string }) {
   )
 }
 
+// ─── Section Domaine ──────────────────────────────────────
+function DomaineSection({ tenantId, tenantSlug }: { tenantId: string; tenantSlug: string }) {
+  const [customDomain, setCustomDomain] = useState("")
+  const [verified, setVerified] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState("")
+  const [copiedSub, setCopiedSub] = useState(false)
+
+  const subDomain = `${tenantSlug}.shipivo.app`
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from("tenants")
+        .select("custom_domain,domain_verified")
+        .eq("id", tenantId).single()
+      if (data) {
+        setCustomDomain(data.custom_domain || "")
+        setVerified(data.domain_verified || false)
+      }
+    }
+    load()
+  }, [tenantId])
+
+  const handleVerify = async () => {
+    if (!customDomain.trim()) return
+    setVerifying(true); setError("")
+    try {
+      // Vérifier via DNS lookup API publique
+      const domain = customDomain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+      const res = await fetch(`https://dns.google/resolve?name=${domain}&type=CNAME`)
+      const data = await res.json()
+      const answers = data.Answer || []
+      const hasCname = answers.some((a: { data: string }) =>
+        a.data.includes("shipivo.app") || a.data.includes("cname.vercel-dns.com")
+      )
+      if (hasCname) {
+        await supabase.from("tenants").update({ custom_domain: domain, domain_verified: true }).eq("id", tenantId)
+        setVerified(true)
+      } else {
+        setError("Le domaine n'est pas encore configuré. Vérifie que tu as bien ajouté le CNAME.")
+      }
+    } catch {
+      setError("Erreur de vérification. Réessaie dans quelques minutes.")
+    }
+    setVerifying(false)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const domain = customDomain.replace(/^https?:\/\//, "").replace(/\/$/, "")
+    await supabase.from("tenants").update({ custom_domain: domain || null, domain_verified: false }).eq("id", tenantId)
+    setCustomDomain(domain)
+    setVerified(false)
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const inp: React.CSSProperties = {
+    width:"100%", background:S.bg, border:`1px solid ${S.border}`,
+    borderRadius:8, padding:"10px 12px", color:S.text, fontSize:13,
+    outline:"none", boxSizing:"border-box", fontFamily:"inherit"
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+      {/* Sous-domaine gratuit */}
+      <div style={{ background:S.card, borderRadius:14, padding:"18px 20px", border:`1px solid ${S.border}` }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+          <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(74,222,128,0.12)", border:"1px solid rgba(74,222,128,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>🎁</div>
+          <div>
+            <p style={{ color:S.text, fontSize:14, fontWeight:700, margin:0 }}>Sous-domaine gratuit</p>
+            <p style={{ color:S.text2, fontSize:12, margin:0 }}>Disponible immédiatement, zéro configuration</p>
+          </div>
+          <span style={{ marginLeft:"auto", background:"rgba(74,222,128,0.12)", color:"#4ADE80", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20 }}>✅ Actif</span>
+        </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <input readOnly value={subDomain}
+            style={{ ...inp, flex:1, color:"#60A5FA", fontWeight:600 }} />
+          <button onClick={() => { navigator.clipboard.writeText(`https://${subDomain}`); setCopiedSub(true); setTimeout(()=>setCopiedSub(false),2000) }}
+            style={{ padding:"10px 14px", borderRadius:8, border:`1px solid ${S.border}`, background:"transparent", color:copiedSub?"#4ADE80":S.gold, fontSize:12, fontWeight:600, cursor:"pointer", flexShrink:0 }}>
+            {copiedSub ? "✅ Copié" : "📋 Copier"}
+          </button>
+        </div>
+        <p style={{ color:S.text2, fontSize:11, marginTop:8 }}>
+          Utilise <strong style={{color:"#60A5FA"}}>https://{subDomain}</strong> dans tes pubs Facebook et TikTok.
+        </p>
+      </div>
+
+      {/* Domaine personnalisé */}
+      <div style={{ background:S.card, borderRadius:14, padding:"18px 20px", border:`1px solid ${verified?"rgba(74,222,128,0.3)":S.border}` }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+          <div style={{ width:36, height:36, borderRadius:"50%", background:`${S.gold}18`, border:`1px solid ${S.gold}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>🌐</div>
+          <div>
+            <p style={{ color:S.text, fontSize:14, fontWeight:700, margin:0 }}>Domaine personnalisé</p>
+            <p style={{ color:S.text2, fontSize:12, margin:0 }}>Connecte ton propre domaine</p>
+          </div>
+          {verified && <span style={{ marginLeft:"auto", background:"rgba(74,222,128,0.12)", color:"#4ADE80", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20 }}>✅ Vérifié</span>}
+        </div>
+
+        {/* Champ domaine */}
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", color:S.text2, fontSize:12, marginBottom:6 }}>Ton domaine</label>
+          <div style={{ display:"flex", gap:8 }}>
+            <input value={customDomain} onChange={e => { setCustomDomain(e.target.value); setVerified(false) }}
+              placeholder="boutique.forako.shop" style={{ ...inp, flex:1 }} />
+            <button onClick={handleSave} disabled={saving}
+              style={{ padding:"10px 14px", borderRadius:8, border:"none", background:saved?"rgba(74,222,128,0.15)":S.gold, color:saved?"#4ADE80":"#000", fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0 }}>
+              {saved ? "✅" : saving ? "..." : "Sauvegarder"}
+            </button>
+          </div>
+        </div>
+
+        {/* Guide configuration */}
+        {customDomain && !verified && (
+          <div style={{ background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:12, padding:"14px 16px", marginBottom:14 }}>
+            <p style={{ color:S.gold, fontSize:12, fontWeight:700, margin:"0 0 10px" }}>📋 Comment configurer — 2 étapes simples</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <div style={{ display:"flex", gap:10 }}>
+                <span style={{ width:22, height:22, borderRadius:"50%", background:S.gold, color:"#000", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, flexShrink:0, marginTop:1 }}>1</span>
+                <div>
+                  <p style={{ color:S.text, fontSize:12, fontWeight:600, margin:"0 0 4px" }}>Va chez ton registrar (Namecheap, GoDaddy, OVH...)</p>
+                  <p style={{ color:S.text2, fontSize:11, margin:"0 0 6px" }}>Dans la gestion DNS, ajoute cet enregistrement :</p>
+                  <div style={{ background:S.bg, borderRadius:8, padding:"8px 12px", fontFamily:"monospace", fontSize:11 }}>
+                    <p style={{ margin:"0 0 2px" }}><span style={{color:S.text2}}>Type :</span> <span style={{color:"#60A5FA"}}>CNAME</span></p>
+                    <p style={{ margin:"0 0 2px" }}><span style={{color:S.text2}}>Nom :</span> <span style={{color:"#4ADE80"}}>{customDomain.includes(".")
+                      ? customDomain.split(".")[0]
+                      : "boutique"}</span></p>
+                    <p style={{ margin:0 }}><span style={{color:S.text2}}>Valeur :</span> <span style={{color:S.gold}}>cname.vercel-dns.com</span></p>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <span style={{ width:22, height:22, borderRadius:"50%", background:S.gold, color:"#000", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:900, flexShrink:0, marginTop:1 }}>2</span>
+                <div>
+                  <p style={{ color:S.text, fontSize:12, fontWeight:600, margin:"0 0 4px" }}>Attends 5-30 minutes puis clique Vérifier</p>
+                  <p style={{ color:S.text2, fontSize:11, margin:0 }}>La propagation DNS peut prendre quelques minutes.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div style={{ background:"rgba(248,113,113,0.08)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:8, padding:"10px 14px", marginBottom:12 }}>
+            <p style={{ color:"#F87171", fontSize:12, margin:0 }}>⚠️ {error}</p>
+          </div>
+        )}
+
+        {customDomain && !verified && (
+          <button onClick={handleVerify} disabled={verifying}
+            style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:`linear-gradient(135deg,${S.gold},${S.goldDark})`, color:"#000", fontSize:13, fontWeight:700, cursor:verifying?"not-allowed":"pointer", opacity:verifying?0.7:1 }}>
+            {verifying ? "🔍 Vérification en cours..." : "🔍 Vérifier la configuration"}
+          </button>
+        )}
+
+        {verified && (
+          <div style={{ background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:10, padding:"12px 14px" }}>
+            <p style={{ color:"#4ADE80", fontSize:13, fontWeight:700, margin:"0 0 4px" }}>✅ Domaine connecté avec succès !</p>
+            <p style={{ color:S.text2, fontSize:12, margin:0 }}>
+              Ta boutique est accessible sur <strong style={{color:"#60A5FA"}}>https://{customDomain}</strong>
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Info Facebook/TikTok */}
+      <div style={{ background:"rgba(96,165,250,0.06)", border:"1px solid rgba(96,165,250,0.2)", borderRadius:12, padding:"14px 16px" }}>
+        <p style={{ color:"#60A5FA", fontSize:12, fontWeight:700, margin:"0 0 6px" }}>💡 Pourquoi c'est important pour tes pubs ?</p>
+        <p style={{ color:S.text2, fontSize:12, margin:0, lineHeight:1.7 }}>
+          Facebook et TikTok peuvent bloquer un domaine si plusieurs vendeurs l'utilisent en même temps. 
+          Avec ton propre sous-domaine ou domaine, <strong style={{color:S.text}}>tes pubs ne sont jamais affectées par les autres vendeurs</strong>.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function ParametresView({ tenantId }: Props) {
   const [settings, setSettings] = useState<TenantSettings>(EMPTY)
   const [profile, setProfile] = useState<ProfileSettings>({ full_name: "", phone: "", email: "" })
@@ -339,7 +519,7 @@ export default function ParametresView({ tenantId }: Props) {
   const [tenantSlug, setTenantSlug] = useState("")
   const [password, setPassword] = useState({ current: "", new: "", confirm: "" })
   const [showPasswords, setShowPasswords] = useState(false)
-  const [activeSection, setActiveSection] = useState<"parametres" | "abonnement">("parametres")
+  const [activeSection, setActiveSection] = useState<"parametres" | "domaine" | "abonnement">("parametres")
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -470,6 +650,7 @@ export default function ParametresView({ tenantId }: Props) {
   // Onglets Paramètres / Abonnement
   const TABS = [
     { id: "parametres",  label: "⚙️ Paramètres" },
+    { id: "domaine",     label: "🌐 Mon Domaine" },
     { id: "abonnement",  label: "💳 Abonnement" },
   ]
 
@@ -493,6 +674,9 @@ export default function ParametresView({ tenantId }: Props) {
       </div>
 
       {/* ── ONGLET ABONNEMENT ── */}
+      {activeSection === "domaine" && (
+        <DomaineSection tenantId={tenantId} tenantSlug={tenantSlug} />
+      )}
       {activeSection === "abonnement" && (
         <AbonnementTab tenantId={tenantId} />
       )}
