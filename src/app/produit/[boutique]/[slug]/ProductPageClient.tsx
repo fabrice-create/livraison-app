@@ -55,7 +55,7 @@ export default function ProductPage() {
 
   const [product, setProduct] = useState<Product|null>(null)
   const [tenant, setTenant] = useState<Tenant|null>(null)
-  const [content, setContent] = useState<PageContent|null>(null)
+  const [content, setContent] = useState<PageContent>(defaultContent)
   const [loading, setLoading] = useState(true)
   const [mainImg, setMainImg] = useState(0)
   const [touchStart, setTouchStart] = useState(0)
