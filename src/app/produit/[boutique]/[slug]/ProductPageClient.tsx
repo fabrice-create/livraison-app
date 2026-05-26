@@ -64,14 +64,7 @@ export default function ProductPage() {
   const [touchStart, setTouchStart] = useState(0)
   const [heroLoaded, setHeroLoaded] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
-  }, [])
+  // responsive géré par CSS classes
   const formRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
 
@@ -213,6 +206,14 @@ export default function ProductPage() {
     .shine-el{position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);animation:shine 3.5s ease-in-out infinite 2s;pointer-events:none}
     .badge-animated{animation:pulseBadge 2.4s ease-in-out infinite}
     .blink-dot{animation:blinkDot 1.2s ease-in-out infinite}
+    .hero-grid{grid-template-columns:1fr 1fr;}
+    .hero-col-left{padding:48px 32px 48px 48px;}
+    .hero-col-right{padding:48px 48px 48px 32px; border-left:1px solid rgba(255,255,255,0.05);}
+    @media(max-width:900px){
+      .hero-grid{grid-template-columns:1fr !important;}
+      .hero-col-left{padding:24px 16px 0 !important;}
+      .hero-col-right{padding:16px 16px 32px !important; border-left:none !important;}
+    }
   `
 
   // ── HERO SECTION ──
@@ -220,14 +221,9 @@ export default function ProductPage() {
     <div ref={heroRef} style={{ position:"relative", background:BG, overflow:"hidden" }}>
       <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 70% 60% at 70% 30%, ${AC}1A 0%, transparent 65%)`, pointerEvents:"none" }} />
       {/* layout grid */}
-      <div style={{
-        maxWidth:1200, margin:"0 auto",
-        display:"grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-        minHeight: isMobile ? "auto" : 560
-      }}>
+      <div className="hero-grid" style={{ maxWidth:1200, margin:"0 auto", display:"grid" }}>
         {/* COL GAUCHE — Galerie */}
-        <div style={{ padding: isMobile ? "24px 16px 0" : "48px 32px 48px 48px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+        <div className="hero-col-left" style={{ display:"flex", flexDirection:"column", justifyContent:"center" }}>
           {allImages.length > 0 ? (
             <div>
               <div style={{ borderRadius:20, overflow:"hidden", background:"#111118", position:"relative", marginBottom:12 }}
@@ -257,7 +253,7 @@ export default function ProductPage() {
         </div>
 
         {/* COL DROITE — Infos */}
-        <div style={{ padding: isMobile ? "16px 16px 32px" : "48px 48px 48px 32px", display:"flex", flexDirection:"column", justifyContent:"center", borderLeft: isMobile ? "none" : `1px solid rgba(255,255,255,0.05)` }}>
+        <div className="hero-col-right" style={{ display:"flex", flexDirection:"column", justifyContent:"center" }}>
           {product.badge && (
             <div style={{ marginBottom:14 }}>
               <span className="badge-animated" style={{ display:"inline-flex", alignItems:"center", gap:7, background:`${AC}18`, border:`1px solid ${AC}40`, borderRadius:20, padding:"5px 14px", fontSize:11, fontWeight:700, color:AC, letterSpacing:"0.9px", textTransform:"uppercase" }}>
