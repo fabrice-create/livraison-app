@@ -129,6 +129,8 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showEditor, setShowEditor] = useState(false)
+  const [widgetModal, setWidgetModal] = useState<Product|null>(null)
+  const [widgetCopied, setWidgetCopied] = useState(false)
   const [editId, setEditId] = useState<string|null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -232,6 +234,34 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     await loadProducts()
   }
 
+  const getWidgetCode = (p: Product) => {
+    const nom = encodeURIComponent(p.nom || (p as any).name || "")
+    const prix = p.prix || (p as any).price || 0
+    const img = p.image_principale ? `&produit_image=${encodeURIComponent(p.image_principale)}` : ""
+    return `<iframe 
+  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=${nom}&produit_prix=${prix}&mode=full${img}" 
+  width="100%" height="620" frameborder="0" 
+  style="border-radius:12px;border:none;display:block;">
+</iframe>
+<script>
+  window.addEventListener('message', function(e) {
+    if(e.data && e.data.type === 'shipivo-resize') {
+      var iframe = document.querySelector('iframe[src*="shipivo.app/widget"]');
+      if(iframe) iframe.style.height = e.data.height + 'px';
+    }
+    if(e.data && e.data.type === 'shipivo-success') {
+      console.log('Commande reçue:', e.data.order);
+    }
+  });
+</script>`
+  }
+
+  const copyWidgetCode = (p: Product) => {
+    navigator.clipboard.writeText(getWidgetCode(p))
+    setWidgetCopied(true)
+    setTimeout(() => setWidgetCopied(false), 2000)
+  }
+
   const upContent = (patch: Partial<PageContent>) => setContent(c => ({...c, ...patch}))
 
   const inp: React.CSSProperties = {
@@ -287,6 +317,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
               <div style={{display:"flex",gap:8}}>
                 <button onClick={() => openEdit(p.id)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:S.gold,fontSize:12,cursor:"pointer"}}>✏️ Éditer</button>
                 <a href={`https://shipivo.app/produit/${tenantSlug}/${p.slug}`} target="_blank" rel="noreferrer" style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:"#60A5FA",fontSize:12,textDecoration:"none"}}>👁️ Voir</a>
+                <button onClick={() => { setWidgetModal(p); setWidgetCopied(false) }} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:"#A78BFA",fontSize:12,cursor:"pointer"}}>📋 Widget</button>
                 <button onClick={() => handleDelete(p.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",background:S.dangerBg,color:S.danger,fontSize:12,cursor:"pointer"}}>🗑️</button>
               </div>
             </div>
@@ -298,7 +329,59 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
   return (
     <div>
-      {/* Header */}
+      {/* ── MODALE WIDGET CODE ── */}
+      {widgetModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setWidgetModal(null) }}>
+          <div style={{ background:S.card, borderRadius:16, padding:24, width:"100%", maxWidth:560, border:`1px solid ${S.border}` }}>
+            {/* Header modale */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <div>
+                <p style={{ color:S.white, fontSize:15, fontWeight:700, margin:"0 0 2px" }}>📋 Code widget</p>
+                <p style={{ color:S.muted2, fontSize:12, margin:0 }}>{widgetModal.nom || (widgetModal as any).name}</p>
+              </div>
+              <button onClick={() => setWidgetModal(null)} style={{ width:32, height:32, borderRadius:"50%", border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:18, cursor:"pointer" }}>×</button>
+            </div>
+
+            {/* Aperçu produit */}
+            <div style={{ display:"flex", gap:12, background:S.card2, borderRadius:10, padding:12, marginBottom:16, border:`1px solid ${S.border}` }}>
+              {widgetModal.image_principale && (
+                <img src={widgetModal.image_principale} alt="" style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+              )}
+              <div>
+                <p style={{ color:S.white, fontSize:14, fontWeight:700, margin:"0 0 2px" }}>{widgetModal.nom || (widgetModal as any).name}</p>
+                <p style={{ color:S.gold, fontSize:14, fontWeight:800, margin:0 }}>
+                  {(widgetModal.prix || (widgetModal as any).price || 0).toLocaleString("fr-FR")} {widgetModal.devise || "FCFA"}
+                </p>
+              </div>
+            </div>
+
+            {/* Info */}
+            <div style={{ background:"rgba(167,139,250,0.08)", border:"1px solid rgba(167,139,250,0.2)", borderRadius:8, padding:"10px 14px", marginBottom:14 }}>
+              <p style={{ color:"#A78BFA", fontSize:12, margin:0 }}>
+                💡 Colle ce code dans un bloc <strong>HTML personnalisé</strong> sur ton site WordPress, Shopify ou autre.
+              </p>
+            </div>
+
+            {/* Code */}
+            <pre style={{ background:S.bg, border:`1px solid ${S.border}`, borderRadius:8, padding:"12px 14px", color:"#60A5FA", fontSize:11, lineHeight:1.7, overflow:"auto", margin:"0 0 14px", whiteSpace:"pre-wrap", wordBreak:"break-all", maxHeight:200 }}>
+              {getWidgetCode(widgetModal)}
+            </pre>
+
+            {/* Boutons */}
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => copyWidgetCode(widgetModal)}
+                style={{ flex:1, padding:"12px", borderRadius:10, border:`1px solid ${widgetCopied?"#4ADE80":"#A78BFA"}`, background:widgetCopied?"rgba(74,222,128,0.1)":"rgba(167,139,250,0.1)", color:widgetCopied?"#4ADE80":"#A78BFA", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                {widgetCopied ? "✅ Copié !" : "📋 Copier le code"}
+              </button>
+              <button onClick={() => setWidgetModal(null)}
+                style={{ padding:"12px 20px", borderRadius:10, border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:14, cursor:"pointer" }}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
         <button onClick={() => { setShowEditor(false); resetForm() }} style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${S.border}`,background:"transparent",color:S.muted2,fontSize:13,cursor:"pointer"}}>
           ← Retour
