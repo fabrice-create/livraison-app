@@ -206,6 +206,19 @@ export default function ProductPage() {
     .shine-el{position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);animation:shine 3.5s ease-in-out infinite 2s;pointer-events:none}
     .badge-animated{animation:pulseBadge 2.4s ease-in-out infinite}
     .blink-dot{animation:blinkDot 1.2s ease-in-out infinite}
+    .rich-content{color:rgba(248,248,252,0.85);font-size:15px;line-height:1.85;}
+    .rich-content h1{font-family:'Syne',sans-serif;font-size:clamp(22px,4vw,32px);font-weight:800;color:#F8F8FC;margin:24px 0 12px;}
+    .rich-content h2{font-family:'Syne',sans-serif;font-size:clamp(18px,3vw,26px);font-weight:700;color:#F8F8FC;margin:20px 0 10px;}
+    .rich-content h3{font-size:clamp(16px,2.5vw,20px);font-weight:700;color:rgba(248,248,252,0.9);margin:16px 0 8px;}
+    .rich-content p{margin:0 0 14px;}
+    .rich-content strong{color:#F8F8FC;font-weight:700;}
+    .rich-content em{font-style:italic;}
+    .rich-content a{color:${AC};text-decoration:underline;}
+    .rich-content ul{padding-left:22px;margin:8px 0 14px;}
+    .rich-content ol{padding-left:22px;margin:8px 0 14px;}
+    .rich-content li{margin-bottom:6px;}
+    .rich-content img{max-width:100%;border-radius:14px;margin:16px 0;display:block;}
+    .rich-content blockquote{border-left:3px solid ${AC};padding-left:16px;color:rgba(248,248,252,0.6);margin:14px 0;font-style:italic;}
     .hero-grid{grid-template-columns:1fr 1fr;}
     .hero-col-left{padding:48px 32px 48px 48px;}
     .hero-col-right{padding:48px 48px 48px 32px; border-left:1px solid rgba(255,255,255,0.05);}
@@ -361,8 +374,11 @@ export default function ProductPage() {
       case "description":
         if (!product.description) return null
         return (
-          <div key="description" style={{ marginBottom:28, background:"rgba(255,255,255,0.03)", borderRadius:16, padding:"18px 20px", borderLeft:`3px solid ${AC}` }}>
-            <p style={{ color:`${TX}BB`,fontSize:15,lineHeight:1.85,whiteSpace:"pre-wrap" }}>{product.description}</p>
+          <div key="description" style={{ marginBottom:28 }}>
+            <div
+              className="rich-content"
+              dangerouslySetInnerHTML={{ __html: product.description }}
+            />
           </div>
         )
 
