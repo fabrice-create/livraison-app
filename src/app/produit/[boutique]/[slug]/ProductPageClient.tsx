@@ -30,6 +30,12 @@ type Product = {
   couleur_fond: string; couleur_accent: string; couleur_texte: string
   sections_ordre?: string
   vues?: number; commandes?: number; tenant_id: string
+  // Social proof
+  sp_active?: boolean
+  sp_note?: number
+  sp_avis_count?: number
+  sp_clients_count?: number
+  sp_derniere_commande?: number // minutes
 }
 
 type Tenant = {
@@ -193,6 +199,7 @@ export default function ProductPage() {
     .hero-anim-3{animation:fadeUp 0.6s ease both;animation-delay:0.35s}
     .hero-anim-4{animation:fadeUp 0.6s ease both;animation-delay:0.45s}
     .hero-anim-5{animation:fadeUp 0.6s ease both;animation-delay:0.55s}
+    .hero-anim-6{animation:fadeUp 0.6s ease both;animation-delay:0.65s}
     input:focus,textarea:focus{border-color:${AC}!important;box-shadow:0 0 0 3px ${AC}1E!important;}
     .cta-btn-inner::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.18) 0%,transparent 55%);border-radius:inherit;pointer-events:none}
     .shine-el{position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);animation:shine 3.5s ease-in-out infinite 2s;pointer-events:none}
@@ -301,9 +308,68 @@ export default function ProductPage() {
           </div>
         )}
 
+        {/* Social proof */}
+        {heroLoaded && (product.sp_active !== false) && (
+          <div className="hero-anim-4" style={{ marginBottom:20 }}>
+            <div style={{
+              display:"flex", flexWrap:"wrap", alignItems:"center", gap:14,
+              background:"rgba(255,255,255,0.04)",
+              border:"1px solid rgba(255,255,255,0.08)",
+              borderRadius:14, padding:"12px 16px"
+            }}>
+              {/* Étoiles + note */}
+              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                <div style={{ display:"flex", gap:2 }}>
+                  {Array.from({length:5},(_,i) => (
+                    <span key={i} style={{
+                      fontSize:14,
+                      color: i < Math.round(product.sp_note||4.9) ? "#F59E0B" : "rgba(255,255,255,0.15)"
+                    }}>★</span>
+                  ))}
+                </div>
+                <span style={{ color:TX, fontSize:14, fontWeight:800 }}>
+                  {(product.sp_note||4.9).toFixed(1)}
+                </span>
+                <span style={{ color:`${TX}44`, fontSize:12 }}>
+                  ({(product.sp_avis_count||127).toLocaleString("fr-FR")} avis)
+                </span>
+              </div>
+
+              {/* Séparateur */}
+              <div style={{ width:1, height:20, background:"rgba(255,255,255,0.1)", flexShrink:0 }} />
+
+              {/* Clients */}
+              <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{ fontSize:14 }}>👥</span>
+                <span style={{ color:TX, fontSize:13, fontWeight:700 }}>
+                  {(product.sp_clients_count||2000).toLocaleString("fr-FR")}+
+                </span>
+                <span style={{ color:`${TX}44`, fontSize:12 }}>clients</span>
+              </div>
+
+              {/* Séparateur */}
+              <div style={{ width:1, height:20, background:"rgba(255,255,255,0.1)", flexShrink:0 }} />
+
+              {/* Dernière commande */}
+              <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                <span style={{
+                  width:7, height:7, borderRadius:"50%",
+                  background:"#4ADE80",
+                  boxShadow:"0 0 6px #4ADE80",
+                  flexShrink:0,
+                  animation:"blinkDot 1.5s ease-in-out infinite"
+                }} />
+                <span style={{ color:`${TX}77`, fontSize:12 }}>
+                  Commandé il y a <strong style={{color:TX}}>{product.sp_derniere_commande||8} min</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Trust pills */}
         {heroLoaded && (
-          <div className="hero-anim-4" style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:24 }}>
+          <div className="hero-anim-5" style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:24 }}>
             {["✅ Livraison gratuite","🔒 Paiement à la livraison","💊 100% naturel"].map((t,i) => (
               <span key={i} style={{
                 display:"inline-flex", alignItems:"center", gap:4,
@@ -317,7 +383,7 @@ export default function ProductPage() {
 
         {/* CTA Hero */}
         {heroLoaded && (
-          <div className="hero-anim-5">
+          <div className="hero-anim-6">
             <button
               onClick={scrollToForm}
               className="cta-btn-inner"
