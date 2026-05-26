@@ -276,6 +276,51 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
   if (!showEditor) return (
     <div>
+      {/* ── MODALE WIDGET CODE ── */}
+      {widgetModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setWidgetModal(null) }}>
+          <div style={{ background:S.card, borderRadius:16, padding:24, width:"100%", maxWidth:560, border:`1px solid ${S.border}` }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div>
+                <p style={{ color:S.white, fontSize:15, fontWeight:700, margin:"0 0 2px" }}>📋 Code widget</p>
+                <p style={{ color:S.muted2, fontSize:12, margin:0 }}>{widgetModal.nom || (widgetModal as any).name}</p>
+              </div>
+              <button onClick={() => setWidgetModal(null)} style={{ width:32, height:32, borderRadius:"50%", border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:18, cursor:"pointer" }}>×</button>
+            </div>
+            <div style={{ display:"flex", gap:12, background:S.card2, borderRadius:10, padding:12, marginBottom:14, border:`1px solid ${S.border}` }}>
+              {widgetModal.image_principale && (
+                <img src={widgetModal.image_principale} alt="" style={{ width:56, height:56, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+              )}
+              <div>
+                <p style={{ color:S.white, fontSize:14, fontWeight:700, margin:"0 0 2px" }}>{widgetModal.nom || (widgetModal as any).name}</p>
+                <p style={{ color:S.gold, fontSize:14, fontWeight:800, margin:0 }}>
+                  {(widgetModal.prix || (widgetModal as any).price || 0).toLocaleString("fr-FR")} {widgetModal.devise || "FCFA"}
+                </p>
+              </div>
+            </div>
+            <div style={{ background:"rgba(167,139,250,0.08)", border:"1px solid rgba(167,139,250,0.2)", borderRadius:8, padding:"10px 14px", marginBottom:12 }}>
+              <p style={{ color:"#A78BFA", fontSize:12, margin:0 }}>
+                💡 Colle ce code dans un bloc <strong>HTML personnalisé</strong> sur ton site WordPress, Shopify ou autre.
+              </p>
+            </div>
+            <pre style={{ background:S.bg, border:`1px solid ${S.border}`, borderRadius:8, padding:"12px 14px", color:"#60A5FA", fontSize:11, lineHeight:1.7, overflow:"auto", margin:"0 0 14px", whiteSpace:"pre-wrap", wordBreak:"break-all", maxHeight:200 }}>
+              {getWidgetCode(widgetModal)}
+            </pre>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => copyWidgetCode(widgetModal)}
+                style={{ flex:1, padding:"12px", borderRadius:10, border:`1px solid ${widgetCopied?"#4ADE80":"#A78BFA"}`, background:widgetCopied?"rgba(74,222,128,0.1)":"rgba(167,139,250,0.1)", color:widgetCopied?"#4ADE80":"#A78BFA", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                {widgetCopied ? "✅ Copié !" : "📋 Copier le code"}
+              </button>
+              <button onClick={() => setWidgetModal(null)}
+                style={{ padding:"12px 20px", borderRadius:10, border:`1px solid ${S.border}`, background:"transparent", color:S.muted2, fontSize:14, cursor:"pointer" }}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:10}}>
         <div>
           <p style={{color:S.white,fontSize:15,fontWeight:700,margin:"0 0 4px"}}>📦 Mes produits</p>
