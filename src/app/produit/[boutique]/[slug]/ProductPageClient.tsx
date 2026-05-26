@@ -209,207 +209,112 @@ export default function ProductPage() {
 
   // ── HERO SECTION ──
   const renderHero = () => (
-    <div ref={heroRef} style={{ position:"relative", minHeight:540, background:BG, overflow:"hidden" }}>
-      {/* Background image avec reveal */}
-      {product.image_principale && (
-        <img
-          src={product.image_principale}
-          alt=""
-          aria-hidden
-          style={{
-            position:"absolute", inset:0, width:"100%", height:"100%",
-            objectFit:"cover",
-            opacity: heroLoaded ? 0.42 : 0,
-            transition:"opacity 0.8s ease",
-            filter:"saturate(0.7)"
-          }}
-        />
-      )}
-      {/* Overlay dégradé premium */}
-      <div style={{
-        position:"absolute", inset:0,
-        background:`linear-gradient(170deg, ${BG}22 0%, ${BG}66 35%, ${BG}EE 65%, ${BG} 100%)`
-      }} />
-      {/* Mesh glow ambiance */}
-      <div style={{
-        position:"absolute", inset:0,
-        background:`radial-gradient(ellipse 80% 55% at 65% 18%, ${AC}2A 0%, transparent 70%)`
-      }} />
-      {/* Grain léger */}
-      <div style={{
-        position:"absolute", inset:0,
-        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
-        opacity:0.6, pointerEvents:"none"
-      }} />
+    <div ref={heroRef} style={{ position:"relative", background:BG, overflow:"hidden" }}>
+      <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 70% 60% at 70% 30%, ${AC}1A 0%, transparent 65%)`, pointerEvents:"none" }} />
+      <style>{`
+        @media (max-width: 768px) {
+          .hero-grid { grid-template-columns: 1fr !important; }
+          .hero-col-right { border-left: none !important; padding-left: 16px !important; padding-right: 16px !important; }
+          .hero-col-left { padding: 24px 16px 0 !important; }
+        }
+      `}</style>
+      <div className="hero-grid" style={{
+        maxWidth:1200, margin:"0 auto",
+        display:"grid", gridTemplateColumns:"1fr 1fr",
+        minHeight:560
+      }}>
+        {/* COL GAUCHE — Galerie */}
+        <div className="hero-col-left" style={{ padding:"48px 32px 48px 48px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          {allImages.length > 0 ? (
+            <div>
+              <div style={{ borderRadius:20, overflow:"hidden", background:"#111118", position:"relative", marginBottom:12 }}
+                onTouchStart={e => setTouchStart(e.touches[0].clientX)}
+                onTouchEnd={e => {
+                  const diff = touchStart - e.changedTouches[0].clientX
+                  if (Math.abs(diff) > 50) setMainImg(i => diff > 0 ? Math.min(i+1, allImages.length-1) : Math.max(i-1, 0))
+                }}>
+                <img src={allImages[mainImg]} alt={product.nom} style={{ width:"100%", aspectRatio:"1/1", objectFit:"cover", display:"block" }} />
+                {allImages.length > 1 && (<>
+                  <button onClick={()=>setMainImg(i=>Math.max(0,i-1))} style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.65)",backdropFilter:"blur(8px)",border:"none",borderRadius:"50%",width:40,height:40,color:"#fff",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>‹</button>
+                  <button onClick={()=>setMainImg(i=>Math.min(allImages.length-1,i+1))} style={{ position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.65)",backdropFilter:"blur(8px)",border:"none",borderRadius:"50%",width:40,height:40,color:"#fff",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>›</button>
+                  <div style={{ position:"absolute",bottom:14,left:"50%",transform:"translateX(-50%)",display:"flex",gap:6 }}>
+                    {allImages.map((_,i)=>( <div key={i} onClick={()=>setMainImg(i)} style={{ width:i===mainImg?22:8,height:8,borderRadius:4,background:i===mainImg?AC:"rgba(255,255,255,0.38)",cursor:"pointer",transition:"all 0.3s" }} /> ))}
+                  </div>
+                </>)}
+              </div>
+              {allImages.length > 1 && (
+                <div style={{ display:"flex",gap:8,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none" }}>
+                  {allImages.map((img,i)=>( <img key={i} src={img} alt="" onClick={()=>setMainImg(i)} style={{ width:72,height:72,borderRadius:12,objectFit:"cover",flexShrink:0,cursor:"pointer",border:`2.5px solid ${mainImg===i?AC:"transparent"}`,opacity:mainImg===i?1:0.55,transition:"all 0.2s" }} /> ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ aspectRatio:"1/1", borderRadius:20, background:"rgba(255,255,255,0.04)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:80 }}>📦</div>
+          )}
+        </div>
 
-      {/* Contenu hero */}
-      <div style={{ position:"relative", zIndex:2, padding:"48px 20px 28px", maxWidth:640, margin:"0 auto" }}>
-
-        {/* Badge animé */}
-        {product.badge && heroLoaded && (
-          <div className="hero-anim-0" style={{ marginBottom:14 }}>
-            <span className="badge-animated" style={{
-              display:"inline-flex", alignItems:"center", gap:7,
-              background:`${AC}18`, border:`1px solid ${AC}40`,
-              borderRadius:20, padding:"5px 14px",
-              fontSize:11, fontWeight:700, color:AC,
-              letterSpacing:"0.9px", textTransform:"uppercase"
-            }}>
-              <span className="blink-dot" style={{ width:6, height:6, borderRadius:"50%", background:AC, flexShrink:0 }} />
-              {product.badge}
-            </span>
-          </div>
-        )}
-
-        {/* Titre H1 — font Syne pour impact */}
-        {heroLoaded && (
-          <h1 className="hero-anim-1" style={{
-            fontFamily:"'Syne', sans-serif",
-            fontSize:"clamp(26px,6.5vw,46px)",
-            fontWeight:800, lineHeight:1.1,
-            color:TX, letterSpacing:"-0.5px",
-            marginBottom:12
-          }}>
+        {/* COL DROITE — Infos */}
+        <div className="hero-col-right" style={{ padding:"48px 48px 48px 32px", display:"flex", flexDirection:"column", justifyContent:"center", borderLeft:`1px solid rgba(255,255,255,0.05)` }}>
+          {product.badge && (
+            <div style={{ marginBottom:14 }}>
+              <span className="badge-animated" style={{ display:"inline-flex", alignItems:"center", gap:7, background:`${AC}18`, border:`1px solid ${AC}40`, borderRadius:20, padding:"5px 14px", fontSize:11, fontWeight:700, color:AC, letterSpacing:"0.9px", textTransform:"uppercase" }}>
+                <span className="blink-dot" style={{ width:6, height:6, borderRadius:"50%", background:AC, flexShrink:0 }} />
+                {product.badge}
+              </span>
+            </div>
+          )}
+          <h1 style={{ fontFamily:"'Syne', sans-serif", fontSize:"clamp(24px,3vw,40px)", fontWeight:800, lineHeight:1.1, color:TX, letterSpacing:"-0.5px", marginBottom:12 }}>
             {product.hero_titre || product.nom}
           </h1>
-        )}
-
-        {product.hero_sous_titre && heroLoaded && (
-          <p className="hero-anim-2" style={{
-            fontSize:"clamp(14px,3.5vw,17px)",
-            color:`${TX}8A`, lineHeight:1.7, marginBottom:22
-          }}>
-            {product.hero_sous_titre}
-          </p>
-        )}
-
-        {/* Prix premium */}
-        {heroLoaded && (
-          <div className="hero-anim-3" style={{ display:"flex", alignItems:"flex-end", gap:14, marginBottom:20, flexWrap:"wrap" }}>
-            <span style={{
-              fontFamily:"'Syne', sans-serif",
-              fontSize:"clamp(30px,7vw,50px)",
-              fontWeight:800, color:AC, lineHeight:1, letterSpacing:"-1px"
-            }}>{fmt(product.prix)}</span>
+          {product.hero_sous_titre && (
+            <p style={{ fontSize:"clamp(14px,1.4vw,16px)", color:`${TX}77`, lineHeight:1.7, marginBottom:18 }}>{product.hero_sous_titre}</p>
+          )}
+          <div style={{ display:"flex", alignItems:"flex-end", gap:14, marginBottom:14, flexWrap:"wrap" }}>
+            <span style={{ fontFamily:"'Syne', sans-serif", fontSize:"clamp(26px,3.5vw,44px)", fontWeight:800, color:AC, lineHeight:1, letterSpacing:"-1px" }}>{fmt(product.prix)}</span>
             {product.prix_barre && (
               <div style={{ display:"flex", flexDirection:"column", gap:3, paddingBottom:4 }}>
-                <span style={{ fontSize:"clamp(14px,3.5vw,20px)", color:`${TX}38`, textDecoration:"line-through" }}>
-                  {fmt(product.prix_barre)}
-                </span>
-                <span style={{
-                  background:`${AC}1E`, border:`1px solid ${AC}35`,
-                  borderRadius:10, padding:"2px 9px",
-                  fontSize:11, fontWeight:800, color:AC, textAlign:"center"
-                }}>
-                  -{Math.round((1-product.prix/product.prix_barre)*100)}%
-                </span>
+                <span style={{ fontSize:"clamp(14px,1.4vw,18px)", color:`${TX}38`, textDecoration:"line-through" }}>{fmt(product.prix_barre)}</span>
+                <span style={{ background:`${AC}1E`, border:`1px solid ${AC}35`, borderRadius:10, padding:"2px 9px", fontSize:11, fontWeight:800, color:AC, textAlign:"center" }}>-{Math.round((1-product.prix/product.prix_barre)*100)}%</span>
               </div>
             )}
           </div>
-        )}
-
-        {/* Social proof */}
-        {product && (product.sp_active !== false) && (
-          <div className="hero-anim-4" style={{ marginBottom:20 }}>
-            <div style={{
-              display:"flex", flexWrap:"wrap", alignItems:"center", gap:14,
-              background:"rgba(255,255,255,0.04)",
-              border:"1px solid rgba(255,255,255,0.08)",
-              borderRadius:14, padding:"12px 16px"
-            }}>
-              {/* Étoiles + note */}
-              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <div style={{ display:"flex", gap:2 }}>
-                  {Array.from({length:5},(_,i) => (
-                    <span key={i} style={{
-                      fontSize:14,
-                      color: i < Math.round(product.sp_note||4.9) ? "#F59E0B" : "rgba(255,255,255,0.15)"
-                    }}>★</span>
-                  ))}
+          {product.sp_active !== false && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:10, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:12, padding:"10px 14px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <div style={{ display:"flex", gap:1 }}>{Array.from({length:5},(_,i)=>(<span key={i} style={{ fontSize:13, color:i<Math.round(product.sp_note||4.9)?"#F59E0B":"rgba(255,255,255,0.15)" }}>★</span>))}</div>
+                  <span style={{ color:TX, fontSize:13, fontWeight:800 }}>{(product.sp_note||4.9).toFixed(1)}</span>
+                  <span style={{ color:`${TX}44`, fontSize:11 }}>({(product.sp_avis_count||127).toLocaleString("fr-FR")} avis)</span>
                 </div>
-                <span style={{ color:TX, fontSize:14, fontWeight:800 }}>
-                  {(product.sp_note||4.9).toFixed(1)}
-                </span>
-                <span style={{ color:`${TX}44`, fontSize:12 }}>
-                  ({(product.sp_avis_count||127).toLocaleString("fr-FR")} avis)
-                </span>
-              </div>
-
-              {/* Séparateur */}
-              <div style={{ width:1, height:20, background:"rgba(255,255,255,0.1)", flexShrink:0 }} />
-
-              {/* Clients */}
-              <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ fontSize:14 }}>👥</span>
-                <span style={{ color:TX, fontSize:13, fontWeight:700 }}>
-                  {(product.sp_clients_count||2000).toLocaleString("fr-FR")}+
-                </span>
-                <span style={{ color:`${TX}44`, fontSize:12 }}>clients</span>
-              </div>
-
-              {/* Séparateur */}
-              <div style={{ width:1, height:20, background:"rgba(255,255,255,0.1)", flexShrink:0 }} />
-
-              {/* Dernière commande */}
-              <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{
-                  width:7, height:7, borderRadius:"50%",
-                  background:"#4ADE80",
-                  boxShadow:"0 0 6px #4ADE80",
-                  flexShrink:0,
-                  animation:"blinkDot 1.5s ease-in-out infinite"
-                }} />
-                <span style={{ color:`${TX}77`, fontSize:12 }}>
-                  Commandé il y a <strong style={{color:TX}}>{product.sp_derniere_commande||8} min</strong>
-                </span>
+                <div style={{ width:1, height:16, background:"rgba(255,255,255,0.1)" }} />
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <span>👥</span>
+                  <span style={{ color:TX, fontSize:12, fontWeight:700 }}>{(product.sp_clients_count||2000).toLocaleString("fr-FR")}+</span>
+                  <span style={{ color:`${TX}44`, fontSize:11 }}>clients</span>
+                </div>
+                <div style={{ width:1, height:16, background:"rgba(255,255,255,0.1)" }} />
+                <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ width:7,height:7,borderRadius:"50%",background:"#4ADE80",boxShadow:"0 0 6px #4ADE80",flexShrink:0,animation:"blinkDot 1.5s ease-in-out infinite" }} />
+                  <span style={{ color:`${TX}77`, fontSize:11 }}>Commandé il y a <strong style={{color:TX}}>{product.sp_derniere_commande||8} min</strong></span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Trust pills */}
-        {heroLoaded && (
-          <div className="hero-anim-5" style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:24 }}>
-            {["✅ Livraison gratuite","🔒 Paiement à la livraison","💊 100% naturel"].map((t,i) => (
-              <span key={i} style={{
-                display:"inline-flex", alignItems:"center", gap:4,
-                background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.11)",
-                borderRadius:20, padding:"5px 11px",
-                fontSize:11, color:`${TX}77`
-              }}>{t}</span>
+          )}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:20 }}>
+            {["✅ Livraison gratuite","🔒 Paiement à la livraison","💊 100% naturel"].map((t,i)=>(
+              <span key={i} style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.11)", borderRadius:20, padding:"5px 11px", fontSize:11, color:`${TX}77` }}>{t}</span>
             ))}
           </div>
-        )}
-
-        {/* CTA Hero */}
-        {heroLoaded && (
-          <div className="hero-anim-6">
-            <button
-              onClick={scrollToForm}
-              className="cta-btn-inner"
-              style={{
-                width:"100%", position:"relative", overflow:"hidden",
-                background:`linear-gradient(135deg, ${AC} 0%, ${AC}CC 100%)`,
-                border:"none", borderRadius:18,
-                padding:"19px 24px", color:"#000",
-                fontSize:"clamp(15px,4vw,18px)", fontWeight:800,
-                cursor:"pointer", letterSpacing:"-0.3px",
-                boxShadow:`0 12px 40px ${AC}44`
-              }}
-            >
-              <span className="shine-el" />
-              🛒 {product.hero_cta_texte || "Commander maintenant"}
-            </button>
-            <p style={{ textAlign:"center", color:`${TX}38`, fontSize:11, marginTop:9, letterSpacing:"0.3px" }}>
-              ✅ Paiement à la livraison &nbsp;·&nbsp; 🚚 Livraison rapide &nbsp;·&nbsp; 🔒 Satisfait ou remboursé
-            </p>
-          </div>
-        )}
+          <button onClick={scrollToForm} className="cta-btn-inner" style={{ width:"100%", position:"relative", overflow:"hidden", background:`linear-gradient(135deg, ${AC} 0%, ${AC}CC 100%)`, border:"none", borderRadius:16, padding:"18px 24px", color:"#000", fontSize:"clamp(15px,1.6vw,18px)", fontWeight:800, cursor:"pointer", letterSpacing:"-0.3px", boxShadow:`0 12px 40px ${AC}44` }}>
+            <span className="shine-el" />
+            🛒 {product.hero_cta_texte || "Commander maintenant"}
+          </button>
+          <p style={{ textAlign:"center", color:`${TX}38`, fontSize:11, marginTop:9 }}>✅ Paiement à la livraison &nbsp;·&nbsp; 🚚 Livraison rapide &nbsp;·&nbsp; 🔒 Satisfait ou remboursé</p>
+        </div>
       </div>
     </div>
   )
 
-  // ── Galerie ──
   const renderGalerie = () => {
     if (allImages.length === 0) return null
     return (
@@ -452,7 +357,7 @@ export default function ProductPage() {
   // ── Rendu sections ──
   const renderSection = (key: string): React.ReactNode => {
     switch(key) {
-      case "galerie": return renderGalerie()
+      case "galerie": return null // galerie déjà dans le hero layout
 
       case "description":
         if (!product.description) return null
