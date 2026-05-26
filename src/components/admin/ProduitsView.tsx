@@ -1,8 +1,138 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
-import dynamic from "next/dynamic"
-const RichEditor = dynamic(() => import("./RichEditor"), { ssr: false, loading: () => <div style={{height:200,background:"rgba(255,255,255,0.03)",borderRadius:14,border:"1px solid rgba(255,255,255,0.1)"}} /> })
+
+// ─── Système de blocs pour la description ───────────────
+type Bloc = { id: string; type: "titre" | "texte" | "image"; contenu: string }
+
+function genId() { return Math.random().toString(36).slice(2,8) }
+
+function parseBlocs(val: string): Bloc[] {
+  if (!val) return []
+  try {
+    const parsed = JSON.parse(val)
+    if (Array.isArray(parsed)) return parsed
+  } catch {}
+  // Ancien texte brut → un seul bloc texte
+  if (val.trim()) return [{ id: genId(), type: "texte", contenu: val }]
+  return []
+}
+
+function BlocEditor({ value, onChange, tenantId }: { value: string; onChange: (v: string) => void; tenantId: string }) {
+  const [blocs, setBlocs] = useState<Bloc[]>(() => parseBlocs(value))
+  const [uploading, setUploading] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const uploadingBlocId = useRef<string>("")
+
+  const update = (newBlocs: Bloc[]) => {
+    setBlocs(newBlocs)
+    onChange(JSON.stringify(newBlocs))
+  }
+
+  const addBloc = (type: Bloc["type"]) => {
+    update([...blocs, { id: genId(), type, contenu: "" }])
+  }
+
+  const updateBloc = (id: string, contenu: string) => {
+    update(blocs.map(b => b.id === id ? { ...b, contenu } : b))
+  }
+
+  const removeBloc = (id: string) => {
+    update(blocs.filter(b => b.id !== id))
+  }
+
+  const moveBloc = (idx: number, dir: -1 | 1) => {
+    const arr = [...blocs]
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= arr.length) return
+    ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+    update(arr)
+  }
+
+  const uploadImg = async (file: File, blocId: string) => {
+    setUploading(blocId)
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg"
+      const fileName = `produits/${tenantId}/desc-${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from("shipivo-images").upload(fileName, file, { upsert: true, contentType: file.type })
+      if (error) { alert("Erreur: " + error.message); return }
+      const { data } = supabase.storage.from("shipivo-images").getPublicUrl(fileName)
+      updateBloc(blocId, data.publicUrl)
+    } catch { alert("Erreur upload") }
+    setUploading(null)
+  }
+
+  const S2 = { bg:"#0A0A0F", card:"#16161F", border:"#1E1E2E", gold:"#F59E0B", muted2:"#9898B0", danger:"#F87171", dangerBg:"rgba(248,113,113,0.08)" }
+  const inp2: React.CSSProperties = { width:"100%", background:S2.bg, border:`1px solid ${S2.border}`, borderRadius:8, padding:"10px 12px", color:"#F8F8FC", fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }}
+        onChange={e => { const f=e.target.files?.[0]; if(f) uploadImg(f, uploadingBlocId.current); e.target.value="" }} />
+
+      {blocs.length === 0 && (
+        <div style={{ background:S2.card, borderRadius:10, padding:"20px", textAlign:"center", border:`1px dashed ${S2.border}` }}>
+          <p style={{ color:S2.muted2, fontSize:13, margin:0 }}>Aucun bloc. Ajoute du contenu ci-dessous.</p>
+        </div>
+      )}
+
+      {blocs.map((bloc, i) => (
+        <div key={bloc.id} style={{ background:S2.card, borderRadius:10, border:`1px solid ${S2.border}`, overflow:"hidden" }}>
+          {/* Header bloc */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderBottom:`1px solid ${S2.border}`, background:"rgba(0,0,0,0.2)" }}>
+            <span style={{ fontSize:12, color:S2.muted2, fontWeight:700, textTransform:"uppercase", flex:1 }}>
+              {bloc.type === "titre" ? "🔤 Titre" : bloc.type === "image" ? "🖼️ Image" : "📝 Texte"}
+            </span>
+            <button onClick={() => moveBloc(i,-1)} disabled={i===0} style={{ width:24,height:24,borderRadius:6,border:`1px solid ${S2.border}`,background:"transparent",color:i===0?S2.muted2:S2.gold,fontSize:12,cursor:i===0?"default":"pointer" }}>↑</button>
+            <button onClick={() => moveBloc(i,1)} disabled={i===blocs.length-1} style={{ width:24,height:24,borderRadius:6,border:`1px solid ${S2.border}`,background:"transparent",color:i===blocs.length-1?S2.muted2:S2.gold,fontSize:12,cursor:i===blocs.length-1?"default":"pointer" }}>↓</button>
+            <button onClick={() => removeBloc(bloc.id)} style={{ width:24,height:24,borderRadius:6,border:"none",background:S2.dangerBg,color:S2.danger,fontSize:12,cursor:"pointer" }}>✕</button>
+          </div>
+
+          {/* Contenu bloc */}
+          <div style={{ padding:"10px 12px" }}>
+            {bloc.type === "titre" && (
+              <input value={bloc.contenu} onChange={e => updateBloc(bloc.id, e.target.value)}
+                style={{ ...inp2, fontSize:16, fontWeight:700 }} placeholder="Titre de section..." />
+            )}
+            {bloc.type === "texte" && (
+              <textarea value={bloc.contenu} onChange={e => updateBloc(bloc.id, e.target.value)}
+                style={{ ...inp2, resize:"vertical", minHeight:90 }} placeholder="Ton texte ici..." />
+            )}
+            {bloc.type === "image" && (
+              <div>
+                {bloc.contenu ? (
+                  <div style={{ position:"relative", display:"inline-block" }}>
+                    <img src={bloc.contenu} alt="" style={{ maxWidth:"100%", maxHeight:200, borderRadius:8, objectFit:"cover" }} />
+                    <button onClick={() => updateBloc(bloc.id, "")} style={{ position:"absolute",top:-8,right:-8,width:22,height:22,borderRadius:"50%",border:"none",background:S2.danger,color:"#fff",fontSize:12,cursor:"pointer" }}>×</button>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button
+                      onClick={() => { uploadingBlocId.current=bloc.id; fileRef.current?.click() }}
+                      disabled={!!uploading}
+                      style={{ padding:"10px 16px",borderRadius:8,border:`1px dashed ${S2.gold}`,background:"rgba(245,158,11,0.05)",color:S2.gold,fontSize:13,fontWeight:600,cursor:"pointer",flexShrink:0 }}>
+                      {uploading===bloc.id ? "⏳..." : "📁 Upload"}
+                    </button>
+                    <input value={bloc.contenu} onChange={e => updateBloc(bloc.id, e.target.value)}
+                      style={{ ...inp2, flex:1 }} placeholder="Ou colle une URL d'image..." />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* Boutons ajouter */}
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={() => addBloc("titre")} style={{ flex:1,padding:"10px",borderRadius:8,border:`1px dashed ${S2.border}`,background:"transparent",color:S2.muted2,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Titre</button>
+        <button onClick={() => addBloc("texte")} style={{ flex:1,padding:"10px",borderRadius:8,border:`1px dashed ${S2.border}`,background:"transparent",color:S2.muted2,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Texte</button>
+        <button onClick={() => addBloc("image")} style={{ flex:1,padding:"10px",borderRadius:8,border:`1px dashed ${S2.border}`,background:"transparent",color:S2.muted2,fontSize:12,fontWeight:600,cursor:"pointer" }}>+ Image</button>
+      </div>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────
 
 const S = {
   bg:"#0A0A0F", card:"#111118", card2:"#16161F", border:"#1E1E2E",
@@ -372,9 +502,9 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
 
           <div>
             <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:8 }}>
-              📝 Description du produit — texte riche avec images, titres, listes
+              📝 Description — blocs de contenu (texte + images)
             </label>
-            <RichEditor value={description} onChange={setDescription} tenantId={tenantId} />
+            <BlocEditor value={description} onChange={setDescription} tenantId={tenantId} />
           </div>
         </div>
       )}
