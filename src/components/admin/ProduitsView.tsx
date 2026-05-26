@@ -39,6 +39,11 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
   const [heroSousTitre, setHeroSousTitre] = useState("")
   const [heroCta, setHeroCta] = useState("Commander maintenant")
   const [isActive, setIsActive] = useState(true)
+  const [spActive, setSpActive] = useState(true)
+  const [spNote, setSpNote] = useState("4.9")
+  const [spAvisCount, setSpAvisCount] = useState("127")
+  const [spClientsCount, setSpClientsCount] = useState("2000")
+  const [spDerniereCommande, setSpDerniereCommande] = useState("8")
   const [uploadingImg, setUploadingImg] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -118,6 +123,7 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setNom(""); setPrix(""); setPrixBarre(""); setDevise("FCFA"); setBadge("")
     setImagePrincipale(""); setDescription(""); setHeroTitre(""); setHeroSousTitre("")
     setHeroCta("Commander maintenant"); setIsActive(true); setTheme("dark")
+    setSpActive(true); setSpNote("4.9"); setSpAvisCount("127"); setSpClientsCount("2000"); setSpDerniereCommande("8")
     setFont("Poppins"); setCouleurAccent("#F59E0B"); setCouleurFond("#080810")
     setImagesGalerie([]); setSectionsOrdre(["galerie","description","probleme","benefices","utilisation","composition","temoignages","comparaison","faq","garantie","formulaire"])
     setSections({ probleme:{active:false,titre:"Vous souffrez de ça ?",items:[]}, benefices:{active:false,titre:"Pourquoi choisir ce produit ?",items:[]}, temoignages:{active:false,titre:"Ce qu'ils en disent",items:[]}, faq:{active:false,titre:"Questions fréquentes",items:[]}, garantie:{active:false,texte:"Satisfait ou remboursé 30 jours",icone:"🛡️"}, composition:{active:false,titre:"Composition",items:[]}, utilisation:{active:false,titre:"Comment ça marche ?",items:[]} })
@@ -133,6 +139,9 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     setDevise(data.devise || "FCFA"); setBadge(data.badge || ""); setImagePrincipale(data.image_principale || "")
     setDescription(data.description || ""); setHeroTitre(data.hero_titre || ""); setHeroSousTitre(data.hero_sous_titre || "")
     setHeroCta(data.hero_cta_texte || "Commander maintenant"); setIsActive(data.is_active !== false)
+    setSpActive(data.sp_active !== false); setSpNote(String(data.sp_note || "4.9"))
+    setSpAvisCount(String(data.sp_avis_count || "127")); setSpClientsCount(String(data.sp_clients_count || "2000"))
+    setSpDerniereCommande(String(data.sp_derniere_commande || "8"))
     setTheme(data.theme || "dark"); setFont(data.font || "Poppins")
     setCouleurAccent(data.couleur_accent || "#F59E0B"); setCouleurFond(data.couleur_fond || "#080810")
     setImagesGalerie(data.images || [])
@@ -169,6 +178,10 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
       description, hero_titre: heroTitre,
       hero_sous_titre: heroSousTitre, hero_cta_texte: heroCta,
       theme, font, couleur_accent: couleurAccent, couleur_fond: couleurFond,
+      sp_active: spActive, sp_note: parseFloat(spNote)||4.9,
+      sp_avis_count: parseInt(spAvisCount)||127,
+      sp_clients_count: parseInt(spClientsCount)||2000,
+      sp_derniere_commande: parseInt(spDerniereCommande)||8,
       sections_ordre: JSON.stringify(sectionsOrdre),
       section_probleme_active: sections.probleme.active,
       section_probleme_titre: sections.probleme.titre,
@@ -332,6 +345,36 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
             <button onClick={() => setIsActive(!isActive)} style={{ padding: "5px 14px", borderRadius: 20, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: isActive ? "rgba(74,222,128,0.15)" : S.card2, color: isActive ? S.success : S.muted }}>
               {isActive ? "✅ Actif" : "Inactif"}
             </button>
+          </div>
+
+          {/* ── Social Proof ── */}
+          <div style={{ background: S.card2, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <p style={{ color: S.muted2, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>⭐ Social Proof (Hero)</p>
+              <button onClick={() => setSpActive(!spActive)} style={{ padding: "4px 12px", borderRadius: 20, border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer", background: spActive ? "rgba(74,222,128,0.15)" : S.card2, color: spActive ? S.success : S.muted }}>
+                {spActive ? "Activé" : "Désactivé"}
+              </button>
+            </div>
+            {spActive && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Note (ex: 4.9)</label>
+                  <input type="number" step="0.1" min="1" max="5" value={spNote} onChange={e => setSpNote(e.target.value)} style={inp} placeholder="4.9" />
+                </div>
+                <div>
+                  <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Nombre d'avis</label>
+                  <input type="number" value={spAvisCount} onChange={e => setSpAvisCount(e.target.value)} style={inp} placeholder="127" />
+                </div>
+                <div>
+                  <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Clients satisfaits</label>
+                  <input type="number" value={spClientsCount} onChange={e => setSpClientsCount(e.target.value)} style={inp} placeholder="2000" />
+                </div>
+                <div>
+                  <label style={{ display: "block", color: S.muted2, fontSize: 12, marginBottom: 4 }}>Dernière commande (min)</label>
+                  <input type="number" value={spDerniereCommande} onChange={e => setSpDerniereCommande(e.target.value)} style={inp} placeholder="8" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
