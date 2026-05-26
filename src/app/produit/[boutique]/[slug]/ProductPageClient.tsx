@@ -20,6 +20,8 @@ type PageContent = {
   presse_actif: boolean; presse_titre: string; presse_logos: string[]
   temoignages: { nom: string; ville: string; texte: string; note: number; photo: string }[]
   garantie_texte: string; garantie_icone: string
+  offres_actif?: boolean; offres_titre?: string
+  offres?: { quantite: number; label: string; prix: number; populaire: boolean; badge: string }[]
   couleur: string; fond: string
 }
 
@@ -64,6 +66,7 @@ export default function ProductPage() {
   const [submitted, setSubmitted] = useState(false)
   const [orderNum, setOrderNum] = useState("")
   const [formError, setFormError] = useState("")
+  const [selectedOffre, setSelectedOffre] = useState<number>(0)
   const formRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function ProductPage() {
       tenant_id: tenant?.id, customer_name: form.name.trim(),
       phone: form.phone.trim(), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
-      product: product?.nom || (product as any)?.name, quantity: 1, amount: product?.prix || (product as any)?.price,
+      product: product?.nom || (product as any)?.name, quantity: offreActive?.quantite || 1, amount: prixActif || product?.prix || (product as any)?.price,
       status: "En attente", delivery_type: "standard",
       source: searchParams?.get("src")||"page_produit",
       zone_nom: searchParams?.get("zone")||null,
@@ -121,6 +124,9 @@ export default function ProductPage() {
   const TX = "#F8F8FC"
   const allImages = [product.image_principale, ...(content.images||[])].filter(Boolean)
   const fmt = (n: number) => `${n.toLocaleString("fr-FR")} ${product.devise||"FCFA"}`
+  const offres = content.offres || []
+  const offreActive = offres.length > 0 && content.offres_actif ? offres[selectedOffre] : null
+  const prixActif = offreActive ? offreActive.prix : product.prix
 
   const inp: React.CSSProperties = {
     width:"100%", background:"rgba(255,255,255,0.06)",
@@ -407,6 +413,47 @@ export default function ProductPage() {
       )}
 
       {/* ── GARANTIE ── */}
+      {/* ── OFFRES GROUPÉES ── */}
+      {content.offres_actif && offres.length > 0 && (
+        <div style={{ padding:"40px 20px", background:"rgba(255,255,255,0.02)" }}>
+          <div style={{ maxWidth:600, margin:"0 auto" }}>
+            <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"clamp(20px,4vw,28px)", fontWeight:900, textAlign:"center", marginBottom:8, color:TX }}>
+              {content.offres_titre || "Choisissez votre offre"}
+            </h2>
+            <p style={{ textAlign:"center", color:`${TX}55`, fontSize:13, marginBottom:28 }}>
+              Plus vous commandez, plus vous économisez
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {offres.map((offre, i) => (
+                <div key={i} onClick={() => setSelectedOffre(i)}
+                  style={{ position:"relative", display:"flex", alignItems:"center", gap:16, padding:"16px 20px", borderRadius:14, border:`2px solid ${selectedOffre===i?AC:offre.populaire?`${AC}40`:"rgba(255,255,255,0.08)"}`, background:selectedOffre===i?`${AC}12`:offre.populaire?`${AC}06`:"transparent", cursor:"pointer", transition:"all 0.2s" }}>
+                  {offre.populaire && (
+                    <span style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:AC, color:"#000", fontSize:11, fontWeight:800, padding:"3px 14px", borderRadius:20, whiteSpace:"nowrap" }}>
+                      ⭐ POPULAIRE
+                    </span>
+                  )}
+                  {/* Radio */}
+                  <div style={{ width:22, height:22, borderRadius:"50%", border:`2px solid ${selectedOffre===i?AC:"rgba(255,255,255,0.3)"}`, background:selectedOffre===i?AC:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.2s" }}>
+                    {selectedOffre===i && <div style={{ width:8, height:8, borderRadius:"50%", background:"#000" }} />}
+                  </div>
+                  {/* Label */}
+                  <div style={{ flex:1 }}>
+                    <p style={{ color:TX, fontSize:15, fontWeight:700, margin:"0 0 2px" }}>{offre.label}</p>
+                    {offre.badge && (
+                      <span style={{ background:`${AC}20`, color:AC, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>{offre.badge}</span>
+                    )}
+                  </div>
+                  {/* Prix */}
+                  <span style={{ fontFamily:"'Syne',sans-serif", fontSize:"clamp(18px,4vw,24px)", fontWeight:900, color:selectedOffre===i?AC:TX }}>
+                    {offre.prix.toLocaleString("fr-FR")} {product.devise||"FCFA"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {content.garantie_texte && (
         <div style={{padding:"32px 20px"}}>
           <div style={{maxWidth:600,margin:"0 auto",background:`${AC}0A`,border:`2px solid ${AC}25`,borderRadius:20,padding:"24px 20px",textAlign:"center"}}>
