@@ -35,6 +35,18 @@ type Tenant = {
   id: string; name: string; slug: string; phone: string
 }
 
+const defaultContent: PageContent = {
+  hero_titre: "", hero_sous_titre: "", hero_cta: "Commander maintenant",
+  hero_badges: [], bandeau: [], images: [], chiffres: [],
+  problemes_titre: "", problemes_sous_titre: "", problemes: [],
+  danger_titre: "", danger_sous_titre: "", dangers: [], danger_cta_texte: "",
+  solution_titre: "", solution_sous_titre: "", ingredients: [],
+  whatsapp_actif: false, whatsapp_nom: "", whatsapp_photo: "", whatsapp_messages: [],
+  presse_actif: false, presse_titre: "", presse_logos: [],
+  temoignages: [], garantie_texte: "", garantie_icone: "🛡️",
+  couleur: "#F59E0B", fond: "#09090F"
+}
+
 export default function ProductPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -63,7 +75,7 @@ export default function ProductPage() {
         .eq("tenant_id", t.id).eq("slug", slug).eq("is_active", true).single()
       if (p) {
         setProduct(p as Product)
-        try { setContent(JSON.parse(p.page_content)) } catch { setContent(null) }
+        try { const pc = p.page_content ? JSON.parse(p.page_content) : null; setContent(pc ? { ...defaultContent, ...pc } : defaultContent) } catch { setContent(defaultContent) }
         await supabase.from("products").update({ vues: ((p.vues||0)+1) }).eq("id", p.id)
       }
       setLoading(false)
@@ -81,7 +93,7 @@ export default function ProductPage() {
       tenant_id: tenant?.id, customer_name: form.name.trim(),
       phone: form.phone.trim(), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
-      product: product?.nom, quantity: 1, amount: product?.prix,
+      product: product?.nom || (product as any)?.name, quantity: 1, amount: product?.prix || (product as any)?.price,
       status: "En attente", delivery_type: "standard",
       source: searchParams?.get("src")||"page_produit",
       zone_nom: searchParams?.get("zone")||null,
@@ -98,7 +110,7 @@ export default function ProductPage() {
     </div>
   )
 
-  if (!product || !tenant || !content) return (
+  if (!product || !tenant) return (
     <div style={{minHeight:"100vh",background:"#09090F",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui"}}>
       <p style={{color:"#9898B0"}}>Produit introuvable.</p>
     </div>
