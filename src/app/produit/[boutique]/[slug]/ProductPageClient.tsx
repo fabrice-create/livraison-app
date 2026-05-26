@@ -28,6 +28,7 @@ type Product = {
   prix_barre: number|null; devise: string; badge: string
   is_active: boolean; image_principale: string
   page_content: string; tenant_id: string
+  vues?: number; commandes?: number
 }
 
 type Tenant = {
