@@ -443,6 +443,7 @@ export default function ProductPage() {
             </div>
           </div>
         )
+      }
 
       case "utilisation":
         if (!product.section_utilisation_active || !product.section_utilisation_items?.length) return null
