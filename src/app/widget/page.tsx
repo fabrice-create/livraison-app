@@ -15,6 +15,9 @@ interface BoutiqueInfo {
   widget_couleur?: string; widget_fond?: string; widget_police?: string
   widget_btn_text?: string; widget_btn_style?: string
   widget_titre?: string; widget_sous_titre?: string
+  widget_redirect_url?: string
+  widget_merci_titre?: string; widget_merci_message?: string
+  widget_merci_bouton_texte?: string; widget_merci_bouton_url?: string
 }
 
 function WidgetContent() {
@@ -40,7 +43,7 @@ function WidgetContent() {
     const load = async () => {
       if (!slug) return
       const { data: tenant } = await supabase.from("tenants")
-        .select("id,name,slug,phone,delivery_fee,currency,brand_color,widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre")
+        .select("id,name,slug,phone,delivery_fee,currency,brand_color,widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre,widget_redirect_url,widget_merci_titre,widget_merci_message,widget_merci_bouton_texte,widget_merci_bouton_url")
         .eq("slug", slug).single()
       if (tenant) setBoutique(tenant)
       if (produitId) {
@@ -102,6 +105,12 @@ function WidgetContent() {
     if (err) { setError(err.message); setSubmitting(false); return }
     window.parent.postMessage({ type:"shipivo-success", order:{ customer:form.customer_name, phone:fullPhone, product:productName } }, "*")
     setSuccess(true); setSubmitting(false)
+    // Rediriger vers WordPress si URL configurée
+    if (boutique?.widget_redirect_url) {
+      setTimeout(() => {
+        window.parent.location.href = boutique.widget_redirect_url!
+      }, 2000)
+    }
   }
 
   if (loading) return (
@@ -143,16 +152,54 @@ function WidgetContent() {
   if (success) return (
     <div ref={containerRef} style={{ background:BG, borderRadius:16, padding:32, textAlign:"center", fontFamily:FONT }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=${FONT.replace(/ /g,"+")}:wght@400;600;700;800&display=swap');`}</style>
-      <div style={{ width:72,height:72,borderRadius:"50%",background:"rgba(74,222,128,0.12)",border:"2px solid rgba(74,222,128,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 16px" }}>✅</div>
-      <h3 style={{ color:TX, margin:"0 0 8px", fontSize:20, fontWeight:800 }}>Commande envoyée !</h3>
-      <p style={{ color:TX2, fontSize:14, margin:"0 0 20px", lineHeight:1.6 }}>
-        Merci <strong style={{color:TX}}>{form.customer_name}</strong> !<br/>
-        Notre équipe vous appellera bientôt au <strong style={{color:TX}}>{dialCode}{form.phone}</strong>.
+
+      {/* Icône succès */}
+      <div style={{ width:80,height:80,borderRadius:"50%",background:"rgba(74,222,128,0.12)",border:"2px solid rgba(74,222,128,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 20px" }}>✅</div>
+
+      {/* Titre personnalisé */}
+      <h3 style={{ color:TX, margin:"0 0 12px", fontSize:22, fontWeight:800, fontFamily:FONT }}>
+        {boutique?.widget_merci_titre || "Merci pour votre commande !"}
+      </h3>
+
+      {/* Message personnalisé */}
+      <p style={{ color:TX2, fontSize:14, margin:"0 0 8px", lineHeight:1.7 }}>
+        {boutique?.widget_merci_message || "Notre équipe vous appellera bientôt pour confirmer."}
       </p>
-      <div style={{ background:`${AC}15`, border:`1px solid ${AC}30`, borderRadius:12, padding:"12px 16px", display:"inline-block" }}>
+      <p style={{ color:TX2, fontSize:14, margin:"0 0 24px", lineHeight:1.7 }}>
+        Merci <strong style={{color:TX}}>{form.customer_name}</strong> — nous vous appelons au <strong style={{color:TX}}>{dialCode}{form.phone}</strong>.
+      </p>
+
+      {/* Numéro boutique */}
+      <div style={{ background:`${AC}15`, border:`1px solid ${AC}30`, borderRadius:12, padding:"12px 16px", display:"inline-block", marginBottom:20 }}>
         <p style={{ color:TX2, fontSize:11, textTransform:"uppercase", letterSpacing:1, margin:"0 0 4px" }}>Boutique</p>
         <p style={{ color:AC, fontSize:16, fontWeight:800, margin:0 }}>{boutique?.name}</p>
       </div>
+
+      {/* Bouton WhatsApp si téléphone disponible */}
+      {boutique?.phone && (
+        <div style={{ marginBottom:12 }}>
+          <a href={`https://wa.me/${boutique.phone.replace(/[^0-9]/g,"")}?text=Bonjour+j'ai+commandé+${encodeURIComponent(product?.name||"votre produit")}`}
+            target="_blank" rel="noreferrer"
+            style={{ display:"inline-block", background:"#25D366", borderRadius:12, padding:"12px 24px", color:"#fff", fontSize:14, fontWeight:700, textDecoration:"none" }}>
+            💬 Contacter sur WhatsApp
+          </a>
+        </div>
+      )}
+
+      {/* Bouton retour personnalisé */}
+      {(boutique?.widget_merci_bouton_url || boutique?.widget_redirect_url) && (
+        <a href={boutique.widget_merci_bouton_url || boutique.widget_redirect_url || "#"}
+          style={{ display:"inline-block", background:`${AC}15`, border:`1px solid ${AC}30`, borderRadius:12, padding:"11px 24px", color:AC, fontSize:14, fontWeight:700, textDecoration:"none" }}>
+          {boutique?.widget_merci_bouton_texte || "Retour à la boutique"}
+        </a>
+      )}
+
+      {/* Redirection auto si URL configurée */}
+      {boutique?.widget_redirect_url && (
+        <p style={{ color:TX2, fontSize:11, marginTop:16 }}>
+          Redirection automatique dans 3 secondes...
+        </p>
+      )}
     </div>
   )
 
