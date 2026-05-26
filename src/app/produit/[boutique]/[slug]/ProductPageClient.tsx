@@ -78,21 +78,24 @@ export default function ProductPage() {
     load()
   }, [boutique, slug])
 
-  // Sticky CTA — scroll listener, monté après chargement produit
+  // Sticky CTA — logique simple et bulletproof
   useEffect(() => {
     if (!product) return
     const onScroll = () => {
       const scrollY = window.scrollY
-      const heroBottom = heroRef.current
-        ? heroRef.current.getBoundingClientRect().bottom + scrollY
-        : 400
-      const formTop = formRef.current
-        ? formRef.current.getBoundingClientRect().top + scrollY - window.innerHeight * 0.5
-        : 99999
-      setShowSticky(scrollY > heroBottom - 100 && scrollY < formTop)
+      // Apparaît après 300px de scroll
+      // Disparaît quand le formulaire est dans le viewport
+      const formEl = formRef.current
+      if (!formEl) {
+        setShowSticky(scrollY > 300)
+        return
+      }
+      const formRect = formEl.getBoundingClientRect()
+      const formInView = formRect.top < window.innerHeight && formRect.bottom > 0
+      setShowSticky(scrollY > 300 && !formInView)
     }
     window.addEventListener("scroll", onScroll, { passive: true })
-    onScroll() // déclencher une fois au montage
+    onScroll()
     return () => window.removeEventListener("scroll", onScroll)
   }, [product])
 
