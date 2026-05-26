@@ -309,7 +309,7 @@ export default function ProductPage() {
         )}
 
         {/* Social proof */}
-        {heroLoaded && (product.sp_active !== false) && (
+        {product && (product.sp_active !== false) && (
           <div className="hero-anim-4" style={{ marginBottom:20 }}>
             <div style={{
               display:"flex", flexWrap:"wrap", alignItems:"center", gap:14,
