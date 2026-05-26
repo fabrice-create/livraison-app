@@ -28,6 +28,7 @@ function WidgetContent() {
   const produitPrix = searchParams?.get("produit_prix") || ""
   const produitImage = searchParams?.get("produit_image") || ""
   const mode = searchParams?.get("mode") || "form"
+  const produitOffres = searchParams?.get("offres") || ""  // JSON encodé des offres
 
   const [boutique, setBoutique] = useState<BoutiqueInfo | null>(null)
   const [product, setProduct] = useState<Product | null>(null)
@@ -37,6 +38,7 @@ function WidgetContent() {
   const [error, setError] = useState("")
   const [form, setForm] = useState({ customer_name:"", phone:"", city:"", address:"", note:"" })
   const [dialCode, setDialCode] = useState("+228")
+  const [selectedOffre, setSelectedOffre] = useState<number>(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -56,6 +58,17 @@ function WidgetContent() {
     }
     load()
   }, [slug, produitId])
+
+  // Parser les offres depuis l'URL
+  const offresData = (() => {
+    if (produitOffres) {
+      try { return JSON.parse(decodeURIComponent(produitOffres)) } catch {}
+    }
+    return []
+  })()
+  const offres: {quantite:number;label:string;prix:number;populaire:boolean;badge:string}[] = offresData
+  const offreActive = offres.length > 0 ? offres[selectedOffre] : null
+  const prixFinal = offreActive ? offreActive.prix : (product?.price || Number(produitPrix) || 0)
 
   useEffect(() => {
     const detect = async () => {
@@ -93,12 +106,13 @@ function WidgetContent() {
     if (!boutique) return
     setSubmitting(true); setError("")
     const fullPhone = dialCode + form.phone.trim().replace(/^0/, "")
-    const productName = product?.name || "Commande directe"
-    const amount = (product?.price || 0) + (boutique.delivery_fee || 0)
+    const productName = offreActive ? `${product?.name || produitNom} — ${offreActive.label}` : (product?.name || produitNom || "Commande directe")
+    const amount = prixFinal + (boutique.delivery_fee || 0)
+    const quantity = offreActive?.quantite || 1
     const { error: err } = await supabase.from("orders").insert({
       tenant_id: boutique.id, customer_name: form.customer_name.trim(),
       phone: fullPhone, city: form.city.trim(), address: form.address.trim(),
-      product: productName, quantity: 1, amount,
+      product: productName, quantity: quantity, amount,
       status: "En attente", source: "widget", delivery_type: "standard",
       note: form.note.trim() || null,
     })
@@ -260,6 +274,33 @@ function WidgetContent() {
         <p style={{ color:TX2, fontSize:13, margin:0 }}>{SOUS_TITRE}</p>
       </div>
 
+      {/* Offres groupées */}
+      {offres.length > 0 && (
+        <div style={{ marginBottom:18 }}>
+          <p style={{ color:TX2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 10px" }}>
+            Choisissez votre offre
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {offres.map((offre, i) => (
+              <div key={i} onClick={() => setSelectedOffre(i)}
+                style={{ position:"relative", display:"flex", alignItems:"center", gap:12, padding:"11px 13px", borderRadius:10, border:`2px solid ${selectedOffre===i?AC:offre.populaire?`${AC}40`:BORDER}`, background:selectedOffre===i?`${AC}10`:"transparent", cursor:"pointer", transition:"all 0.2s" }}>
+                {offre.populaire && (
+                  <span style={{ position:"absolute", top:-9, left:12, background:AC, color:"#000", fontSize:10, fontWeight:800, padding:"1px 8px", borderRadius:20 }}>⭐ POPULAIRE</span>
+                )}
+                <div style={{ width:18, height:18, borderRadius:"50%", border:`2px solid ${selectedOffre===i?AC:TX2}`, background:selectedOffre===i?AC:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {selectedOffre===i && <div style={{ width:6, height:6, borderRadius:"50%", background:"#000" }} />}
+                </div>
+                <span style={{ color:TX, fontSize:13, fontWeight:600, flex:1 }}>{offre.label}</span>
+                {offre.badge && <span style={{ background:`${AC}20`, color:AC, fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20 }}>{offre.badge}</span>}
+                <span style={{ color:selectedOffre===i?AC:TX, fontSize:15, fontWeight:800 }}>
+                  {offre.prix.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Champs */}
       <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
@@ -319,18 +360,26 @@ function WidgetContent() {
         </div>
 
         {/* Récap commande */}
-        {product && (
-          <div style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:12, padding:"12px 14px" }}>
+        <div style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:12, padding:"12px 14px" }}>
+          {offreActive ? (
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6, alignItems:"center" }}>
+              <div>
+                <span style={{ color:TX2, fontSize:13 }}>{offreActive.label}</span>
+                {offreActive.badge && <span style={{ marginLeft:6, background:`${AC}20`, color:AC, fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20 }}>{offreActive.badge}</span>}
+              </div>
+              <span style={{ color:TX, fontSize:13, fontWeight:700 }}>{prixFinal.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}</span>
+            </div>
+          ) : product ? (
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
               <span style={{ color:TX2, fontSize:13 }}>{product.name}</span>
-              <span style={{ color:TX, fontSize:13, fontWeight:700 }}>{fmt(product.price)}</span>
+              <span style={{ color:TX, fontSize:13, fontWeight:700 }}>{prixFinal.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}</span>
             </div>
-            <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:`1px solid ${BORDER}` }}>
-              <span style={{ color:TX, fontSize:14, fontWeight:700 }}>Total</span>
-              <span style={{ color:AC, fontSize:18, fontWeight:900 }}>{fmt((product.price)+(boutique?.delivery_fee||0))}</span>
-            </div>
+          ) : null}
+          <div style={{ display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:`1px solid ${BORDER}` }}>
+            <span style={{ color:TX, fontSize:14, fontWeight:700 }}>Total</span>
+            <span style={{ color:AC, fontSize:18, fontWeight:900 }}>{prixFinal.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}</span>
           </div>
-        )}
+        </div>
 
         {error && (
           <div style={{ background:"rgba(248,113,113,0.08)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:10, padding:"10px 14px" }}>
@@ -340,7 +389,7 @@ function WidgetContent() {
 
         <button onClick={handleSubmit} disabled={submitting}
           style={{ width:"100%", ...btnStyle, borderRadius:12, padding:"15px", fontSize:15, fontWeight:800, cursor:submitting?"not-allowed":"pointer", opacity:submitting?0.7:1, fontFamily:FONT, transition:"all 0.2s" }}>
-          {submitting ? "Envoi en cours..." : `✅ ${BTN_TEXT}`}
+          {submitting ? "Envoi en cours..." : `✅ ${BTN_TEXT} · ${prixFinal.toLocaleString("fr-FR")} ${boutique?.currency||"FCFA"}`}
         </button>
 
         <p style={{ textAlign:"center", color:TX2, fontSize:11, margin:0 }}>
