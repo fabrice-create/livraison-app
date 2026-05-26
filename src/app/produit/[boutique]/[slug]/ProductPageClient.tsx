@@ -109,7 +109,8 @@ export default function ProductPage() {
       phone: form.phone.trim(), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
       product: product?.nom, quantity: 1, amount: product?.prix,
-      status: "En attente", source: src, zone_nom: zone
+      status: "En attente", source: src, zone_nom: zone,
+      delivery_type: "standard"
     })
     if (err) { setError(err.message); setSubmitting(false); return }
     if (product) await supabase.from("products").update({ commandes:(product.commandes||0)+1 }).eq("id", product.id)
