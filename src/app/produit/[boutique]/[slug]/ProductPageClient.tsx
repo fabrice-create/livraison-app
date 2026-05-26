@@ -514,17 +514,28 @@ export default function ProductPage() {
 
                 {/* Récap */}
                 <div style={{background:`${AC}0A`,border:`1px solid ${AC}1E`,borderRadius:14,padding:"16px"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                    <span style={{color:`${TX}66`,fontSize:14}}>{product.nom}</span>
-                    <span style={{color:TX,fontSize:14,fontWeight:700}}>{fmt(product.prix)}</span>
-                  </div>
+                  {/* Offre sélectionnée */}
+                  {offreActive ? (
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
+                      <div>
+                        <span style={{color:`${TX}66`,fontSize:14}}>{offreActive.label}</span>
+                        {offreActive.badge && <span style={{marginLeft:8,background:`${AC}20`,color:AC,fontSize:11,fontWeight:700,padding:"1px 7px",borderRadius:20}}>{offreActive.badge}</span>}
+                      </div>
+                      <span style={{color:TX,fontSize:14,fontWeight:700}}>{fmt(offreActive.prix)}</span>
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{color:`${TX}66`,fontSize:14}}>{product.nom}</span>
+                      <span style={{color:TX,fontSize:14,fontWeight:700}}>{fmt(product.prix)}</span>
+                    </div>
+                  )}
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
                     <span style={{color:`${TX}66`,fontSize:14}}>Livraison</span>
                     <span style={{color:"#4ADE80",fontSize:14,fontWeight:700}}>Gratuite</span>
                   </div>
                   <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10,display:"flex",justifyContent:"space-between"}}>
                     <span style={{color:TX,fontSize:15,fontWeight:800}}>Total</span>
-                    <span style={{color:AC,fontSize:24,fontWeight:900,fontFamily:"'Syne',sans-serif"}}>{fmt(product.prix)}</span>
+                    <span style={{color:AC,fontSize:24,fontWeight:900,fontFamily:"'Syne',sans-serif"}}>{fmt(prixActif)}</span>
                   </div>
                 </div>
 
@@ -532,7 +543,7 @@ export default function ProductPage() {
 
                 <button onClick={handleOrder} disabled={submitting}
                   style={{position:"relative",overflow:"hidden",background:submitting?`${AC}66`:`linear-gradient(135deg,${AC},${AC}CC)`,border:"none",borderRadius:14,padding:"20px",color:"#000",fontSize:17,fontWeight:900,cursor:submitting?"not-allowed":"pointer",boxShadow:submitting?"none":`0 8px 32px ${AC}40`}}>
-                  {submitting?"Envoi en cours...":` ✅ Confirmer ma commande · ${fmt(product.prix)}`}
+                  {submitting?"Envoi en cours...":`✅ Confirmer ma commande · ${fmt(prixActif)}`}
                 </button>
                 <p style={{textAlign:"center",color:`${TX}33`,fontSize:12}}>🔒 Paiement sécurisé à la livraison</p>
               </div>
