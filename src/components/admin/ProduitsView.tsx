@@ -250,8 +250,12 @@ export default function ProduitsView({ tenantId, tenantSlug }: Props) {
     const nom = encodeURIComponent(p.nom || (p as any).name || "")
     const prix = p.prix || (p as any).price || 0
     const img = p.image_principale ? `&produit_image=${encodeURIComponent(p.image_principale)}` : ""
+    // Inclure les offres si activées
+    const offresData = content.offres_actif && content.offres && content.offres.length > 0
+      ? `&offres=${encodeURIComponent(JSON.stringify(content.offres))}`
+      : ""
     return `<iframe 
-  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=${nom}&produit_prix=${prix}&mode=full${img}" 
+  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=${nom}&produit_prix=${prix}&mode=full${img}${offresData}" 
   width="100%" height="620" frameborder="0" 
   style="border-radius:12px;border:none;display:block;">
 </iframe>
