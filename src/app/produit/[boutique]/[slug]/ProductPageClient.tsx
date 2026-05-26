@@ -1,5 +1,38 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+
+// Composant dédié au rendu HTML riche — injection via ref côté client uniquement
+function DescriptionBlock({ html, accentColor }: { html: string; accentColor: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    // Décoder les entités si nécessaire
+    const decoded = html
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    ref.current.innerHTML = decoded
+  }, [html])
+  return (
+    <div style={{ marginBottom:28 }}>
+      <style>{`
+        .rich-content-block{color:rgba(248,248,252,0.85);font-size:15px;line-height:1.85;}
+        .rich-content-block h1{font-family:'Syne',sans-serif;font-size:clamp(22px,4vw,32px);font-weight:800;color:#F8F8FC;margin:24px 0 12px;}
+        .rich-content-block h2{font-family:'Syne',sans-serif;font-size:clamp(18px,3vw,26px);font-weight:700;color:#F8F8FC;margin:20px 0 10px;}
+        .rich-content-block h3{font-size:clamp(16px,2.5vw,20px);font-weight:700;color:rgba(248,248,252,0.9);margin:16px 0 8px;}
+        .rich-content-block p{margin:0 0 14px;}
+        .rich-content-block strong{color:#F8F8FC;font-weight:700;}
+        .rich-content-block em{font-style:italic;}
+        .rich-content-block a{color:${accentColor};text-decoration:underline;}
+        .rich-content-block ul{padding-left:22px;margin:8px 0 14px;}
+        .rich-content-block ol{padding-left:22px;margin:8px 0 14px;}
+        .rich-content-block li{margin-bottom:6px;}
+        .rich-content-block img{max-width:100%;border-radius:14px;margin:16px 0;display:block;}
+        .rich-content-block blockquote{border-left:3px solid ${accentColor};padding-left:16px;color:rgba(248,248,252,0.6);margin:14px 0;font-style:italic;}
+      `}</style>
+      <div ref={ref} className="rich-content-block" />
+    </div>
+  )
+}
 import { supabase } from "@/app/lib/supabase"
 import { useParams, useSearchParams } from "next/navigation"
 
@@ -373,21 +406,7 @@ export default function ProductPage() {
 
       case "description":
         if (!product.description) return null
-        // Décoder les entités HTML si la valeur est échappée
-        const descHTML = product.description
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&amp;/g, "&")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-        return (
-          <div key="description" style={{ marginBottom:28 }}>
-            <div
-              className="rich-content"
-              dangerouslySetInnerHTML={{ __html: descHTML }}
-            />
-          </div>
-        )
+        return <DescriptionBlock key="description" html={product.description} accentColor={AC} />
 
       case "probleme":
         if (!product.section_probleme_active || !product.section_probleme_items?.length) return null
