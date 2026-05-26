@@ -3,36 +3,44 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { useParams, useSearchParams } from "next/navigation"
 
-// Composant dédié au rendu HTML riche — injection via ref côté client uniquement
-function DescriptionBlock({ html, accentColor }: { html: string; accentColor: string }) {
-  // Décoder les entités HTML si nécessaire
-  const decoded = html
-    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+// ─── Rendu des blocs de description ──────────────────────
+type Bloc = { id: string; type: "titre" | "texte" | "image"; contenu: string }
+
+function parseBlocs(val: string): Bloc[] {
+  if (!val) return []
+  try {
+    const parsed = JSON.parse(val)
+    if (Array.isArray(parsed)) return parsed
+  } catch {}
+  if (val.trim()) return [{ id: "legacy", type: "texte", contenu: val }]
+  return []
+}
+
+function DescriptionBlocs({ value, accentColor, textColor }: { value: string; accentColor: string; textColor: string }) {
+  const blocs = parseBlocs(value)
+  if (!blocs.length) return null
   return (
-    <div style={{ marginBottom:28 }}>
-      <style>{`
-        .rich-content-block{color:rgba(248,248,252,0.85);font-size:15px;line-height:1.85;}
-        .rich-content-block h1{font-size:clamp(22px,4vw,32px);font-weight:800;color:#F8F8FC;margin:24px 0 12px;}
-        .rich-content-block h2{font-size:clamp(18px,3vw,26px);font-weight:700;color:#F8F8FC;margin:20px 0 10px;}
-        .rich-content-block h3{font-size:clamp(16px,2.5vw,20px);font-weight:700;color:rgba(248,248,252,0.9);margin:16px 0 8px;}
-        .rich-content-block p{margin:0 0 14px;}
-        .rich-content-block strong,.rich-content-block b{color:#F8F8FC;font-weight:700;}
-        .rich-content-block em,.rich-content-block i{font-style:italic;}
-        .rich-content-block a{color:${accentColor};text-decoration:underline;}
-        .rich-content-block ul{padding-left:22px;margin:8px 0 14px;}
-        .rich-content-block ol{padding-left:22px;margin:8px 0 14px;}
-        .rich-content-block li{margin-bottom:6px;}
-        .rich-content-block img{max-width:100%;border-radius:14px;margin:16px 0;display:block;}
-        .rich-content-block blockquote{border-left:3px solid ${accentColor};padding-left:16px;color:rgba(248,248,252,0.6);margin:14px 0;font-style:italic;}
-      `}</style>
-      <div
-        className="rich-content-block"
-        dangerouslySetInnerHTML={{ __html: decoded }}
-      />
+    <div style={{ marginBottom:28, display:"flex", flexDirection:"column", gap:16 }}>
+      {blocs.map((bloc, i) => {
+        if (bloc.type === "titre") return (
+          <h2 key={i} style={{ fontFamily:"'Syne',sans-serif", fontSize:"clamp(20px,4vw,28px)", fontWeight:800, color:textColor, lineHeight:1.2, margin:0 }}>
+            {bloc.contenu}
+          </h2>
+        )
+        if (bloc.type === "image") return bloc.contenu ? (
+          <img key={i} src={bloc.contenu} alt="" style={{ width:"100%", borderRadius:14, display:"block" }} />
+        ) : null
+        // texte
+        return (
+          <p key={i} style={{ color:`${textColor}BB`, fontSize:15, lineHeight:1.85, margin:0, whiteSpace:"pre-wrap" }}>
+            {bloc.contenu}
+          </p>
+        )
+      })}
     </div>
   )
 }
+// ─────────────────────────────────────────────────────────
 
 // ─── Types ───────────────────────────────────────────────
 type Product = {
@@ -404,7 +412,7 @@ export default function ProductPage() {
 
       case "description":
         if (!product.description) return null
-        return <DescriptionBlock key="description" html={product.description} accentColor={AC} />
+        return <DescriptionBlocs key="description" value={product.description} accentColor={AC} textColor={TX} />
 
       case "probleme": {
         const problemeItems = product.section_probleme_items || []
