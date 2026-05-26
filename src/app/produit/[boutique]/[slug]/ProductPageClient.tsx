@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { useParams, useSearchParams } from "next/navigation"
 
@@ -57,7 +57,11 @@ export default function ProductPage() {
   const [orderNum, setOrderNum] = useState("")
   const [touchStart, setTouchStart] = useState(0)
   const [heroLoaded, setHeroLoaded] = useState(false)
+  const [showSticky, setShowSticky] = useState(false)
+  const [formVisible, setFormVisible] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
+  const stickyObserverRef = useRef<IntersectionObserver | null>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +76,30 @@ export default function ProductPage() {
       }
       setLoading(false)
       setTimeout(() => setHeroLoaded(true), 80)
+
+  // Observer sticky CTA — apparaît après le hero, disparaît quand formulaire visible
+  useEffect(() => {
+    if (!heroRef.current || !formRef.current) return
+
+    // Observer le hero — quand il sort du viewport, afficher le sticky
+    const heroObs = new IntersectionObserver(
+      ([entry]) => { if (!formVisible) setShowSticky(!entry.isIntersecting) },
+      { threshold: 0 }
+    )
+    heroObs.observe(heroRef.current)
+
+    // Observer le formulaire — quand il entre dans le viewport, cacher le sticky
+    const formObs = new IntersectionObserver(
+      ([entry]) => {
+        setFormVisible(entry.isIntersecting)
+        setShowSticky(!entry.isIntersecting)
+      },
+      { threshold: 0.2 }
+    )
+    formObs.observe(formRef.current)
+
+    return () => { heroObs.disconnect(); formObs.disconnect() }
+  }, [product, heroLoaded])
     }
     load()
   }, [boutique, slug])
@@ -177,7 +205,7 @@ export default function ProductPage() {
 
   // ── HERO SECTION ──
   const renderHero = () => (
-    <div style={{ position:"relative", minHeight:540, background:BG, overflow:"hidden" }}>
+    <div ref={heroRef} style={{ position:"relative", minHeight:540, background:BG, overflow:"hidden" }}>
       {/* Background image avec reveal */}
       {product.image_principale && (
         <img
@@ -621,7 +649,34 @@ export default function ProductPage() {
     <div style={{ minHeight:"100vh", background:BG, color:TX, fontFamily:`'${FT}',DM Sans,Inter,sans-serif` }}>
       <style>{globalStyles}</style>
 
-      {/* ── Compte à rebours ── */}
+      {/* ── STICKY CTA ── */}
+      {!submitted && showSticky && (
+        <div style={{
+          position:"fixed", bottom:0, left:0, right:0, zIndex:100,
+          padding:"12px 16px 16px",
+          background:`linear-gradient(to top, ${BG} 70%, ${BG}00 100%)`,
+          animation:"slideUp 0.3s ease"
+        }}>
+          <style>{`@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+          <div style={{ maxWidth:640, margin:"0 auto" }}>
+            <button
+              onClick={scrollToForm}
+              className="cta-btn-inner"
+              style={{
+                width:"100%", position:"relative", overflow:"hidden",
+                background:`linear-gradient(135deg,${AC} 0%,${AC}CC 100%)`,
+                border:"none", borderRadius:16,
+                padding:"17px 24px",
+                color:"#000", fontSize:16, fontWeight:900,
+                cursor:"pointer", letterSpacing:"-0.3px",
+                boxShadow:`0 -4px 24px ${BG}, 0 8px 32px ${AC}44`
+              }}>
+              <span className="shine-el" />
+              🛒 {product.hero_cta_texte || "Commander maintenant"} · {fmt(product.prix)}
+            </button>
+          </div>
+        </div>
+      )}
       {countdown.active && (
         <div style={{ background:`linear-gradient(90deg,${AC}1E,${AC}0F)`,borderBottom:`1px solid ${AC}44`,padding:"9px 16px",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:12,flexWrap:"wrap" }}>
           <span style={{ color:AC,fontSize:12,fontWeight:700,letterSpacing:"0.5px" }}>⏰ {product.countdown_texte}</span>
