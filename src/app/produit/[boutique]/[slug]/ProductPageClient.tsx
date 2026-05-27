@@ -148,6 +148,19 @@ export default function ProductPage() {
         input:focus,textarea:focus{border-color:${AC}!important;outline:none;}
       `}</style>
 
+      {/* ── BOUTON RETOUR BOUTIQUE ── */}
+      <div style={{position:"sticky",top:0,zIndex:50,background:"rgba(9,9,15,0.92)",backdropFilter:"blur(10px)",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <a href={`/commander/${boutique}`}
+          style={{display:"flex",alignItems:"center",gap:6,color:"#9898B0",fontSize:13,fontWeight:600,textDecoration:"none",padding:"6px 12px",borderRadius:20,border:"1px solid rgba(255,255,255,0.08)",background:"rgba(255,255,255,0.03)"}}>
+          <span style={{fontSize:16}}>←</span>
+          <span>Boutique</span>
+        </a>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:AC,animation:"blink 1.5s infinite"}} />
+          <span style={{color:"#9898B0",fontSize:11,fontWeight:500}}>Paiement à la livraison</span>
+        </div>
+      </div>
+
       {/* ── BANDEAU DÉFILANT ── */}
       {content.bandeau.length > 0 && (
         <div style={{background:AC,overflow:"hidden",padding:"9px 0"}}>
