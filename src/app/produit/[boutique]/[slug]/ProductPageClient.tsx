@@ -49,16 +49,6 @@ const defaultContent: PageContent = {
   couleur: "#F59E0B", fond: "#09090F"
 }
 
-const DIALCODES: Record<string, {flag:string;dial:string;code:string}> = {
-  TG:{flag:"🇹🇬",dial:"+228",code:"TG"},SN:{flag:"🇸🇳",dial:"+221",code:"SN"},
-  CI:{flag:"🇨🇮",dial:"+225",code:"CI"},ML:{flag:"🇲🇱",dial:"+223",code:"ML"},
-  BF:{flag:"🇧🇫",dial:"+226",code:"BF"},BJ:{flag:"🇧🇯",dial:"+229",code:"BJ"},
-  NE:{flag:"🇳🇪",dial:"+227",code:"NE"},GN:{flag:"🇬🇳",dial:"+224",code:"GN"},
-  NG:{flag:"🇳🇬",dial:"+234",code:"NG"},GH:{flag:"🇬🇭",dial:"+233",code:"GH"},
-  CM:{flag:"🇨🇲",dial:"+237",code:"CM"},MA:{flag:"🇲🇦",dial:"+212",code:"MA"},
-  FR:{flag:"🇫🇷",dial:"+33",code:"FR"},US:{flag:"🇺🇸",dial:"+1",code:"US"},
-}
-
 export default function ProductPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -77,8 +67,6 @@ export default function ProductPage() {
   const [orderNum, setOrderNum] = useState("")
   const [formError, setFormError] = useState("")
   const [selectedOffre, setSelectedOffre] = useState<number>(0)
-  const [selCountry, setSelCountry] = useState(DIALCODES["TG"])
-  const [showPicker, setShowPicker] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -96,18 +84,6 @@ export default function ProductPage() {
       setLoading(false)
     }
     load()
-    // Détecter pays du client pour indicatif
-    const detectCountry = async () => {
-      try {
-        const geo = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) })
-        if (geo.ok) {
-          const d = await geo.json()
-          const found = Object.values(DIALCODES).find((c: {flag:string;dial:string;code:string}) => c.code === d.country_code)
-          if (found) setSelCountry(found as {flag:string;dial:string;code:string})
-        }
-      } catch { /* silencieux */ }
-    }
-    detectCountry()
   }, [boutique, slug])
 
   const handleOrder = async () => {
@@ -118,22 +94,12 @@ export default function ProductPage() {
     const num = `CMD-${Date.now().toString(36).toUpperCase()}`
     const { error } = await supabase.from("orders").insert({
       tenant_id: tenant?.id, customer_name: form.name.trim(),
-      phone: selCountry.dial + " " + form.phone.trim().replace(/^0/, ""), city: form.city.trim(),
+      phone: form.phone.trim(), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
-      product: product?.nom || (product as any)?.name,
-      quantity: offreActive?.quantite || 1,
-      amount: prixActif || product?.prix || (product as any)?.price,
-      status: "En attente",
-      delivery_type: "standard",
-      logistic_status: "En attente",
-      payment_status: "Non payé",
-      cash_collected: false,
-      is_assigned: false,
-      source: searchParams?.get("src") || "page_produit",
-      zone_nom: searchParams?.get("zone") || null,
-      closer_commission: 0,
-      driver_commission: 0,
-      commission_calculated: false,
+      product: product?.nom || (product as any)?.name, quantity: offreActive?.quantite || 1, amount: prixActif || product?.prix || (product as any)?.price,
+      status: "En attente", delivery_type: "standard",
+      source: searchParams?.get("src")||"page_produit",
+      zone_nom: searchParams?.get("zone")||null,
     })
     if (error) { setFormError(error.message); setSubmitting(false); return }
     if (product) await supabase.from("products").update({ commandes:(product.commandes||0)+1 }).eq("id", product.id)
@@ -159,13 +125,6 @@ export default function ProductPage() {
   const allImages = [product.image_principale, ...(content.images||[])].filter(Boolean)
   const fmt = (n: number) => `${n.toLocaleString("fr-FR")} ${product.devise||"FCFA"}`
   const offres = content.offres || []
-  // Sélectionner l'offre populaire par défaut au chargement
-  useEffect(() => {
-    if (offres.length > 0 && content.offres_actif) {
-      const popularIndex = offres.findIndex(o => o.populaire)
-      if (popularIndex >= 0) setSelectedOffre(popularIndex)
-    }
-  }, [content.offres_actif, offres.length])
   const offreActive = offres.length > 0 && content.offres_actif ? offres[selectedOffre] : null
   const prixActif = offreActive ? offreActive.prix : product.prix
 
@@ -547,52 +506,18 @@ export default function ProductPage() {
               <p style={{textAlign:"center",color:`${TX}44`,fontSize:13,marginBottom:28}}>Paiement à la livraison · Livraison rapide</p>
 
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                {/* Nom */}
-                <div>
-                  <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>Prénom et nom *</label>
-                  <input type="text" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}
-                    placeholder="Ex: Kofi Mensah" style={inp} />
-                </div>
-
-                {/* Téléphone avec indicatif */}
-                <div>
-                  <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>Téléphone WhatsApp *</label>
-                  <div style={{display:"flex",gap:8,position:"relative"}}>
-                    <button type="button" onClick={()=>setShowPicker(p=>!p)}
-                      style={{height:46,padding:"0 10px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,color:TX,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",flexShrink:0}}>
-                      <span style={{fontSize:18}}>{selCountry.flag}</span>
-                      <span style={{color:`${TX}66`,fontSize:13}}>{selCountry.dial}</span>
-                      <span style={{color:`${TX}44`,fontSize:10}}>▼</span>
-                    </button>
-                    {showPicker && (
-                      <div style={{position:"absolute",top:50,left:0,background:"#111118",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,zIndex:100,maxHeight:200,overflowY:"auto",minWidth:160,boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
-                        {Object.values(DIALCODES).map(c=>(
-                          <div key={c.code} onClick={()=>{setSelCountry(c);setShowPicker(false)}}
-                            style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid rgba(255,255,255,0.05)",background:selCountry.code===c.code?"rgba(245,158,11,0.1)":"transparent"}}>
-                            <span style={{fontSize:18}}>{c.flag}</span>
-                            <span style={{color:TX,fontSize:13}}>{c.dial}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <input type="tel" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
-                      placeholder="90 00 00 00" style={{...inp,flex:1}} />
+                {[
+                  {label:"Prénom et nom *",key:"name",placeholder:"Ex: Kofi Mensah",type:"text"},
+                  {label:"Téléphone WhatsApp *",key:"phone",placeholder:"+228 90 00 00 00",type:"tel"},
+                  {label:"Ville *",key:"city",placeholder:"Ex: Lomé, Dakar, Abidjan...",type:"text"},
+                  {label:"Adresse / Quartier",key:"address",placeholder:"Ex: Adidogomé, carrefour Shell",type:"text"},
+                ].map(f=>(
+                  <div key={f.key}>
+                    <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>{f.label}</label>
+                    <input type={f.type} value={(form as any)[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}
+                      placeholder={f.placeholder} style={inp} />
                   </div>
-                </div>
-
-                {/* Ville */}
-                <div>
-                  <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>Ville *</label>
-                  <input type="text" value={form.city} onChange={e=>setForm(p=>({...p,city:e.target.value}))}
-                    placeholder="Ex: Lomé, Dakar, Abidjan..." style={inp} />
-                </div>
-
-                {/* Adresse */}
-                <div>
-                  <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>Adresse / Quartier</label>
-                  <input type="text" value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))}
-                    placeholder="Ex: Adidogomé, carrefour Shell" style={inp} />
-                </div>
+                ))}
 
                 <div>
                   <label style={{display:"block",color:`${TX}66`,fontSize:13,fontWeight:500,marginBottom:8}}>Note (optionnel)</label>
