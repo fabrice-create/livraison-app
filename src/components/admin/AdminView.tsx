@@ -3,25 +3,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import InstallPWA from "@/components/pwa/InstallPWA";
-import OrderCard from "@/components/order/OrderCard";
-
-// ─── Icônes SVG inline — zéro dépendance ────────────────
-const IC = {
-  dashboard:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-  commandes:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
-  creer:       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
-  stock:       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
-  finances:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
-  commissions: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
-  produits:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
-  equipe:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
-  parametres:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>,
-  zones:       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>,
-  clients:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  widget:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
-  import:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-}
-// ─────────────────────────────────────────────────────────
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import type { Order, Profile, DriverStock, OrderHistory, OrderFormData, StockFormData, Zone } from "@/types";
@@ -32,10 +13,7 @@ import ImportView from "@/components/admin/ImportView";
 import EquipeView from "@/components/admin/EquipeView";
 import ParametresView from "@/components/admin/ParametresView";
 import ZonesView from "@/components/admin/ZonesView";
-import WidgetView from "@/components/admin/WidgetView";
 import FinancesView from "@/components/admin/FinancesView";
-import DashboardView from "@/components/admin/DashboardView";
-import StockView from "@/components/admin/StockView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
@@ -58,12 +36,12 @@ const S = {
 
 // ─── Composants UI partagés ──────────────────────────────────
 function StatCard({ icon, label, value, color = S.text, bg = S.card, border = S.border, small = false }: {
-  icon: React.ReactNode; label: string; value: string | number;
+  icon: string; label: string; value: string | number;
   color?: string; bg?: string; border?: string; small?: boolean;
 }) {
   return (
     <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 14px" }}>
-      <div style={{ marginBottom: 8, color }}>{icon}</div>
+      <div style={{ fontSize: 18, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontSize: small ? 14 : 20, fontWeight: 800, color }}>{value}</div>
       <div style={{ fontSize: 10, color: S.text3, marginTop: 3 }}>{label}</div>
     </div>
@@ -87,29 +65,11 @@ function Badge({ status }: { status?: string | null }) {
   );
 }
 
-// Map des icônes par id
-const NAV_ICONS: Record<string, React.ReactNode> = {
-  dashboard:   IC.dashboard,
-  commandes:   IC.commandes,
-  creer:       IC.creer,
-  stock:       IC.stock,
-  finances:    IC.finances,
-  commissions: IC.commissions,
-  produits:    IC.produits,
-  equipe:      IC.equipe,
-  parametres:  IC.parametres,
-  zones:       IC.zones,
-  clients:     IC.clients,
-  widget:      IC.widget,
-  import:      IC.import,
-}
-
 function NavBtn({ id, label, active, onClick }: { id: string; label: string; active: boolean; onClick: () => void }) {
-  // Extraire le texte sans emoji
-  const text = label.replace(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[⚡✅📋📦💼💰👥⚙️🌍🎛️📥➕🗄️📊]/gu, "").trim()
-  const shortText = text.split(" ")[0]
-  const icon = NAV_ICONS[id] || IC.dashboard
-
+  // Extraire emoji + texte court pour mobile
+  const parts = label.split(" ");
+  const emoji = parts[0];
+  const text = parts.slice(1).join(" ");
   return (
     <button onClick={onClick} style={{
       padding: "10px 12px", border: "none", cursor: "pointer",
@@ -119,14 +79,13 @@ function NavBtn({ id, label, active, onClick }: { id: string; label: string; act
       fontWeight: active ? 700 : 500,
       fontSize: 12,
       borderBottom: active ? `2px solid ${S.gold}` : "2px solid transparent",
-      display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4,
+      display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2,
       minWidth: 52,
-      transition: "color 0.15s",
     }}>
-      <span style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</span>
-      <span style={{ fontSize: 10, letterSpacing:"0.02em" }}>{shortText}</span>
+      <span style={{ fontSize: 16 }}>{emoji}</span>
+      <span style={{ fontSize: 10 }}>{text.split(" ")[0]}</span>
     </button>
-  )
+  );
 }
 
 function Input({ label, name, value, onChange, type = "text", placeholder = "" }: {
@@ -160,7 +119,299 @@ function Select({ label, name, value, onChange, options }: {
   );
 }
 
-// DashboardView: voir src/components/admin/DashboardView.tsx
+// ─── Vue Dashboard — Phase 10 Analytics Pro ──────────────────
+function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; driverStocks: DriverStock[]; zones?: Zone[] }) {
+  const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("7d");
+  const [selectedZone, setSelectedZone] = useState<string>("all");
+  const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total");
+
+  const ordersForZone = selectedZone === "all"
+    ? orders
+    : orders.filter(o => o.zone_nom === selectedZone)
+
+  function inPeriod(dateStr: string | null | undefined, p: string): boolean {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (p === "today") return d.toDateString() === now.toDateString();
+    if (p === "7d") return d >= new Date(now.getTime() - 7 * 86400000);
+    if (p === "30d") return d >= new Date(now.getTime() - 30 * 86400000);
+    return true;
+  }
+
+  const periodOrders = useMemo(() =>
+    ordersForZone.filter(o => inPeriod(o.created_at, period)),
+    [orders, period]
+  );
+
+  const today = useMemo(() => ({
+    created:   orders.filter(o => isToday(o.created_at)).length,
+    delivered: orders.filter(o => isToday(o.delivered_at)).length,
+    amount:    orders.filter(o => isToday(o.delivered_at) && o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0),
+  }), [orders]);
+
+  const stats = useMemo(() => {
+    const total = periodOrders.length;
+    const confirmed = periodOrders.filter(o => ["Confirmé","Assigné","En livraison","Livré"].includes(o.status ?? "")).length;
+    const delivered = periodOrders.filter(o => (o.status ?? "") === "Livré").length;
+    const cancelled = periodOrders.filter(o => (o.status ?? "") === "Annulé").length;
+    const ca = periodOrders.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
+    const pending = periodOrders.filter(o => !o.cash_collected && isEnCours(o)).reduce((s, o) => s + Number(o.amount || 0), 0);
+    const confirmRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+    const deliveryRate = confirmed > 0 ? Math.round((delivered / confirmed) * 100) : 0;
+    return { total, confirmed, delivered, cancelled, ca, pending, confirmRate, deliveryRate };
+  }, [periodOrders]);
+
+  // Graphique 7 jours
+  const chartData = useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const ds = d.toDateString();
+      const label = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
+      const dayOrders = orders.filter(o => o.created_at && new Date(o.created_at).toDateString() === ds);
+      const livrees = orders.filter(o => o.delivered_at && new Date(o.delivered_at).toDateString() === ds);
+      const ca = livrees.filter(o => o.cash_collected).reduce((s, o) => s + Number(o.amount || 0), 0);
+      days.push({ label, total: dayOrders.length, livrees: livrees.length, ca });
+    }
+    return days;
+  }, [orders]);
+
+  const chartMax = useMemo(() => {
+    const vals = chartData.map(d => chartMetric === "ca" ? d.ca : chartMetric === "livrees" ? d.livrees : d.total);
+    return Math.max(...vals, 1);
+  }, [chartData, chartMetric]);
+
+  // Top produits
+  const topProducts = useMemo(() => {
+    const map: Record<string, { count: number; ca: number }> = {};
+    periodOrders.forEach(o => {
+      const name = o.product || "Inconnu";
+      if (!map[name]) map[name] = { count: 0, ca: 0 };
+      map[name].count++;
+      if (o.cash_collected) map[name].ca += Number(o.amount || 0);
+    });
+    return Object.entries(map).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
+  }, [periodOrders]);
+
+  // Performance closureuses
+  const closeuseStats = useMemo(() => {
+    const map: Record<string, { confirmed: number; cancelled: number; total: number }> = {};
+    periodOrders.forEach(o => {
+      const name = o.closer_name || "Non assigné";
+      if (!map[name]) map[name] = { confirmed: 0, cancelled: 0, total: 0 };
+      map[name].total++;
+      if (["Confirmé","Livré","Assigné","En livraison"].includes(o.status ?? "")) map[name].confirmed++;
+      if ((o.status ?? "") === "Annulé") map[name].cancelled++;
+    });
+    return Object.entries(map).filter(([n]) => n !== "Non assigné").sort((a, b) => b[1].confirmed - a[1].confirmed);
+  }, [periodOrders]);
+
+  // Performance livreurs
+  const livreurStats = useMemo(() => {
+    const map: Record<string, { delivered: number; total: number; ca: number }> = {};
+    periodOrders.forEach(o => {
+      if (!o.driver_name) return;
+      if (!map[o.driver_name]) map[o.driver_name] = { delivered: 0, total: 0, ca: 0 };
+      map[o.driver_name].total++;
+      if ((o.status ?? "") === "Livré") {
+        map[o.driver_name].delivered++;
+        if (o.cash_collected) map[o.driver_name].ca += Number(o.amount || 0);
+      }
+    });
+    return Object.entries(map).sort((a, b) => b[1].delivered - a[1].delivered);
+  }, [periodOrders]);
+
+  const periodLabel: Record<string, string> = { today: "Aujourd'hui", "7d": "7 jours", "30d": "30 jours", all: "Tout" };
+
+  return (
+    <div style={{ fontFamily: "Inter, sans-serif" }}>
+
+      {/* Filtre par zone */}
+      {zones.length > 0 && (
+        <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ color:"#55556A", fontSize:12, fontWeight:600 }}>🌍</span>
+          <button onClick={() => setSelectedZone("all")} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone==="all"?"#F59E0B":"#1E1E2E"}`, background:selectedZone==="all"?"rgba(245,158,11,0.1)":"transparent", color:selectedZone==="all"?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+            Toutes
+          </button>
+          {zones.map((z: Zone) => (
+            <button key={z.id} onClick={() => setSelectedZone(z.nom)} style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${selectedZone===z.nom?"#F59E0B":"#1E1E2E"}`, background:selectedZone===z.nom?"rgba(245,158,11,0.1)":"transparent", color:selectedZone===z.nom?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer" }}>
+              {z.emoji} {z.nom}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Filtre période */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {(["today","7d","30d","all"] as const).map(p => (
+          <button key={p} onClick={() => setPeriod(p)}
+            style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${period === p ? S.gold : S.border}`, background: period === p ? "rgba(245,158,11,0.12)" : S.card, color: period === p ? S.gold : S.text2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {periodLabel[p]}
+          </button>
+        ))}
+      </div>
+
+      {/* Stats aujourd'hui */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>AUJOURD&apos;HUI</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <StatCard icon="📝" label="Créées" value={today.created} />
+        <StatCard icon="🎯" label="Livrées" value={today.delivered} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon="💵" label="Encaissé" value={fmt(today.amount)} color={S.gold} bg={S.goldBg} border={S.goldBorder} small />
+      </div>
+
+      {/* KPIs période */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>PÉRIODE — {periodLabel[period]}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 10 }}>
+        <StatCard icon="📥" label="Reçues" value={stats.total} color={S.blue} bg={S.blueBg} border={S.blueBorder} />
+        <StatCard icon="✅" label="Confirmées" value={stats.confirmed} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon="🎯" label="Livrées" value={stats.delivered} color={S.gold} bg={S.goldBg} border={S.goldBorder} />
+        <StatCard icon="❌" label="Annulées" value={stats.cancelled} color={S.red} bg={S.redBg} border={S.redBorder} />
+      </div>
+
+      {/* Taux */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        {[
+          { label: "Taux confirmation", rate: stats.confirmRate, color: S.blue },
+          { label: "Taux livraison", rate: stats.deliveryRate, color: S.green },
+        ].map(({ label, rate, color }) => (
+          <div key={label} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14 }}>
+            <p style={{ color: S.text2, fontSize: 11, margin: "0 0 8px 0" }}>{label}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <p style={{ color, fontSize: 22, fontWeight: 800, margin: 0 }}>{rate}%</p>
+              <div style={{ flex: 1, background: S.border, borderRadius: 4, height: 8 }}>
+                <div style={{ width: `${rate}%`, background: color, borderRadius: 4, height: "100%" }} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Montants */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        <div style={{ background: "linear-gradient(135deg,#052E16,#065F46)", border: `1px solid ${S.greenBorder}`, borderRadius: 14, padding: 16 }}>
+          <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0" }}>💵 Chiffre d&apos;affaires</p>
+          <p style={{ color: S.green, fontSize: 20, fontWeight: 800, margin: 0 }}>{fmt(stats.ca)}</p>
+        </div>
+        <div style={{ background: "linear-gradient(135deg,#450A0A,#7F1D1D)", border: `1px solid ${S.redBorder}`, borderRadius: 14, padding: 16 }}>
+          <p style={{ color: S.text2, fontSize: 12, margin: "0 0 6px 0" }}>⏳ En attente</p>
+          <p style={{ color: S.red, fontSize: 20, fontWeight: 800, margin: 0 }}>{fmt(stats.pending)}</p>
+        </div>
+      </div>
+
+      {/* Graphique */}
+      <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📈 ÉVOLUTION 7 JOURS</p>
+      <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {([["total","Commandes"],["livrees","Livrées"],["ca","CA"]] as const).map(([m, label]) => (
+            <button key={m} onClick={() => setChartMetric(m)}
+              style={{ padding: "3px 10px", borderRadius: 10, border: `1px solid ${chartMetric === m ? S.gold : S.border}`, background: chartMetric === m ? "rgba(245,158,11,0.1)" : "transparent", color: chartMetric === m ? S.gold : S.text3, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+          {chartData.map((d, i) => {
+            const val = chartMetric === "ca" ? d.ca : chartMetric === "livrees" ? d.livrees : d.total;
+            const h = Math.max(Math.round((val / chartMax) * 100), val > 0 ? 8 : 2);
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <span style={{ color: S.text3, fontSize: 9, fontWeight: 600 }}>{val > 0 ? (chartMetric === "ca" ? `${Math.round(val/1000)}k` : val) : ""}</span>
+                <div style={{ width: "100%", height: `${h}%`, background: val > 0 ? `linear-gradient(to top, ${S.gold}, ${S.gold}88)` : S.border, borderRadius: "4px 4px 0 0", minHeight: 3 }} />
+                <span style={{ color: S.text3, fontSize: 9, textAlign: "center", lineHeight: 1.2 }}>{d.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top produits */}
+      {topProducts.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>🏆 TOP PRODUITS</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 14, marginBottom: 20 }}>
+            {topProducts.map(([name, data], i) => (
+              <div key={name} style={{ marginBottom: i < topProducts.length - 1 ? 12 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ color: S.text, fontSize: 13, fontWeight: 600 }}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  "} {name}
+                  </span>
+                  <span style={{ color: S.gold, fontSize: 12, fontWeight: 700 }}>{data.count} ventes</span>
+                </div>
+                <div style={{ background: S.border, borderRadius: 4, height: 5 }}>
+                  <div style={{ width: `${Math.round((data.count / topProducts[0][1].count) * 100)}%`, background: S.gold, borderRadius: 4, height: "100%" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Performance closureuses */}
+      {closeuseStats.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📞 CLOSUREUSES</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+            {closeuseStats.map(([name, data], i) => {
+              const rate = data.total > 0 ? Math.round((data.confirmed / data.total) * 100) : 0;
+              return (
+                <div key={name} style={{ padding: "10px 14px", borderBottom: i < closeuseStats.length - 1 ? `1px solid ${S.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>👩</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{name}</p>
+                    <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>{data.confirmed} conf. · {data.cancelled} ann.</p>
+                  </div>
+                  <p style={{ color: rate >= 70 ? S.green : rate >= 50 ? S.gold : S.red, fontSize: 18, fontWeight: 800, margin: 0 }}>{rate}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Performance livreurs */}
+      {livreurStats.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>🚚 LIVREURS</p>
+          <div style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
+            {livreurStats.map(([name, data], i) => {
+              const rate = data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0;
+              return (
+                <div key={name} style={{ padding: "10px 14px", borderBottom: i < livreurStats.length - 1 ? `1px solid ${S.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🛵</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{name}</p>
+                    <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>{data.delivered}/{data.total} liv. · {fmt(data.ca)}</p>
+                  </div>
+                  <p style={{ color: rate >= 80 ? S.green : rate >= 60 ? S.gold : S.red, fontSize: 18, fontWeight: 800, margin: 0 }}>{rate}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Stock par livreur */}
+      {driverStocks.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📦 STOCK PAR LIVREUR</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8 }}>
+            {Object.entries(driverStocks.reduce((acc: Record<string, number>, i) => {
+              acc[i.driver_name] = (acc[i.driver_name] || 0) + Number(i.quantity || 0); return acc;
+            }, {})).map(([driver, qty]) => (
+              <div key={driver} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
+                <p style={{ fontSize: 11, color: S.text2, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{driver}</p>
+                <p style={{ fontSize: 26, fontWeight: 700, color: S.gold, margin: 0 }}>{qty}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Vue Commandes ───────────────────────────────────────────
 function CommandesView({ orders, drivers, history, selectedDrivers, selectedActions, onDriverChange, onActionChange, onActionSubmit, onEditClick }: {
   orders: Order[]; drivers: Profile[]; history: OrderHistory[];
@@ -173,20 +424,16 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
   const [activeTab, setActiveTab] = useState("aujourd_hui");
   const [search, setSearch]       = useState("");
   const [driverFilter, setDriverFilter] = useState("Tous");
-  const [produitFilter, setProduitFilter] = useState("tous");
+  const [zoneFilter, setZoneFilter] = useState("Toutes");
 
   const now      = new Date();
   const todayStr = now.toDateString();
 
-  // Produits uniques pour le filtre
-  const produitsUniques = Array.from(new Set(orders.map(o => o.product || "").filter(Boolean))).sort();
-
   const filterFn = (o: Order) => {
-    const matchDriver  = driverFilter === "Tous" || o.driver_name === driverFilter;
-    const matchProduit = produitFilter === "tous" || (o.product || "").toLowerCase().includes(produitFilter.toLowerCase());
+    const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter;
     const q = search.toLowerCase();
-    const matchSearch  = !q || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product || ""].join(" ").toLowerCase().includes(q);
-    return matchDriver && matchProduit && matchSearch;
+    const matchSearch = !q || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product || ""].join(" ").toLowerCase().includes(q);
+    return matchDriver && matchSearch;
   };
 
   const enCours    = orders.filter(isEnCours);
@@ -203,52 +450,29 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
     : section4;
 
   const TABS = [
-    { id: "aujourd_hui", label: "Aujourd'hui", count: section1.length, color: S.gold,   bg: "#1a1200" },
-    { id: "retard",      label: "En retard",   count: section2.length, color: S.danger, bg: "#2D0F0F" },
-    { id: "confirme",    label: "Confirmées",   count: section3.length, color: S.info,   bg: "#0C1E3E" },
-    { id: "historique",  label: "Historique",   count: section4.length, color: S.text2,  bg: S.card },
+    { id: "aujourd_hui", label: "⚡ Aujourd'hui", count: section1.length, color: S.gold,    bg: "#1a1200" },
+    { id: "retard",      label: "🔴 En retard",   count: section2.length, color: S.danger,  bg: "#2D0F0F" },
+    { id: "confirme",    label: "✅ Confirmées",   count: section3.length, color: S.info,    bg: "#0C1E3E" },
+    { id: "historique",  label: "📋 Historique",   count: section4.length, color: S.text2,   bg: S.card },
   ];
 
   return (
     <div>
-      {/* Barre de recherche */}
-      <input type="text" placeholder="🔍 Recherche nom, ville, produit..."
-        value={search} onChange={e => setSearch(e.target.value)}
-        style={{ width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#F8F8FC", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" as const }} />
-
-      {/* Filtre par produit */}
-      {produitsUniques.length >= 1 && (
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" as const, marginBottom:14 }}>
-          <button onClick={() => setProduitFilter("tous")}
-            style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?S.gold:"rgba(255,255,255,0.1)"}`, background:produitFilter==="tous"?"rgba(245,158,11,0.12)":"transparent", color:produitFilter==="tous"?S.gold:"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer" }}>
-            Tous ({orders.length})
-          </button>
-          {produitsUniques.map(p => {
-            const count = orders.filter(o => (o.product||"").toLowerCase().includes(p.toLowerCase())).length;
-            return (
-              <button key={p} onClick={() => setProduitFilter(p)}
-                style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?S.gold:"rgba(255,255,255,0.1)"}`, background:produitFilter===p?"rgba(245,158,11,0.12)":"transparent", color:produitFilter===p?S.gold:"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
-                {p} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {/* 4 onglets */}
       <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
         {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            style={{ padding: "9px 16px", border: `1px solid ${activeTab === tab.id ? tab.color : "#2a2a3e"}`,
-              borderRadius: 20, cursor: "pointer", fontSize: 13,
-              fontWeight: activeTab === tab.id ? 700 : 400,
-              whiteSpace: "nowrap", flexShrink: 0,
-              background: activeTab === tab.id ? tab.bg : "#111118",
-              color: activeTab === tab.id ? tab.color : "#6b7280" }}>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            padding: "9px 14px", border: `1px solid ${activeTab === tab.id ? tab.color : S.border}`,
+            borderRadius: 20, cursor: "pointer", fontSize: 13,
+            fontWeight: activeTab === tab.id ? 700 : 400,
+            whiteSpace: "nowrap" as const, flexShrink: 0,
+            background: activeTab === tab.id ? tab.bg : S.card,
+            color: activeTab === tab.id ? tab.color : S.text2,
+          }}>
             {tab.label}
             {tab.count > 0 && (
-              <span style={{ marginLeft: 6, background: activeTab === tab.id ? tab.color : "#2a2a3e",
-                color: activeTab === tab.id ? "#000" : "#9ca3af",
+              <span style={{ marginLeft: 6, background: activeTab === tab.id ? tab.color : S.border,
+                color: activeTab === tab.id ? "#000" : S.text3,
                 padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
                 {tab.count}
               </span>
@@ -257,36 +481,74 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
         ))}
       </div>
 
-      {/* Liste commandes */}
-      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>{visible.length} commande(s)</p>
+      {/* Recherche */}
+      <input type="text" placeholder="🔍 Chercher client, ville, livreur..." value={search} onChange={e => setSearch(e.target.value)}
+        style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${S.border}`, backgroundColor: S.card, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const, marginBottom: 10 }} />
+
+      {/* Filtre livreur */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 12, paddingBottom: 4 }}>
+        {["Tous", ...drivers.map(d => d.full_name)].map(name => (
+          <button key={name} onClick={() => setDriverFilter(name)} style={{
+            padding: "7px 13px", border: `1px solid ${driverFilter === name ? S.gold : S.border}`,
+            borderRadius: 20, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" as const, flexShrink: 0,
+            fontWeight: driverFilter === name ? 700 : 400,
+            background: driverFilter === name ? S.gold : S.card,
+            color:      driverFilter === name ? "#000" : S.text2,
+          }}>
+            {name === "Tous" ? "Tous livreurs" : name}
+          </button>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 13, color: S.text3, marginBottom: 12 }}>{visible.length} commande(s)</p>
+
       {visible.length === 0 ? (
-        <p style={{ textAlign:"center", color:"#6b7280", padding:32 }}>Aucune commande</p>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {visible.map(order => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              drivers={drivers}
-              actions={[
-                { value:"", label:"Choisir une action..." },
-                ...(order.status==="En attente"?[{value:"confirmer",label:"✅ Confirmer"}]:[]),
-                ...(order.status==="Confirmé"?[{value:"assigner",label:"👤 Assigner livreur"},{value:"livre_paye",label:"🎯 Livré + Payé"}]:[]),
-                {value:"annuler",label:"❌ Annuler"},
-              ]}
-              selectedDriver={selectedDrivers[order.id] || ""}
-              selectedAction={selectedActions[order.id] || ""}
-              onDriverChange={v => onDriverChange(order.id, v)}
-              onActionChange={v => onActionChange(order.id, v)}
-              onActionSubmit={() => onActionSubmit(order)}
-              onEditClick={() => onEditClick(order)}
-              history={history.filter(h => h.order_id === order.id)}
-              showActions={true}
-              showEditButton={true}
-            />
-          ))}
+        <div style={{ border: `1px solid ${S.border}`, borderRadius: 14, padding: "48px 0", textAlign: "center", fontSize: 13, color: S.text3 }}>Aucune commande dans cet onglet</div>
+      ) : visible.map(order => (
+        <div key={order.id} style={{ backgroundColor: S.card, border: `1px solid ${S.border}`, borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px 8px" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: S.text }}>{order.customer_name}</div>
+              <div style={{ fontSize: 11, color: S.text3, marginTop: 2 }}>📍 {order.city} · #{order.id} · {fmtDate(order.created_at)}</div>
+              <div style={{ fontSize: 11, color: S.text2, marginTop: 2 }}>{order.address}</div>
+            </div>
+            <Badge status={order.status} />
+          </div>
+          <div style={{ margin: "0 12px 10px", backgroundColor: "#0A0A0F", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: S.text2 }}>{order.quantity ?? 1}× {order.product}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: S.gold }}>{fmt(order.amount)}</span>
+          </div>
+          {order.driver_name && (
+            <div style={{ padding: "0 14px 8px", fontSize: 11, color: S.info }}>🛵 {order.driver_name}</div>
+          )}
+          <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 12px" }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <a href={callUrl(order.phone)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.success, textDecoration: "none" }}>📞 Appeler</a>
+              <a href={waUrl(order.phone, clientWaMsg(order))} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.green, textDecoration: "none" }}>💬 WhatsApp</a>
+              <button onClick={() => onEditClick(order)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, border: `1px solid ${S.border}`, color: S.text2, backgroundColor: "transparent", cursor: "pointer" }}>✏️ Modifier</button>
+            </div>
+            {isEnCours(order) && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={selectedDrivers[order.id] || ""} onChange={e => onDriverChange(order.id, e.target.value)}
+                  style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
+                  <option value="">Livreur...</option>
+                  {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+                <select value={selectedActions[order.id] || ""} onChange={e => onActionChange(order.id, e.target.value)}
+                  style={{ flex: 1, padding: "7px 8px", borderRadius: 8, border: `1px solid ${S.border}`, backgroundColor: S.card2, color: S.text, fontSize: 12, outline: "none" }}>
+                  <option value="">Action...</option>
+                  <option value="confirmer">✓ Confirmer</option>
+                  <option value="assigner">🛵 Assigner</option>
+                  <option value="livre_paye">🎯 Livré + Payé</option>
+                  <option value="gare">🚌 Gare</option>
+                  <option value="annuler">❌ Annuler</option>
+                </select>
+                <button onClick={() => onActionSubmit(order)} style={{ padding: "10px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, backgroundColor: S.gold, color: "#000", border: "none", cursor: "pointer" }}>OK</button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -342,8 +604,8 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
 
       {/* Totaux */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>} label="Total livreurs" value={fmt(stats.totalDriver)} color={S.info} small />
-        <StatCard icon={<span>👩</span>} label="Total closeurs"  value={fmt(stats.totalCloser)} color={S.purple} small />
+        <StatCard icon="🛵" label="Total livreurs" value={fmt(stats.totalDriver)} color={S.info} small />
+        <StatCard icon="👩" label="Total closeurs"  value={fmt(stats.totalCloser)} color={S.purple} small />
       </div>
 
       {/* Détail livreurs */}
@@ -386,7 +648,379 @@ type WarehouseStock = { id: number; product_name: string; quantity: number; aler
 type StockMouvement = { id: number; created_at: string; product_name: string; type: string; quantity: number; from_driver: string; to_driver: string; note?: string | null; created_by?: string | null; };
 type StockDemande = { id: number; created_at: string; driver_id: string; driver_name: string; product_name: string; quantity_requested: number; status: string; note?: string | null; };
 
-// StockView: voir src/components/admin/StockView.tsx
+// ─── Vue Stock Phase 4 ───────────────────────────────────────
+function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChange, onStockSubmit, profile, tenantId }: {
+  drivers: Profile[]; driverStocks: DriverStock[];
+  stockForm: StockFormData; stockLoading: boolean;
+  onStockChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onStockSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  profile: Profile | null;
+  tenantId: string;
+}) {
+  const isMobile = useIsMobile();
+  const [subView, setSubView] = useState<"overview"|"warehouse"|"drivers"|"transfer"|"history"|"demandes">("overview");
+  const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([]);
+  const [stockMouvements, setStockMouvements] = useState<StockMouvement[]>([]);
+  const [stockDemandes, setStockDemandes] = useState<StockDemande[]>([]);
+  const [p4Loading, setP4Loading] = useState(false);
+  const [warehouseForm, setWarehouseForm] = useState({ product_name: "", quantity: "1", alert_threshold: "5" });
+  const [transferForm, setTransferForm] = useState({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" });
+  const [w2dForm, setW2dForm] = useState({ product_name: "", driver_id: "", quantity: "1" });
+
+  useEffect(() => { void loadData(); }, []);
+
+  const loadData = async () => {
+    try { const { data } = await supabase.from("warehouse_stock").select("*").eq("tenant_id", tenantId).order("product_name"); if (data) setWarehouseStocks(data as WarehouseStock[]); } catch (_) {}
+    try { const { data } = await supabase.from("stock_mouvements").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(100); if (data) setStockMouvements(data as StockMouvement[]); } catch (_) {}
+    try { const { data } = await supabase.from("stock_demandes").select("*").order("created_at", { ascending: false }); if (data) setStockDemandes(data as StockDemande[]); } catch (_) {}
+  };
+
+  const pendingDemandes = stockDemandes.filter(d => d.status === "en_attente");
+  const lowWarehouse = warehouseStocks.filter(w => w.quantity <= w.alert_threshold);
+
+  const handleAddWarehouse = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const name = warehouseForm.product_name.trim(); const qty = Number(warehouseForm.quantity); const threshold = Number(warehouseForm.alert_threshold);
+    if (!name || qty <= 0) { toast("Données invalides.", "error"); setP4Loading(false); return; }
+    const existing = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      await supabase.from("warehouse_stock").update({ quantity: existing.quantity + qty, alert_threshold: threshold, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    } else {
+      await supabase.from("warehouse_stock").insert([{ tenant_id: tenantId, product_name: name, quantity: qty, alert_threshold: threshold }]);
+    }
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "entree_entrepot", quantity: qty, from_driver: "Fournisseur", to_driver: "Entrepôt" }]);
+    await loadData(); setWarehouseForm({ product_name: "", quantity: "1", alert_threshold: "5" }); toast("✅ Stock entrepôt mis à jour"); setP4Loading(false);
+  };
+
+  const handleW2D = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const driver = drivers.find(d => d.id === w2dForm.driver_id);
+    if (!driver) { toast("Choisis un livreur.", "error"); setP4Loading(false); return; }
+    const name = w2dForm.product_name.trim(); const qty = Number(w2dForm.quantity);
+    const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === name.toLowerCase());
+    if (!wStock || wStock.quantity < qty) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`, "error"); setP4Loading(false); return; }
+    await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - qty, updated_at: new Date().toISOString() }).eq("id", wStock.id);
+    const existing = driverStocks.find(i => i.driver_id === driver.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + qty }).eq("id", existing.id); }
+    else { await supabase.from("driver_stock").insert([{ driver_id: driver.id, driver_name: driver.full_name, product_name: name, quantity: qty }]); }
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "transfert_entrepot_livreur", quantity: qty, from_driver: "Entrepôt", to_driver: driver.full_name }]);
+    await loadData(); setW2dForm({ product_name: "", driver_id: "", quantity: "1" }); toast(`✅ ${qty} unité(s) transférée(s) à ${driver.full_name}`); setP4Loading(false);
+  };
+
+  const handleTransfer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); setP4Loading(true);
+    const from = drivers.find(d => d.id === transferForm.from_driver_id); const to = drivers.find(d => d.id === transferForm.to_driver_id);
+    if (!from || !to || from.id === to.id) { toast("Choisis deux livreurs différents.", "error"); setP4Loading(false); return; }
+    const name = transferForm.product_name.trim(); const qty = Number(transferForm.quantity);
+    const fromStock = driverStocks.find(i => i.driver_id === from.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (!fromStock || fromStock.quantity < qty) { toast(`Stock insuffisant pour ${from.full_name}. Disponible : ${fromStock?.quantity || 0}`); setP4Loading(false); return; }
+    await supabase.from("driver_stock").update({ quantity: fromStock.quantity - qty }).eq("id", fromStock.id);
+    const toStock = driverStocks.find(i => i.driver_id === to.id && i.product_name.toLowerCase() === name.toLowerCase());
+    if (toStock) { await supabase.from("driver_stock").update({ quantity: toStock.quantity + qty }).eq("id", toStock.id); }
+    else { await supabase.from("driver_stock").insert([{ driver_id: to.id, driver_name: to.full_name, product_name: name, quantity: qty }]); }
+    await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: name, type: "transfert_livreur", quantity: qty, from_driver: from.full_name, to_driver: to.full_name }]);
+    await loadData(); setTransferForm({ product_name: "", from_driver_id: "", to_driver_id: "", quantity: "1" }); toast(`✅ Transfert : ${from.full_name} → ${to.full_name}`); setP4Loading(false);
+  };
+
+  const handleApprove = async (d: StockDemande) => {
+    confirm({
+      message: `Approuver ${d.quantity_requested} × ${d.product_name} pour ${d.driver_name} ?`,
+      confirmLabel: "✅ Approuver",
+      onConfirm: async () => {
+        setP4Loading(true);
+        const wStock = warehouseStocks.find(w => w.product_name.toLowerCase() === d.product_name.toLowerCase());
+        if (!wStock || wStock.quantity < d.quantity_requested) { toast(`Stock insuffisant. Disponible : ${wStock?.quantity || 0}`, "error"); setP4Loading(false); return; }
+        await supabase.from("warehouse_stock").update({ quantity: wStock.quantity - d.quantity_requested, updated_at: new Date().toISOString() }).eq("id", wStock.id);
+        const existing = driverStocks.find(i => i.driver_id === d.driver_id && i.product_name.toLowerCase() === d.product_name.toLowerCase());
+        if (existing) { await supabase.from("driver_stock").update({ quantity: existing.quantity + d.quantity_requested }).eq("id", existing.id); }
+        else { await supabase.from("driver_stock").insert([{ driver_id: d.driver_id, driver_name: d.driver_name, product_name: d.product_name, quantity: d.quantity_requested }]); }
+        await supabase.from("stock_demandes").update({ status: "approuvée" }).eq("id", d.id);
+        await supabase.from("stock_mouvements").insert([{ tenant_id: profile?.tenant_id || "", product_name: d.product_name, type: "demande_approuvee", quantity: d.quantity_requested, from_driver: "Entrepôt", to_driver: d.driver_name }]);
+        await loadData(); toast("✅ Demande approuvée", "success"); setP4Loading(false);
+      }
+    });
+  };
+
+  const handleReject = (d: StockDemande) => {
+    confirm({
+      message: `Refuser la demande de ${d.driver_name} pour ${d.quantity_requested}× ${d.product_name} ?`,
+      confirmLabel: "❌ Refuser",
+      danger: true,
+      onConfirm: async () => {
+        await supabase.from("stock_demandes").update({ status: "refusée" }).eq("id", d.id);
+        setStockDemandes(prev => prev.map(x => x.id === d.id ? { ...x, status: "refusée" } : x));
+        toast("Demande refusée", "info");
+      }
+    });
+  };
+
+  const subTabs = [
+    { id: "overview", label: "📊 Vue d'ensemble" },
+    { id: "warehouse", label: "🏭 Entrepôt" },
+    { id: "drivers", label: "🚴 Livreurs" },
+    { id: "transfer", label: "🔄 Transferts" },
+    { id: "history", label: "📋 Historique" },
+    { id: "demandes", label: `📬 Demandes${pendingDemandes.length > 0 ? ` (${pendingDemandes.length})` : ""}` },
+  ];
+
+  const inputSt = { width: "100%", padding: "10px 12px", background: "#0A0A0F", border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const };
+
+  return (
+    <div>
+      {/* Sous-onglets */}
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 20, paddingBottom: 4 }}>
+        {subTabs.map(t => (
+          <button key={t.id} onClick={() => setSubView(t.id as typeof subView)}
+            style={{ padding: "8px 14px", border: `1px solid ${subView === t.id ? S.gold : S.border}`, background: subView === t.id ? "#1a1200" : S.card, color: subView === t.id ? S.gold : S.text2, borderRadius: 20, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0, fontWeight: subView === t.id ? 700 : 400 }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Alertes stock bas */}
+      {lowWarehouse.length > 0 && subView === "overview" && (
+        <div style={{ marginBottom: 16, padding: 12, background: S.dangerBg, border: `1px solid ${S.danger}`, borderRadius: 12 }}>
+          <p style={{ fontSize: 12, color: S.danger, fontWeight: 700, marginBottom: 8 }}>⚠️ ALERTES STOCK BAS</p>
+          {lowWarehouse.map(w => (
+            <div key={w.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid #3d0a0a` }}>
+              <span style={{ fontSize: 13 }}>{w.product_name}</span>
+              <span style={{ color: S.danger, fontWeight: 700, fontSize: 13 }}>{w.quantity} / seuil {w.alert_threshold}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Vue d'ensemble ── */}
+      {subView === "overview" && (
+        <div>
+          <p style={{ fontSize: 12, color: S.text3, fontWeight: 600, marginBottom: 10 }}>STOCK ENTREPÔT</p>
+          {warehouseStocks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: S.text2, background: S.card, borderRadius: 14, marginBottom: 16 }}>
+              <p style={{ fontSize: 28, marginBottom: 6 }}>🏭</p><p style={{ fontSize: 13 }}>Aucun stock entrepôt. Utilisez l&apos;onglet &ldquo;Entrepôt&rdquo; pour en ajouter.</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
+              {warehouseStocks.map(w => {
+                const isLow = w.quantity <= w.alert_threshold;
+                return (
+                  <div key={w.id} style={{ background: isLow ? S.dangerBg : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>ENTREPÔT</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>🏭</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{w.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{w.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p style={{ fontSize: 12, color: S.text3, fontWeight: 600, marginBottom: 10 }}>STOCK PAR LIVREUR</p>
+          {driverStocks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: S.text2, background: S.card, borderRadius: 14 }}><p style={{ fontSize: 28, marginBottom: 6 }}>📭</p><p style={{ fontSize: 13 }}>Aucun stock livreur.</p></div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {driverStocks.map(s => {
+                const isLow = s.quantity <= 3;
+                return (
+                  <div key={s.id} style={{ background: isLow ? "#1a0a00" : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>{s.driver_name}</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>📦</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{s.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{s.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Entrepôt ── */}
+      {subView === "warehouse" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>🏭 Ajouter au stock entrepôt</p>
+          <form onSubmit={handleAddWarehouse} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxWidth: 500 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label><input value={warehouseForm.product_name} onChange={e => setWarehouseForm(f => ({ ...f, product_name: e.target.value }))} required placeholder="Ex: THERAWOLF" style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={warehouseForm.quantity} onChange={e => setWarehouseForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Seuil alerte</label><input type="number" min="1" value={warehouseForm.alert_threshold} onChange={e => setWarehouseForm(f => ({ ...f, alert_threshold: e.target.value }))} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "En cours..." : "➕ Ajouter au stock entrepôt"}</button>
+          </form>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Stock actuel entrepôt</p>
+          {warehouseStocks.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun stock entrepôt.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {warehouseStocks.map(w => {
+                const isLow = w.quantity <= w.alert_threshold;
+                return (
+                  <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: isLow ? S.dangerBg : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 12 }}>
+                    <div><p style={{ fontSize: 14, fontWeight: 700 }}>{w.product_name}</p><p style={{ fontSize: 12, color: S.text2 }}>Seuil : {w.alert_threshold}</p></div>
+                    <div style={{ textAlign: "right" }}><p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{w.quantity}</p>{isLow && <p style={{ fontSize: 10, color: S.danger, fontWeight: 700 }}>⚠️ Stock bas</p>}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Livreurs ── */}
+      {subView === "drivers" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>➕ Ajouter stock direct à un livreur</p>
+          <form onSubmit={onStockSubmit} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Livreur</label>
+              <select name="driver_id" value={stockForm.driver_id} onChange={onStockChange} required style={inputSt}>
+                <option value="">Choisir un livreur</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label><input name="product_name" value={stockForm.product_name} onChange={onStockChange} required placeholder="Ex: THERAWOLF" style={inputSt} /></div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input name="quantity" type="number" min="1" value={stockForm.quantity} onChange={onStockChange} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={stockLoading} style={{ padding: "11px 0", background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, border: "none", borderRadius: 10, color: "#000", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{stockLoading ? "Ajout..." : "➕ Ajouter"}</button>
+          </form>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Stock actuel livreurs</p>
+          {driverStocks.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun stock livreur.</p> : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {driverStocks.map(s => {
+                const isLow = s.quantity <= 3;
+                return (
+                  <div key={s.id} style={{ background: isLow ? "#1a0a00" : S.card, border: `1px solid ${isLow ? S.danger : S.border}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: S.text2, marginBottom: 4 }}>{s.driver_name}</p>
+                    <p style={{ fontSize: 22, marginBottom: 4 }}>📦</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{s.product_name}</p>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: isLow ? S.danger : S.gold }}>{s.quantity}</p>
+                    {isLow && <p style={{ fontSize: 10, color: S.danger, marginTop: 4, fontWeight: 700 }}>⚠️ Stock bas</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Transferts ── */}
+      {subView === "transfer" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🔄 Entrepôt → Livreur</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 12 }}>Déduire de l&apos;entrepôt et ajouter au livreur</p>
+          <form onSubmit={handleW2D} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit (entrepôt)</label>
+              <select value={w2dForm.product_name} onChange={e => setW2dForm(f => ({ ...f, product_name: e.target.value }))} required style={inputSt}>
+                <option value="">Choisir un produit</option>
+                {warehouseStocks.map(w => <option key={w.id} value={w.product_name}>{w.product_name} (dispo : {w.quantity})</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Livreur</label>
+                <select value={w2dForm.driver_id} onChange={e => setW2dForm(f => ({ ...f, driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Choisir</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              </div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={w2dForm.quantity} onChange={e => setW2dForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+            </div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: "linear-gradient(135deg, #1d4ed8, #1e40af)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "..." : "🔄 Transférer vers livreur"}</button>
+          </form>
+
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, paddingTop: 16, borderTop: `1px solid ${S.border}` }}>↔️ Livreur → Livreur</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 12 }}>Déplacer du stock entre deux livreurs</p>
+          <form onSubmit={handleTransfer} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 500 }}>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Produit</label>
+              <select value={transferForm.product_name} onChange={e => setTransferForm(f => ({ ...f, product_name: e.target.value }))} required style={inputSt}>
+                <option value="">Choisir</option>
+                {Array.from(new Set(driverStocks.map(s => s.product_name))).map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>De</label>
+                <select value={transferForm.from_driver_id} onChange={e => setTransferForm(f => ({ ...f, from_driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Source</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              </div>
+              <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Vers</label>
+                <select value={transferForm.to_driver_id} onChange={e => setTransferForm(f => ({ ...f, to_driver_id: e.target.value }))} required style={inputSt}>
+                  <option value="">Dest.</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div><label style={{ fontSize: 12, color: S.text2, display: "block", marginBottom: 4 }}>Quantité</label><input type="number" min="1" value={transferForm.quantity} onChange={e => setTransferForm(f => ({ ...f, quantity: e.target.value }))} required style={inputSt} /></div>
+            <button type="submit" disabled={p4Loading} style={{ padding: "11px 0", background: "linear-gradient(135deg, #7c3aed, #6d28d9)", border: "none", borderRadius: 10, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p4Loading ? "..." : "↔️ Transférer"}</button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Historique ── */}
+      {subView === "history" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📋 Historique des mouvements</p>
+          {stockMouvements.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucun mouvement.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {stockMouvements.map(m => {
+                const colors: Record<string, string> = { entree_entrepot: S.success, transfert_entrepot_livreur: S.info, transfert_livreur: S.purple, vente_livraison: S.warning, demande_approuvee: S.success };
+                const labels: Record<string, string> = { entree_entrepot: "➕ Entrée entrepôt", transfert_entrepot_livreur: "🔄 Entrepôt→Livreur", transfert_livreur: "↔️ Livreur→Livreur", vente_livraison: "🎯 Vendu", demande_approuvee: "✅ Demande approuvée" };
+                const c = colors[m.type] || S.text2;
+                return (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: c, marginBottom: 2 }}>{labels[m.type] || m.type}</p>
+                      <p style={{ fontSize: 13, color: S.text, marginBottom: 2 }}>{m.product_name}</p>
+                      <p style={{ fontSize: 11, color: S.text2 }}>{m.from_driver} → {m.to_driver}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+                      <p style={{ fontSize: 20, fontWeight: 700, color: c }}>{m.quantity}</p>
+                      <p style={{ fontSize: 10, color: S.text2 }}>{fmtDate(m.created_at)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Demandes ── */}
+      {subView === "demandes" && (
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>📬 Demandes de stock</p>
+          <p style={{ fontSize: 12, color: S.text2, marginBottom: 16 }}>Les livreurs peuvent demander du stock depuis leur interface.</p>
+          {stockDemandes.length === 0 ? <p style={{ color: S.text2, fontSize: 13 }}>Aucune demande.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {stockDemandes.map(d => {
+                const isPending = d.status === "en_attente";
+                const sc = d.status === "approuvée" ? { bg: S.successBg, color: S.success } : d.status === "refusée" ? { bg: S.dangerBg, color: S.danger } : { bg: "#1a1200", color: S.gold };
+                return (
+                  <div key={d.id} style={{ padding: 14, background: S.card, border: `1px solid ${S.border}`, borderRadius: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{d.driver_name}</p>
+                        <p style={{ fontSize: 13, color: S.text2 }}>📦 {d.product_name} × {d.quantity_requested}</p>
+                        {d.note && <p style={{ fontSize: 12, color: S.text2, marginTop: 4 }}>💬 {d.note}</p>}
+                        <p style={{ fontSize: 11, color: S.text3, marginTop: 4 }}>{fmtDate(d.created_at)}</p>
+                      </div>
+                      <span style={{ background: sc.bg, color: sc.color, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                        {d.status === "en_attente" ? "⏳ En attente" : d.status === "approuvée" ? "✅ Approuvée" : "❌ Refusée"}
+                      </span>
+                    </div>
+                    {isPending && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <button onClick={() => handleApprove(d)} disabled={p4Loading} style={{ padding: "9px 0", background: S.successBg, border: `1px solid ${S.success}40`, borderRadius: 10, color: S.success, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>✅ Approuver</button>
+                        <button onClick={() => handleReject(d)} style={{ padding: "9px 0", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.danger, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>❌ Refuser</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Vue Créer commande ──────────────────────────────────────
 function CreerView({ form, loading, onChange, onSubmit }: {
   form: OrderFormData; loading: boolean;
@@ -502,6 +1136,7 @@ export function AdminView() {
   const [editingOrder, setEditingOrder]       = useState<Order | null>(null);
   const [editForm, setEditForm]               = useState<OrderFormData>(EMPTY_FORM);
   const [tenantName, setTenantName]           = useState<string>("Shipivo");
+  const [trialInfo, setTrialInfo]             = useState<{daysLeft:number;isExpired:boolean;plan:string;isActive:boolean}>({daysLeft:14,isExpired:false,plan:"trial",isActive:true});
 
   const enCoursCount = useMemo(() => orders.filter(isEnCours).length, [orders]);
 
@@ -532,7 +1167,7 @@ export function AdminView() {
     // Tout en parallèle — beaucoup plus rapide
     const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes] = await Promise.all([
       tid ? supabase.from("tenants")
-        .select("driver_commission, closer_commission, currency, name")
+        .select("driver_commission, closer_commission, currency, name, plan, trial_ends_at, plan_expires_at, is_active")
         .eq("id", tid).single()
         : Promise.resolve({ data: null }),
       tid ? supabase.from("profiles")
@@ -556,6 +1191,22 @@ export function AdminView() {
       if (td.name) setTenantName(td.name);
       setCommissionRules({ driver: td.driver_commission || 2000, closer: td.closer_commission || 500 });
       if (td.currency) setCurrency(td.currency);
+      // Calcul trial
+      const now = new Date();
+      const plan = td.plan || "trial";
+      const isActive = td.is_active !== false;
+      let daysLeft = 0;
+      let isExpired = false;
+      if (plan === "trial" && td.trial_ends_at) {
+        const diff = new Date(td.trial_ends_at).getTime() - now.getTime();
+        daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        isExpired = diff <= 0;
+      } else if (plan !== "trial" && td.plan_expires_at) {
+        const diff = new Date(td.plan_expires_at).getTime() - now.getTime();
+        daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        isExpired = diff <= 0;
+      }
+      setTrialInfo({ daysLeft, isExpired, plan, isActive });
     }
 
     const allProfiles = (profilesRes.data || []) as Profile[];
@@ -705,6 +1356,40 @@ export function AdminView() {
     </div>
   );
 
+  // Page de blocage si trial expiré ET compte inactif
+  if (trialInfo.isExpired && !trialInfo.isActive) return (
+    <div style={{ minHeight:"100vh", background:S.bg, color:S.text, fontFamily:"Inter,sans-serif", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ maxWidth:440, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:56, marginBottom:16 }}>⏰</div>
+        <h1 style={{ fontSize:24, fontWeight:900, marginBottom:8 }}>Ton essai gratuit a expiré</h1>
+        <p style={{ color:S.text2, fontSize:14, lineHeight:1.7, marginBottom:32 }}>
+          Tes 14 jours d'essai sont terminés. Choisis un plan pour continuer à utiliser Shipivo.
+        </p>
+        <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:32 }}>
+          {[
+            { label:"Starter", price:"9 900 FCFA/mois", desc:"CA ≤ 500 000 FCFA", color:S.info },
+            { label:"Pro", price:"19 900 FCFA/mois", desc:"CA ≤ 2 000 000 FCFA", color:S.gold },
+            { label:"Business", price:"39 900 FCFA/mois", desc:"CA illimité", color:S.purple },
+          ].map(p => (
+            <div key={p.label} style={{ background:S.card, border:`1px solid ${S.border}`, borderRadius:14, padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ textAlign:"left" as const }}>
+                <p style={{ color:p.color, fontWeight:700, fontSize:15, margin:0 }}>{p.label}</p>
+                <p style={{ color:S.text3, fontSize:12, margin:0 }}>{p.desc}</p>
+              </div>
+              <p style={{ color:S.text, fontWeight:800, fontSize:14, margin:0 }}>{p.price}</p>
+            </div>
+          ))}
+        </div>
+        <a href="https://wa.me/22890000000?text=Bonjour+je+veux+activer+mon+abonnement+Shipivo"
+          target="_blank" rel="noopener noreferrer"
+          style={{ display:"block", background:S.gold, color:"#000", borderRadius:12, padding:"14px 20px", fontWeight:800, fontSize:15, textDecoration:"none", marginBottom:12 }}>
+          💬 Contacter Shipivo pour payer
+        </a>
+        <p style={{ color:S.text3, fontSize:12 }}>Paiement via Wave ou Orange Money · Activation sous 24h</p>
+      </div>
+    </div>
+  );
+
   const isManager = normalizeRole(profile?.role) === "manager";
   const allNavItems = [
     { id: "dashboard",   label: "📊 Dashboard" },
@@ -718,7 +1403,6 @@ export function AdminView() {
     { id: "parametres",  label: "⚙️ Paramètres" },
     { id: "zones",       label: "🌍 Zones" },
     { id: "clients",     label: "👥 Clients" },
-    { id: "widget",      label: "🎛️ Widget" },
     { id: "import",      label: "📥 Import" },
   ];
   // Manager voit seulement : Dashboard, Commandes, Créer, Stock
@@ -741,6 +1425,20 @@ export function AdminView() {
           onConfirm={() => void executeAction(confirmAction.order, confirmAction.action)}
           onCancel={() => setConfirmAction(null)}
         />
+      )}
+
+      {/* Bandeau trial */}
+      {trialInfo.plan === "trial" && !trialInfo.isExpired && trialInfo.daysLeft <= 7 && (
+        <div style={{ background: trialInfo.daysLeft <= 3 ? "rgba(248,113,113,0.15)" : "rgba(251,146,60,0.15)", borderBottom: `1px solid ${trialInfo.daysLeft <= 3 ? S.danger : S.warning}`, padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" as const }}>
+          <p style={{ color: trialInfo.daysLeft <= 3 ? S.danger : S.warning, fontSize:13, fontWeight:600, margin:0 }}>
+            {trialInfo.daysLeft <= 3 ? "🚨" : "⚠️"} Ton essai gratuit expire dans <strong>{trialInfo.daysLeft} jour{trialInfo.daysLeft > 1 ? "s" : ""}</strong>
+          </p>
+          <a href="https://wa.me/22890000000?text=Bonjour+je+veux+activer+mon+abonnement+Shipivo"
+            target="_blank" rel="noopener noreferrer"
+            style={{ background:S.gold, color:"#000", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flexShrink:0 }}>
+            Choisir un plan →
+          </a>
+        </div>
       )}
 
       {/* Header */}
@@ -768,18 +1466,17 @@ export function AdminView() {
 
       {/* Contenu */}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 14px 80px" }}>
-        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
+        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} zones={zones} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
-        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} />}
-        {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId || ""} />}
+        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} onStockChange={handleStockChange} onStockSubmit={handleAddStock} profile={profile} tenantId={tenantId} />}
+        {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "equipe"      && tenantId && <EquipeView tenantId={tenantId} />}
         {activeView === "parametres"  && tenantId && <ParametresView tenantId={tenantId} />}
           {activeView === "zones"        && tenantId && <ZonesView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "clients"     && tenantId && <ClientsView tenantId={tenantId} />}
-        {activeView === "widget"      && tenantId && <WidgetView tenantId={tenantId} tenantSlug={tenantSlug} />}
         {activeView === "import"      && tenantId && <ImportView tenantId={tenantId} />}
       </div>
     </div>
