@@ -313,10 +313,10 @@ export function ClosureuseView() {
   });
 
   const navTabs = [
-    { id: "dashboard",   emoji: "📊", short: "Dashboard" },
-    { id: "commandes",   emoji: "📦", short: `Cmd (${enCours.length})` },
-    { id: "assigner",    emoji: "👤", short: `Assign${nonAssigned.length > 0 ? ` (${nonAssigned.length})` : ""}` },
-    { id: "commissions", emoji: "💰", short: "Commiss." },
+    { id: "dashboard",   emoji: "dashboard", short: "Dashboard" },
+    { id: "commandes",   emoji: "orders", short: `Cmd (${enCours.length})` },
+    { id: "assigner",    emoji: "assign", short: `Assign${nonAssigned.length > 0 ? ` (${nonAssigned.length})` : ""}` },
+    { id: "commissions", emoji: "money", short: "Commiss." },
     { id: "stocks",      emoji: "🗄️", short: "Stocks" },
   ];
 
@@ -476,9 +476,9 @@ export function ClosureuseView() {
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
               {[
                 { label: "Total", value: orders.length, color: S.text },
-                { label: "⚡ En cours", value: enCours.length, color: S.warning },
-                { label: "✅ Confirmées", value: orders.filter(o => o.status === "Confirmé").length, color: S.info },
-                { label: "🎯 Livrées", value: orders.filter(o => o.status === "Livré").length, color: S.success },
+                { label: "En cours", value: enCours.length, color: S.warning },
+                { label: "Confirmées", value: orders.filter(o => o.status === "Confirmé").length, color: S.info },
+                { label: "Livrées", value: orders.filter(o => o.status === "Livré").length, color: S.success },
                 { label: "🚌 Gare", value: orders.filter(o => o.logistic_status === "Envoyé à la gare").length, color: S.purple },
                 { label: "💰 Payées", value: orders.filter(o => o.cash_collected).length, color: S.gold },
               ].map(s => (
