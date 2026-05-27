@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LayoutDashboard, ShoppingBag, Plus, Archive, TrendingUp, DollarSign, Package, Users, Settings, Globe, UserCircle, Sliders, Download, BarChart2 } from "lucide-react";
 import InstallPWA from "@/components/pwa/InstallPWA";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
@@ -66,11 +67,29 @@ function Badge({ status }: { status?: string | null }) {
   );
 }
 
+// Map des icônes Lucide par id
+const NAV_ICONS: Record<string, React.ReactNode> = {
+  dashboard:   <LayoutDashboard size={18} />,
+  commandes:   <ShoppingBag size={18} />,
+  creer:       <Plus size={18} />,
+  stock:       <Archive size={18} />,
+  finances:    <TrendingUp size={18} />,
+  commissions: <DollarSign size={18} />,
+  produits:    <Package size={18} />,
+  equipe:      <Users size={18} />,
+  parametres:  <Settings size={18} />,
+  zones:       <Globe size={18} />,
+  clients:     <UserCircle size={18} />,
+  widget:      <Sliders size={18} />,
+  import:      <Download size={18} />,
+}
+
 function NavBtn({ id, label, active, onClick }: { id: string; label: string; active: boolean; onClick: () => void }) {
-  // Extraire emoji + texte court pour mobile
-  const parts = label.split(" ");
-  const emoji = parts[0];
-  const text = parts.slice(1).join(" ");
+  // Extraire le texte sans emoji
+  const text = label.replace(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[⚡✅📋📦💼💰👥⚙️🌍🎛️📥➕🗄️📊]/gu, "").trim()
+  const shortText = text.split(" ")[0]
+  const icon = NAV_ICONS[id] || <BarChart2 size={18} />
+
   return (
     <button onClick={onClick} style={{
       padding: "10px 12px", border: "none", cursor: "pointer",
@@ -80,13 +99,14 @@ function NavBtn({ id, label, active, onClick }: { id: string; label: string; act
       fontWeight: active ? 700 : 500,
       fontSize: 12,
       borderBottom: active ? `2px solid ${S.gold}` : "2px solid transparent",
-      display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2,
+      display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 4,
       minWidth: 52,
+      transition: "color 0.15s",
     }}>
-      <span style={{ fontSize: 16 }}>{emoji}</span>
-      <span style={{ fontSize: 10 }}>{text.split(" ")[0]}</span>
+      <span style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>{icon}</span>
+      <span style={{ fontSize: 10, letterSpacing:"0.02em" }}>{shortText}</span>
     </button>
-  );
+  )
 }
 
 function Input({ label, name, value, onChange, type = "text", placeholder = "" }: {
