@@ -96,10 +96,20 @@ export default function ProductPage() {
       tenant_id: tenant?.id, customer_name: form.name.trim(),
       phone: form.phone.trim(), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
-      product: product?.nom || (product as any)?.name, quantity: offreActive?.quantite || 1, amount: prixActif || product?.prix || (product as any)?.price,
-      status: "En attente", delivery_type: "standard",
-      source: searchParams?.get("src")||"page_produit",
-      zone_nom: searchParams?.get("zone")||null,
+      product: product?.nom || (product as any)?.name,
+      quantity: offreActive?.quantite || 1,
+      amount: prixActif || product?.prix || (product as any)?.price,
+      status: "En attente",
+      delivery_type: "standard",
+      logistic_status: "En attente",
+      payment_status: "Non payé",
+      cash_collected: false,
+      is_assigned: false,
+      source: searchParams?.get("src") || "page_produit",
+      zone_nom: searchParams?.get("zone") || null,
+      closer_commission: 0,
+      driver_commission: 0,
+      commission_calculated: false,
     })
     if (error) { setFormError(error.message); setSubmitting(false); return }
     if (product) await supabase.from("products").update({ commandes:(product.commandes||0)+1 }).eq("id", product.id)
@@ -125,6 +135,13 @@ export default function ProductPage() {
   const allImages = [product.image_principale, ...(content.images||[])].filter(Boolean)
   const fmt = (n: number) => `${n.toLocaleString("fr-FR")} ${product.devise||"FCFA"}`
   const offres = content.offres || []
+  // Sélectionner l'offre populaire par défaut au chargement
+  useEffect(() => {
+    if (offres.length > 0 && content.offres_actif) {
+      const popularIndex = offres.findIndex(o => o.populaire)
+      if (popularIndex >= 0) setSelectedOffre(popularIndex)
+    }
+  }, [content.offres_actif, offres.length])
   const offreActive = offres.length > 0 && content.offres_actif ? offres[selectedOffre] : null
   const prixActif = offreActive ? offreActive.prix : product.prix
 
