@@ -79,7 +79,7 @@ export default function CommandesView({
         style={{ width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#F8F8FC", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" }} />
 
       {/* Filtre par produit */}
-      {produitsUniques.length > 1 && (
+      {produitsUniques.length >= 1 && (
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
           <button onClick={() => setProduitFilter("tous")}
             style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?"#F59E0B":"rgba(255,255,255,0.1)"}`, background:produitFilter==="tous"?"rgba(245,158,11,0.12)":"transparent", color:produitFilter==="tous"?"#F59E0B":"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer" }}>
