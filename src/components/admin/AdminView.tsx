@@ -55,12 +55,12 @@ const S = {
 
 // ─── Composants UI partagés ──────────────────────────────────
 function StatCard({ icon, label, value, color = S.text, bg = S.card, border = S.border, small = false }: {
-  icon: string; label: string; value: string | number;
+  icon: React.ReactNode; label: string; value: string | number;
   color?: string; bg?: string; border?: string; small?: boolean;
 }) {
   return (
     <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: 12, padding: "12px 14px" }}>
-      <div style={{ fontSize: 18, marginBottom: 6 }}>{icon}</div>
+      <div style={{ marginBottom: 8, color }}>{icon}</div>
       <div style={{ fontSize: small ? 14 : 20, fontWeight: 800, color }}>{value}</div>
       <div style={{ fontSize: 10, color: S.text3, marginTop: 3 }}>{label}</div>
     </div>
@@ -293,18 +293,18 @@ function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; 
       {/* Stats aujourd'hui */}
       <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>AUJOURD&apos;HUI</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-        <StatCard icon="📝" label="Créées" value={today.created} />
-        <StatCard icon="🎯" label="Livrées" value={today.delivered} color={S.green} bg={S.greenBg} border={S.greenBorder} />
-        <StatCard icon="💵" label="Encaissé" value={fmt(today.amount)} color={S.gold} bg={S.goldBg} border={S.goldBorder} small />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>} label="Créées" value={today.created} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>} label="Livrées" value={today.delivered} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>} label="Encaissé" value={fmt(today.amount)} color={S.gold} bg={S.goldBg} border={S.goldBorder} small />
       </div>
 
       {/* KPIs période */}
       <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>PÉRIODE — {periodLabel[period]}</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 10 }}>
-        <StatCard icon="📥" label="Reçues" value={stats.total} color={S.blue} bg={S.blueBg} border={S.blueBorder} />
-        <StatCard icon="✅" label="Confirmées" value={stats.confirmed} color={S.green} bg={S.greenBg} border={S.greenBorder} />
-        <StatCard icon="🎯" label="Livrées" value={stats.delivered} color={S.gold} bg={S.goldBg} border={S.goldBorder} />
-        <StatCard icon="❌" label="Annulées" value={stats.cancelled} color={S.red} bg={S.redBg} border={S.redBorder} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>} label="Reçues" value={stats.total} color={S.blue} bg={S.blueBg} border={S.blueBorder} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>} label="Confirmées" value={stats.confirmed} color={S.green} bg={S.greenBg} border={S.greenBorder} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>} label="Livrées" value={stats.delivered} color={S.gold} bg={S.goldBg} border={S.goldBorder} />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>} label="Annulées" value={stats.cancelled} color={S.red} bg={S.redBg} border={S.redBorder} />
       </div>
 
       {/* Taux */}
@@ -416,7 +416,7 @@ function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; 
               const rate = data.total > 0 ? Math.round((data.delivered / data.total) * 100) : 0;
               return (
                 <div key={name} style={{ padding: "10px 14px", borderBottom: i < livreurStats.length - 1 ? `1px solid ${S.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>🛵</span>
+                  <span style={{ color: S.gold }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></span>
                   <div style={{ flex: 1 }}>
                     <p style={{ color: S.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{name}</p>
                     <p style={{ color: S.text3, fontSize: 11, margin: 0 }}>{data.delivered}/{data.total} liv. · {fmt(data.ca)}</p>
@@ -432,7 +432,7 @@ function DashboardView({ orders, driverStocks, zones = [] }: { orders: Order[]; 
       {/* Stock par livreur */}
       {driverStocks.length > 0 && (
         <>
-          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>📦 STOCK PAR LIVREUR</p>
+          <p style={{ fontSize: 12, color: S.text2, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10 }}>STOCK PAR LIVREUR</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8 }}>
             {Object.entries(driverStocks.reduce((acc: Record<string, number>, i) => {
               acc[i.driver_name] = (acc[i.driver_name] || 0) + Number(i.quantity || 0); return acc;
@@ -488,10 +488,10 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
     : section4;
 
   const TABS = [
-    { id: "aujourd_hui", label: "⚡ Aujourd'hui", count: section1.length, color: S.gold,    bg: "#1a1200" },
-    { id: "retard",      label: "🔴 En retard",   count: section2.length, color: S.danger,  bg: "#2D0F0F" },
-    { id: "confirme",    label: "✅ Confirmées",   count: section3.length, color: S.info,    bg: "#0C1E3E" },
-    { id: "historique",  label: "📋 Historique",   count: section4.length, color: S.text2,   bg: S.card },
+    { id: "aujourd_hui", label: "Aujourd'hui", count: section1.length, color: S.gold,    bg: "#1a1200" },
+    { id: "retard",      label: "En retard",   count: section2.length, color: S.danger,  bg: "#2D0F0F" },
+    { id: "confirme",    label: "Confirmées",   count: section3.length, color: S.info,    bg: "#0C1E3E" },
+    { id: "historique",  label: "Historique",   count: section4.length, color: S.text2,   bg: S.card },
   ];
 
   return (
@@ -642,7 +642,7 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
 
       {/* Totaux */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        <StatCard icon="🛵" label="Total livreurs" value={fmt(stats.totalDriver)} color={S.info} small />
+        <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>} label="Total livreurs" value={fmt(stats.totalDriver)} color={S.info} small />
         <StatCard icon="👩" label="Total closeurs"  value={fmt(stats.totalCloser)} color={S.purple} small />
       </div>
 
@@ -793,11 +793,11 @@ function StockView({ drivers, driverStocks, stockForm, stockLoading, onStockChan
   };
 
   const subTabs = [
-    { id: "overview", label: "📊 Vue d'ensemble" },
+    { id: "overview", label: "Vue d'ensemble" },
     { id: "warehouse", label: "🏭 Entrepôt" },
     { id: "drivers", label: "🚴 Livreurs" },
     { id: "transfer", label: "🔄 Transferts" },
-    { id: "history", label: "📋 Historique" },
+    { id: "history", label: "Historique" },
     { id: "demandes", label: `📬 Demandes${pendingDemandes.length > 0 ? ` (${pendingDemandes.length})` : ""}` },
   ];
 
