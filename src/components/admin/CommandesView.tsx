@@ -96,7 +96,6 @@ export default function CommandesView({
           })}
         </div>
       )}
-        style={{ ...inputStyle, marginBottom: 12 }} />
 
       {/* 4 onglets */}
       <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
