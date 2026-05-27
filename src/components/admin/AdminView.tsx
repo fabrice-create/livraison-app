@@ -343,7 +343,7 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
       {/* Totaux */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <StatCard icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>} label="Total livreurs" value={fmt(stats.totalDriver)} color={S.info} small />
-        <StatCard icon="👩" label="Total closeurs"  value={fmt(stats.totalCloser)} color={S.purple} small />
+        <StatCard icon={<span>👩</span>} label="Total closeurs"  value={fmt(stats.totalCloser)} color={S.purple} small />
       </div>
 
       {/* Détail livreurs */}
