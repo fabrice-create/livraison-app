@@ -262,9 +262,11 @@ export function LivreurView() {
 
   const today = new Date().toDateString();
   const enCours = orders.filter(o => o.status === "Confirmé");
-  const villesUniques = Array.from(new Set(enCours.map(o => o.city || "").filter(Boolean))).sort();
+  // Normaliser les accents pour éviter "Lome" et "Lomé" séparés
+  const normalizeCity = (c: string) => c.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+  const villesUniques = Array.from(new Set(enCours.map(o => normalizeCity(o.city || "")).filter(Boolean))).sort();
   const enCoursFiltrees = enCours.filter(o => {
-    const matchVille = villeFilter === "toutes" || (o.city || "").toLowerCase().includes(villeFilter.toLowerCase());
+    const matchVille = villeFilter === "toutes" || normalizeCity(o.city || "") === villeFilter;
     const matchSearch = !searchLivreur.trim() || [o.customer_name, o.phone, o.city, o.product].join(" ").toLowerCase().includes(searchLivreur.toLowerCase());
     return matchVille && matchSearch;
   });
@@ -524,7 +526,7 @@ export function LivreurView() {
                   Toutes ({enCours.length})
                 </button>
                 {villesUniques.map(v => {
-                  const count = enCours.filter(o => (o.city||"").toLowerCase().includes(v.toLowerCase())).length;
+                  const count = enCours.filter(o => normalizeCity(o.city||"") === v).length;
                   return (
                     <button key={v} onClick={() => setVilleFilter(v)}
                       style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${villeFilter===v?S.gold:S.border}`, background:villeFilter===v?`${S.gold}15`:"transparent", color:villeFilter===v?S.gold:S.text2, fontSize:11, fontWeight:600, cursor:"pointer" }}>
