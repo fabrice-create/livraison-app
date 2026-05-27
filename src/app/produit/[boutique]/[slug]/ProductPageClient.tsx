@@ -117,7 +117,7 @@ export default function ProductPage() {
     const num = `CMD-${Date.now().toString(36).toUpperCase()}`
     const { error } = await supabase.from("orders").insert({
       tenant_id: tenant?.id, customer_name: form.name.trim(),
-      phone: fullPhone, city: form.city.trim(),
+      phone: selCountry.dial + " " + form.phone.trim().replace(/^0/, ""), city: form.city.trim(),
       address: form.address.trim(), note: form.note.trim(),
       product: product?.nom || (product as any)?.name,
       quantity: offreActive?.quantite || 1,
