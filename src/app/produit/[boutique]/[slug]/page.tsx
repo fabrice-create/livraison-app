@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { supabase } from "@/app/lib/supabase"
 import { useParams, useSearchParams } from "next/navigation"
 
@@ -34,7 +34,7 @@ type Tenant = {
   brand_color: string; logo_url: string; delivery_fee: number; currency: string
 }
 
-export default function ProductPage() {
+function ProductPageInner() {
   const params = useParams()
   const searchParams = useSearchParams()
   const boutique = params?.boutique as string
@@ -457,5 +457,18 @@ export default function ProductPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ProductPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight:"100vh", background:"#080810", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ width:40, height:40, border:"3px solid #1E1E2E", borderTopColor:"#F59E0B", borderRadius:"50%", animation:"spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <ProductPageInner />
+    </Suspense>
   )
 }
