@@ -25,15 +25,20 @@ export default function CommandesView({
   const [activeTab, setActiveTab]       = useState("aujourd_hui")
   const [driverFilter, setDriverFilter] = useState("Tous")
   const [search, setSearch]             = useState("")
+  const [produitFilter, setProduitFilter] = useState("tous")
 
   const enCoursOrders    = useMemo(() => orders.filter(isEnCours),    [orders])
   const historiqueOrders = useMemo(() => orders.filter(isHistorique), [orders])
 
   const filterFn = (o: Order) => {
     const matchDriver = driverFilter === "Tous" || o.driver_name === driverFilter
+    const matchProduit = produitFilter === "tous" || (o.product || "").toLowerCase().includes(produitFilter.toLowerCase())
     const q = search.trim().toLowerCase()
-    return matchDriver && (q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q))
+    return matchDriver && matchProduit && (q === "" || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product].join(" ").toLowerCase().includes(q))
   }
+
+  // Produits uniques pour le filtre
+  const produitsUniques = useMemo(() => Array.from(new Set(orders.map(o => o.product || "").filter(Boolean))).sort(), [orders])
 
   const now      = new Date()
   const todayStr = now.toDateString()
@@ -71,7 +76,26 @@ export default function CommandesView({
     <div>
       <input type="text" placeholder="🔍 Recherche nom, ville, produit..."
         value={search} onChange={e => setSearch(e.target.value)}
-        style={{ ...inputStyle, marginBottom: 12 }} />
+        style={{ width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#F8F8FC", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" }} />
+
+      {/* Filtre par produit */}
+      {produitsUniques.length >= 1 && (
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+          <button onClick={() => setProduitFilter("tous")}
+            style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?"#F59E0B":"rgba(255,255,255,0.1)"}`, background:produitFilter==="tous"?"rgba(245,158,11,0.12)":"transparent", color:produitFilter==="tous"?"#F59E0B":"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+            Tous ({orders.length})
+          </button>
+          {produitsUniques.map(p => {
+            const count = orders.filter(o => (o.product||"").toLowerCase().includes(p.toLowerCase())).length
+            return (
+              <button key={p} onClick={() => setProduitFilter(p)}
+                style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?"#F59E0B":"rgba(255,255,255,0.1)"}`, background:produitFilter===p?"rgba(245,158,11,0.12)":"transparent", color:produitFilter===p?"#F59E0B":"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {p} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* 4 onglets */}
       <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
