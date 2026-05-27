@@ -60,6 +60,8 @@ export function LivreurView() {
   const [tenantName, setTenantName] = useState("Shipivo");
   const [isAvailable, setIsAvailable] = useState(false);
   const [togglingAvail, setTogglingAvail] = useState(false);
+  const [villeFilter, setVilleFilter] = useState("toutes");
+  const [searchLivreur, setSearchLivreur] = useState("");
 
   const toggleAvailability = async () => {
     if (!profile) return;
@@ -260,8 +262,14 @@ export function LivreurView() {
 
   const today = new Date().toDateString();
   const enCours = orders.filter(o => o.status === "Confirmé");
-  const todayEnCours = enCours.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() === today);
-  const autresEnCours = enCours.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() !== today);
+  const villesUniques = Array.from(new Set(enCours.map(o => o.city || "").filter(Boolean))).sort();
+  const enCoursFiltrees = enCours.filter(o => {
+    const matchVille = villeFilter === "toutes" || (o.city || "").toLowerCase().includes(villeFilter.toLowerCase());
+    const matchSearch = !searchLivreur.trim() || [o.customer_name, o.phone, o.city, o.product].join(" ").toLowerCase().includes(searchLivreur.toLowerCase());
+    return matchVille && matchSearch;
+  });
+  const todayEnCours = enCoursFiltrees.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() === today);
+  const autresEnCours = enCoursFiltrees.filter(o => new Date(o.assigned_at || o.created_at || "").toDateString() !== today);
   const historique = orders.filter(o => o.status === "Livré" || o.status === "Annulé");
   const todayDelivered = historique.filter(o => o.status === "Livré" && new Date(o.delivered_at || "").toDateString() === today);
   const todayCommission = todayDelivered.length * 2000;
@@ -495,14 +503,39 @@ export function LivreurView() {
         {/* ── EN COURS ── */}
         {tab === "encours" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <p style={{ fontSize: 16, fontWeight: 700 }}>⚡ En cours ({enCours.length})</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <p style={{ fontSize: 16, fontWeight: 700 }}>En cours ({enCoursFiltrees.length})</p>
               <button onClick={handleRefresh} disabled={refreshing}
                 style={{ padding: "7px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 20, color: S.text2, fontSize: 12, cursor: "pointer" }}>
-                {refreshing ? "..." : "🔄 Actualiser"}
+                {refreshing ? "..." : "🔄"}
               </button>
             </div>
-            {enCours.length === 0 ? (
+
+            {/* Recherche */}
+            <input type="text" placeholder="🔍 Rechercher un client..." value={searchLivreur}
+              onChange={e => setSearchLivreur(e.target.value)}
+              style={{ width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"9px 12px", color:"#F8F8FC", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" as const }} />
+
+            {/* Filtre par ville */}
+            {villesUniques.length >= 1 && (
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" as const, marginBottom:14 }}>
+                <button onClick={() => setVilleFilter("toutes")}
+                  style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${villeFilter==="toutes"?S.gold:S.border}`, background:villeFilter==="toutes"?`${S.gold}15`:"transparent", color:villeFilter==="toutes"?S.gold:S.text2, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  Toutes ({enCours.length})
+                </button>
+                {villesUniques.map(v => {
+                  const count = enCours.filter(o => (o.city||"").toLowerCase().includes(v.toLowerCase())).length;
+                  return (
+                    <button key={v} onClick={() => setVilleFilter(v)}
+                      style={{ padding:"5px 12px", borderRadius:20, border:`1px solid ${villeFilter===v?S.gold:S.border}`, background:villeFilter===v?`${S.gold}15`:"transparent", color:villeFilter===v?S.gold:S.text2, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                      {v} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {enCoursFiltrees.length === 0 ? (
               <div style={{ textAlign: "center", padding: "48px 20px", background: S.card, borderRadius: 16, color: S.text3 }}>
                 <p style={{ fontSize: 40, marginBottom: 12 }}>🎉</p>
                 <p>Aucune livraison en cours</p>
