@@ -378,9 +378,9 @@ export default function SuperAdminPage() {
   }
 
   const VIEWS = [
-    { id: "dashboard",    label: "📊 Dashboard" },
+    { id: "dashboard",    label: "Dashboard" },
     { id: "clients",      label: "👥 Clients" },
-    { id: "monetisation", label: "💰 Monétisation" },
+    { id: "monetisation", label: "Monétisation" },
   ]
 
   return (
