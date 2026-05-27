@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import InstallPWA from "@/components/pwa/InstallPWA";
+import OrderCard from "@/components/order/OrderCard";
 
 // ─── Icônes SVG inline — zéro dépendance ────────────────
 const IC = {
