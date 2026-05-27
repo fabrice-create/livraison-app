@@ -1136,6 +1136,7 @@ export function AdminView() {
   const [editingOrder, setEditingOrder]       = useState<Order | null>(null);
   const [editForm, setEditForm]               = useState<OrderFormData>(EMPTY_FORM);
   const [tenantName, setTenantName]           = useState<string>("Shipivo");
+  const [trialInfo, setTrialInfo]             = useState<{daysLeft:number;isExpired:boolean;plan:string;isActive:boolean}>({daysLeft:14,isExpired:false,plan:"trial",isActive:true});
 
   const enCoursCount = useMemo(() => orders.filter(isEnCours).length, [orders]);
 
@@ -1166,7 +1167,7 @@ export function AdminView() {
     // Tout en parallèle — beaucoup plus rapide
     const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes] = await Promise.all([
       tid ? supabase.from("tenants")
-        .select("driver_commission, closer_commission, currency, name")
+        .select("driver_commission, closer_commission, currency, name, plan, trial_ends_at, plan_expires_at, is_active")
         .eq("id", tid).single()
         : Promise.resolve({ data: null }),
       tid ? supabase.from("profiles")
@@ -1190,6 +1191,22 @@ export function AdminView() {
       if (td.name) setTenantName(td.name);
       setCommissionRules({ driver: td.driver_commission || 2000, closer: td.closer_commission || 500 });
       if (td.currency) setCurrency(td.currency);
+      // Calcul trial
+      const now = new Date();
+      const plan = td.plan || "trial";
+      const isActive = td.is_active !== false;
+      let daysLeft = 0;
+      let isExpired = false;
+      if (plan === "trial" && td.trial_ends_at) {
+        const diff = new Date(td.trial_ends_at).getTime() - now.getTime();
+        daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        isExpired = diff <= 0;
+      } else if (plan !== "trial" && td.plan_expires_at) {
+        const diff = new Date(td.plan_expires_at).getTime() - now.getTime();
+        daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        isExpired = diff <= 0;
+      }
+      setTrialInfo({ daysLeft, isExpired, plan, isActive });
     }
 
     const allProfiles = (profilesRes.data || []) as Profile[];
@@ -1339,6 +1356,40 @@ export function AdminView() {
     </div>
   );
 
+  // Page de blocage si trial expiré ET compte inactif
+  if (trialInfo.isExpired && !trialInfo.isActive) return (
+    <div style={{ minHeight:"100vh", background:S.bg, color:S.text, fontFamily:"Inter,sans-serif", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ maxWidth:440, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:56, marginBottom:16 }}>⏰</div>
+        <h1 style={{ fontSize:24, fontWeight:900, marginBottom:8 }}>Ton essai gratuit a expiré</h1>
+        <p style={{ color:S.text2, fontSize:14, lineHeight:1.7, marginBottom:32 }}>
+          Tes 14 jours d'essai sont terminés. Choisis un plan pour continuer à utiliser Shipivo.
+        </p>
+        <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:32 }}>
+          {[
+            { label:"Starter", price:"9 900 FCFA/mois", desc:"CA ≤ 500 000 FCFA", color:S.info },
+            { label:"Pro", price:"19 900 FCFA/mois", desc:"CA ≤ 2 000 000 FCFA", color:S.gold },
+            { label:"Business", price:"39 900 FCFA/mois", desc:"CA illimité", color:S.purple },
+          ].map(p => (
+            <div key={p.label} style={{ background:S.card, border:`1px solid ${S.border}`, borderRadius:14, padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ textAlign:"left" as const }}>
+                <p style={{ color:p.color, fontWeight:700, fontSize:15, margin:0 }}>{p.label}</p>
+                <p style={{ color:S.text3, fontSize:12, margin:0 }}>{p.desc}</p>
+              </div>
+              <p style={{ color:S.text, fontWeight:800, fontSize:14, margin:0 }}>{p.price}</p>
+            </div>
+          ))}
+        </div>
+        <a href="https://wa.me/22890000000?text=Bonjour+je+veux+activer+mon+abonnement+Shipivo"
+          target="_blank" rel="noopener noreferrer"
+          style={{ display:"block", background:S.gold, color:"#000", borderRadius:12, padding:"14px 20px", fontWeight:800, fontSize:15, textDecoration:"none", marginBottom:12 }}>
+          💬 Contacter Shipivo pour payer
+        </a>
+        <p style={{ color:S.text3, fontSize:12 }}>Paiement via Wave ou Orange Money · Activation sous 24h</p>
+      </div>
+    </div>
+  );
+
   const isManager = normalizeRole(profile?.role) === "manager";
   const allNavItems = [
     { id: "dashboard",   label: "📊 Dashboard" },
@@ -1374,6 +1425,20 @@ export function AdminView() {
           onConfirm={() => void executeAction(confirmAction.order, confirmAction.action)}
           onCancel={() => setConfirmAction(null)}
         />
+      )}
+
+      {/* Bandeau trial */}
+      {trialInfo.plan === "trial" && !trialInfo.isExpired && trialInfo.daysLeft <= 7 && (
+        <div style={{ background: trialInfo.daysLeft <= 3 ? "rgba(248,113,113,0.15)" : "rgba(251,146,60,0.15)", borderBottom: `1px solid ${trialInfo.daysLeft <= 3 ? S.danger : S.warning}`, padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap" as const }}>
+          <p style={{ color: trialInfo.daysLeft <= 3 ? S.danger : S.warning, fontSize:13, fontWeight:600, margin:0 }}>
+            {trialInfo.daysLeft <= 3 ? "🚨" : "⚠️"} Ton essai gratuit expire dans <strong>{trialInfo.daysLeft} jour{trialInfo.daysLeft > 1 ? "s" : ""}</strong>
+          </p>
+          <a href="https://wa.me/22890000000?text=Bonjour+je+veux+activer+mon+abonnement+Shipivo"
+            target="_blank" rel="noopener noreferrer"
+            style={{ background:S.gold, color:"#000", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flexShrink:0 }}>
+            Choisir un plan →
+          </a>
+        </div>
       )}
 
       {/* Header */}
