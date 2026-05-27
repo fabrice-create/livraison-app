@@ -49,6 +49,16 @@ const defaultContent: PageContent = {
   couleur: "#F59E0B", fond: "#09090F"
 }
 
+const DIALCODES: Record<string, {flag:string;dial:string;code:string}> = {
+  TG:{flag:"🇹🇬",dial:"+228",code:"TG"},SN:{flag:"🇸🇳",dial:"+221",code:"SN"},
+  CI:{flag:"🇨🇮",dial:"+225",code:"CI"},ML:{flag:"🇲🇱",dial:"+223",code:"ML"},
+  BF:{flag:"🇧🇫",dial:"+226",code:"BF"},BJ:{flag:"🇧🇯",dial:"+229",code:"BJ"},
+  NE:{flag:"🇳🇪",dial:"+227",code:"NE"},GN:{flag:"🇬🇳",dial:"+224",code:"GN"},
+  NG:{flag:"🇳🇬",dial:"+234",code:"NG"},GH:{flag:"🇬🇭",dial:"+233",code:"GH"},
+  CM:{flag:"🇨🇲",dial:"+237",code:"CM"},MA:{flag:"🇲🇦",dial:"+212",code:"MA"},
+  FR:{flag:"🇫🇷",dial:"+33",code:"FR"},US:{flag:"🇺🇸",dial:"+1",code:"US"},
+}
+
 export default function ProductPage() {
   const params = useParams()
   const searchParams = useSearchParams()
