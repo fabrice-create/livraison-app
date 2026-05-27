@@ -55,6 +55,7 @@ export function ClosureuseView() {
   const [period, setPeriod] = useState<PeriodFilter>("today");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("encours");
+  const [produitFilter, setProduitFilter] = useState("tous");
   const [refreshing, setRefreshing] = useState(false);
   const [assignModal, setAssignModal] = useState<Order | null>(null);
   const [selectedDriver, setSelectedDriver] = useState("");
@@ -309,8 +310,12 @@ export function ClosureuseView() {
     const matchStatus = statusFilter === "encours" ? isEnCours(o) : !isEnCours(o);
     const q = search.trim().toLowerCase();
     const matchSearch = q === "" || [o.customer_name, o.phone, o.city, o.product, o.driver_name || ""].join(" ").toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    const matchProduit = produitFilter === "tous" || (o.product || "").toLowerCase().includes(produitFilter.toLowerCase());
+    return matchStatus && matchSearch && matchProduit;
   });
+
+  // Liste unique des produits pour le filtre
+  const produitsUniques = Array.from(new Set(orders.map(o => o.product || "").filter(Boolean))).sort();
 
   const navTabs = [
     { id: "dashboard",   emoji: "dashboard", short: "Dashboard" },
@@ -568,6 +573,25 @@ export function ClosureuseView() {
 
             {/* Filtres */}
             <input type="text" placeholder="🔍 Rechercher..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, marginBottom: 12 }} />
+
+            {/* Filtre par produit */}
+            {produitsUniques.length > 1 && (
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+                <button onClick={() => setProduitFilter("tous")}
+                  style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?S.gold:S.border}`, background:produitFilter==="tous"?`${S.gold}15`:"transparent", color:produitFilter==="tous"?S.gold:S.mutedLight, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                  Tous ({orders.filter(o => statusFilter==="encours"?isEnCours(o):!isEnCours(o)).length})
+                </button>
+                {produitsUniques.map(p => {
+                  const count = orders.filter(o => (statusFilter==="encours"?isEnCours(o):!isEnCours(o)) && (o.product||"").toLowerCase().includes(p.toLowerCase())).length
+                  return (
+                    <button key={p} onClick={() => setProduitFilter(p)}
+                      style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?S.gold:S.border}`, background:produitFilter===p?`${S.gold}15`:"transparent", color:produitFilter===p?S.gold:S.mutedLight, fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {p} ({count})
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 6, marginBottom: 14, background: S.card, borderRadius: 12, padding: 4 }}>
               <button onClick={() => setStatusFilter("encours")}
                 style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, background: statusFilter === "encours" ? S.gold : "transparent", color: statusFilter === "encours" ? "#000" : S.text2 }}>
