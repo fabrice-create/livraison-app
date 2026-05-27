@@ -35,7 +35,7 @@ import ZonesView from "@/components/admin/ZonesView";
 import WidgetView from "@/components/admin/WidgetView";
 import FinancesView from "@/components/admin/FinancesView";
 import DashboardView from "@/components/admin/DashboardView";
-import StockViewExt from "@/components/admin/StockView";
+import StockView from "@/components/admin/StockView";
 import { normalizeRole, normDT, isEnCours, isHistorique, isToday, fmt, fmtDate, filterByPeriod, type PeriodFilter, callUrl, waUrl, clientWaMsg, statusStyle, setCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { toast, confirm, ToastContainer } from "@/components/ui/Toast";
