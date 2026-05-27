@@ -578,14 +578,14 @@ export function ClosureuseView() {
             {produitsUniques.length > 1 && (
               <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
                 <button onClick={() => setProduitFilter("tous")}
-                  style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?S.gold:S.border}`, background:produitFilter==="tous"?`${S.gold}15`:"transparent", color:produitFilter==="tous"?S.gold:S.mutedLight, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                  style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter==="tous"?S.gold:S.border}`, background:produitFilter==="tous"?`${S.gold}15`:"transparent", color:produitFilter==="tous"?S.gold:S.text2, fontSize:12, fontWeight:600, cursor:"pointer" }}>
                   Tous ({orders.filter(o => statusFilter==="encours"?isEnCours(o):!isEnCours(o)).length})
                 </button>
                 {produitsUniques.map(p => {
                   const count = orders.filter(o => (statusFilter==="encours"?isEnCours(o):!isEnCours(o)) && (o.product||"").toLowerCase().includes(p.toLowerCase())).length
                   return (
                     <button key={p} onClick={() => setProduitFilter(p)}
-                      style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?S.gold:S.border}`, background:produitFilter===p?`${S.gold}15`:"transparent", color:produitFilter===p?S.gold:S.mutedLight, fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?S.gold:S.border}`, background:produitFilter===p?`${S.gold}15`:"transparent", color:produitFilter===p?S.gold:S.text2, fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                       {p} ({count})
                     </button>
                   )
