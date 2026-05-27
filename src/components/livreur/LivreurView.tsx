@@ -287,11 +287,11 @@ export function LivreurView() {
   const progress = Math.min((todayDelivered.length / objective) * 100, 100);
 
   const navTabs = [
-    { id: "dashboard", label: "📊", full: "Dashboard" },
-    { id: "encours", label: "⚡", full: `En cours (${enCours.length})` },
-    { id: "historique", label: "📋", full: "Historique" },
-    { id: "commissions", label: "💰", full: "Commissions" },
-    { id: "stock", label: "📦", full: "Stock" },
+    { id: "dashboard", label: "dashboard", full: "Dashboard" },
+    { id: "encours", label: "clock", full: `En cours (${enCours.length})` },
+    { id: "historique", label: "history", full: "Historique" },
+    { id: "commissions", label: "money", full: "Commissions" },
+    { id: "stock", label: "stock", full: "Stock" },
   ];
 
   if (loading) return (
@@ -408,7 +408,7 @@ export function LivreurView() {
                 />
               ) : (
                 <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 14, padding: 14, marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>✅</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   <p style={{ fontSize: 13, color: S.success, fontWeight: 600 }}>Caisse à jour — rien à remettre</p>
                 </div>
               )
@@ -437,12 +437,12 @@ export function LivreurView() {
                 <p style={{ fontSize: 11, color: S.text3 }}>En cours</p>
               </div>
               <div style={{ background: S.successBg, border: `1px solid ${S.success}30`, borderRadius: 14, padding: 14, textAlign: "center" }}>
-                <p style={{ fontSize: 24, marginBottom: 4 }}>✅</p>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 <p style={{ fontSize: 22, fontWeight: 800, color: S.success }}>{todayDelivered.length}</p>
                 <p style={{ fontSize: 11, color: S.text3 }}>Livrées</p>
               </div>
               <div style={{ background: "#1a1200", border: `1px solid ${S.gold}30`, borderRadius: 14, padding: 14, textAlign: "center" }}>
-                <p style={{ fontSize: 24, marginBottom: 4 }}>💰</p>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                 <p style={{ fontSize: 14, fontWeight: 800, color: S.gold }}>{todayCommission.toLocaleString("fr-FR")} F</p>
                 <p style={{ fontSize: 11, color: S.text3 }}>Commission</p>
               </div>
@@ -599,7 +599,7 @@ export function LivreurView() {
             <p style={{ fontSize: 11, color: S.text3, fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>DÉTAIL PAR LIVRAISON</p>
             {filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0)).length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", background: S.card, borderRadius: 16, color: S.text3 }}>
-                <p style={{ fontSize: 32, marginBottom: 8 }}>💰</p><p>Aucune commission sur cette période</p>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><p>Aucune commission sur cette période</p>
               </div>
             ) : filterByPeriod(orders.filter(o => o.driver_commission && o.driver_commission > 0)).map(order => (
               <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: S.card, border: `1px solid ${S.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
