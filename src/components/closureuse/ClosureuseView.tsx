@@ -133,7 +133,7 @@ export function ClosureuseView() {
       // Données en parallèle
       const [driversRes, ordersRes, stockRes] = await Promise.all([
         tid ? supabase.from("profiles")
-          .select("id, full_name, role, is_active, is_available")
+          .select("id, full_name, role, is_active, is_available, zone_id, zone_nom")
           .eq("tenant_id", tid).eq("is_active", true).ilike("role", "livreur")
           : Promise.resolve({ data: [] }),
         tid ? supabase.from("orders")
@@ -146,14 +146,20 @@ export function ClosureuseView() {
           : Promise.resolve({ data: [] }),
       ]);
 
-      setDrivers((driversRes.data || []) as Profile[]);
+      // Filtrer livreurs par zone de la closeuse
+      const allDrivers = (driversRes.data || []) as Profile[]
+      const myZoneId = (p as any)?.zone_id
+      const zoneDrivers = myZoneId
+        ? allDrivers.filter(d => (d as any).zone_id === myZoneId)
+        : allDrivers
+      setDrivers(zoneDrivers);
+
+      // Filtrer commandes par zone de la closeuse
       const allOrders = (ordersRes.data || []) as Order[]
-    // Filtrer par zone si la closeuse est assignée à une zone
-    const myZoneId = (p as any)?.zone_id
-    const filtered = myZoneId
-      ? allOrders.filter(o => o.zone_id === myZoneId || !o.zone_id)
-      : allOrders
-    setOrders(filtered);
+      const filtered = myZoneId
+        ? allOrders.filter(o => o.zone_id === myZoneId || !o.zone_id)
+        : allOrders
+      setOrders(filtered);
       setDriverStocks((stockRes.data || []) as DriverStock[]);
       setLoading(false);
 
@@ -210,12 +216,14 @@ export function ClosureuseView() {
         const now = new Date().toISOString();
         const { error } = await supabase.from("orders").update({
           status: "Confirmé",
-      confirmed_at: now,
-      closer_id: profile?.id || null,
-      closer_name: profile?.full_name || null,
-    }).eq("id", id);
+          confirmed_at: now,
+          closer_id: profile?.id || null,
+          closer_name: profile?.full_name || null,
+          zone_id: profile?.zone_id || null,
+          zone_nom: profile?.zone_nom || null,
+        }).eq("id", id);
     if (error) { toast("Erreur : " + error.message, "error"); return; }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id || null, closer_name: profile?.full_name || null } : o));
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "Confirmé", confirmed_at: now, closer_id: profile?.id, zone_id: profile?.zone_id || null, zone_nom: profile?.zone_nom || null || null, closer_name: profile?.full_name || null } : o));
     // SMS confirmation client
     const order = orders.find(o => o.id === id);
     if (order && profile?.tenant_id) {
