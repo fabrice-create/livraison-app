@@ -382,7 +382,7 @@ function CommissionsView({ orders, closers }: { orders: Order[]; closers: Profil
 }
 
 // ─── Types Phase 4 ───────────────────────────────────────────
-type WarehouseStock = { id: number; product_name: string; quantity: number; alert_threshold: number; created_at?: string | null; updated_at?: string | null; };
+type WarehouseStock = { id: string; tenant_id: string; product_name: string; quantity: number; alert_threshold: number; created_at?: string; updated_at?: string; };
 type StockMouvement = { id: number; created_at: string; product_name: string; type: string; quantity: number; from_driver: string; to_driver: string; note?: string | null; created_by?: string | null; };
 type StockDemande = { id: number; created_at: string; driver_id: string; driver_name: string; product_name: string; quantity_requested: number; status: string; note?: string | null; };
 
@@ -496,6 +496,7 @@ export function AdminView() {
   const [activeView, setActiveView]     = useState("dashboard");
   const [form, setForm]                 = useState<OrderFormData>(EMPTY_FORM);
   const [stockForm, setStockForm]       = useState<StockFormData>(EMPTY_STOCK);
+  const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([]);
   const [selectedDrivers, setSelectedDrivers] = useState<Record<number, string>>({});
   const [selectedActions, setSelectedActions] = useState<Record<number, string>>({});
   const [confirmAction, setConfirmAction]     = useState<{ order: Order; action: string } | null>(null);
@@ -530,7 +531,7 @@ export function AdminView() {
     if (td) setTenantSlug(td.slug || "");
 
     // Tout en parallèle — beaucoup plus rapide
-    const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes] = await Promise.all([
+    const [tenantRes, profilesRes, ordersRes, stockRes, zonesRes, warehouseRes] = await Promise.all([
       tid ? supabase.from("tenants")
         .select("driver_commission, closer_commission, currency, name")
         .eq("id", tid).single()
@@ -549,6 +550,8 @@ export function AdminView() {
         : Promise.resolve({ data: [] }),
       tid ? supabase.from("zones").select("*").eq("tenant_id", tid).eq("is_active", true)
         : Promise.resolve({ data: [] }),
+      tid ? supabase.from("warehouse_stock").select("*").eq("tenant_id", tid).order("product_name")
+        : Promise.resolve({ data: [] }),
     ]);
 
     if (tenantRes.data) {
@@ -564,6 +567,7 @@ export function AdminView() {
     setOrders((ordersRes.data || []) as Order[]);
     setDriverStocks((stockRes.data || []) as DriverStock[]);
     if (zonesRes?.data) setZones(zonesRes.data as Zone[]);
+    setWarehouseStocks((warehouseRes?.data || []) as WarehouseStock[]);
     setAuthLoading(false);
   };
 
@@ -771,7 +775,7 @@ export function AdminView() {
         {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
-        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} stockForm={stockForm} stockLoading={stockLoading} tenantId={tenantId} onStockChange={handleStockChange} onStockSubmit={handleAddStock} onRefresh={() => { void supabase.from("driver_stock").select("*").eq("tenant_id", tenantId).then(({data}) => { if(data) setDriverStocks(data as DriverStock[]) }) }} />}
+        {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} warehouseStocks={warehouseStocks} stockForm={stockForm} stockLoading={stockLoading} tenantId={tenantId} onStockChange={handleStockChange} onStockSubmit={handleAddStock} onRefresh={() => { void supabase.from("driver_stock").select("*").eq("tenant_id", tenantId).then(({data}) => { if(data) setDriverStocks(data as DriverStock[]) }); void supabase.from("warehouse_stock").select("*").eq("tenant_id", tenantId).then(({data}) => { if(data) setWarehouseStocks(data as WarehouseStock[]) }) }} />}
         {activeView === "finances"    && <FinancesView orders={orders} drivers={drivers} closers={closers} profile={profile} tenantId={tenantId || ""} />}
         {activeView === "commissions" && <CommissionsView orders={orders} closers={closers} />}
         {activeView === "produits"    && tenantId && <ProduitsView tenantId={tenantId} tenantSlug={tenantSlug} />}
