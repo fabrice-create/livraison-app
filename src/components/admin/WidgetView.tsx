@@ -34,6 +34,8 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
   const [merciBtnUrl, setMerciBtnUrl] = useState("")
   const [copied, setCopied] = useState(false)
   const [activeCode, setActiveCode] = useState<"produit"|"boutique">("produit")
+  const [products, setProducts] = useState<{id:string;nom:string;slug:string;prix:number;page_content:string}[]>([])
+  const [selectedProduit, setSelectedProduit] = useState("")
 
   useEffect(() => {
     const load = async () => {
@@ -54,6 +56,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
       }
     }
     load()
+    supabase.from("products").select("id,nom,slug,prix,page_content").eq("tenant_id", tenantId).eq("is_active", true).order("nom").then(({data}) => { if(data) setProducts(data as any) })
   }, [tenantId])
 
   const handleSave = async () => {
@@ -72,21 +75,27 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  // Produit sélectionné et ses offres
+  const produitActif = products.find(p => p.id === selectedProduit) || null
+  const offresActif = (() => {
+    if (!produitActif?.page_content) return []
+    try {
+      const pc = JSON.parse(produitActif.page_content)
+      return pc?.offres_actif && pc?.offres?.length ? pc.offres : []
+    } catch { return [] }
+  })()
+  const offresParam = offresActif.length > 0
+    ? `&offres=${encodeURIComponent(JSON.stringify(offresActif))}`
+    : ""
+  const prodNom = produitActif ? encodeURIComponent(produitActif.nom) : "NOM_PRODUIT"
+  const prodPrix = produitActif ? produitActif.prix : 0
+  const prodSlug = produitActif ? produitActif.slug : ""
+
   const previewUrl = `https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=Mon+Produit&produit_prix=15000&mode=full`
 
-  const codesProduit = `<iframe 
-  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=PRIX&mode=full" 
-  width="100%" height="620" frameborder="0" 
-  style="border-radius:12px;border:none;">
-</iframe>
-<script>
-  // Resize automatique
-  window.addEventListener('message', function(e) {
-    if(e.data.type === 'shipivo-resize') {
-      document.querySelector('iframe').style.height = e.data.height + 'px';
-    }
-  });
-</script>`
+  const codesProduit = produitActif
+    ? `<iframe \n  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=${prodNom}&produit_prix=${prodPrix}${offresParam}&mode=full" \n  width="100%" height="620" frameborder="0" \n  style="border-radius:12px;border:none;">\n</iframe>\n<script>\n  window.addEventListener('message', function(e) {\n    if(e.data.type === 'shipivo-resize') {\n      document.querySelector('iframe').style.height = e.data.height + 'px';\n    }\n  });\n</script>`
+    : `<iframe \n  src="https://shipivo.app/widget?boutique=${tenantSlug}&produit_nom=NOM_PRODUIT&produit_prix=PRIX&mode=full" \n  width="100%" height="620" frameborder="0" \n  style="border-radius:12px;border:none;">\n</iframe>\n<script>\n  window.addEventListener('message', function(e) {\n    if(e.data.type === 'shipivo-resize') {\n      document.querySelector('iframe').style.height = e.data.height + 'px';\n    }\n  });\n</script>`
 
   const codesBoutique = `<iframe 
   src="https://shipivo.app/widget?boutique=${tenantSlug}" 
@@ -306,6 +315,34 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
             </div>
 
             {activeCode === "produit" && (
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>
+                  SÉLECTIONNER UN PRODUIT (optionnel)
+                </label>
+                <select value={selectedProduit} onChange={e=>setSelectedProduit(e.target.value)}
+                  style={{ width:"100%", background:S.bg, border:`1px solid ${S.border}`, borderRadius:8, padding:"9px 12px", color:S.white, fontSize:13, outline:"none", boxSizing:"border-box" as const }}>
+                  <option value="">-- Saisir manuellement --</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.nom} — {p.prix.toLocaleString("fr-FR")} FCFA</option>)}
+                </select>
+                {produitActif && offresActif.length > 0 && (
+                  <div style={{ marginTop:10, background:"rgba(74,222,128,0.06)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:8, padding:"10px 12px" }}>
+                    <p style={{ color:"#4ADE80", fontSize:11, fontWeight:700, margin:"0 0 8px" }}>✅ {offresActif.length} offre(s) détectée(s) — intégrées automatiquement</p>
+                    {offresActif.map((o: any, i: number) => (
+                      <p key={i} style={{ color:S.muted2, fontSize:12, margin:"2px 0" }}>
+                        {o.populaire ? "⭐" : "•"} {o.label} — {o.prix.toLocaleString("fr-FR")} FCFA
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {produitActif && offresActif.length === 0 && (
+                  <p style={{ color:S.muted, fontSize:11, marginTop:8 }}>
+                    ⚠️ Ce produit n'a pas d'offres configurées — le prix simple sera utilisé.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeCode === "produit" && !produitActif && (
               <div style={{ background:"rgba(255,255,255,0.03)", borderRadius:8, padding:"6px 10px", marginBottom:10 }}>
                 <p style={{ color:"#4ADE80", fontSize:11, margin:0 }}>
                   💡 Remplace <strong>NOM_PRODUIT</strong> et <strong>PRIX</strong> par les valeurs de ton produit WordPress/Shopify.
@@ -328,7 +365,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
                 <li>Va dans ta page produit WordPress</li>
                 <li>Ajoute un bloc <strong style={{color:S.white}}>HTML personnalisé</strong></li>
                 <li>Colle le code ci-dessus</li>
-                <li>Remplace NOM_PRODUIT et PRIX</li>
+                {!produitActif && <li>Remplace NOM_PRODUIT et PRIX</li>}
                 <li>Publie ta page</li>
               </ol>
             </div>
