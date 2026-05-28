@@ -143,6 +143,32 @@ export default function DashboardView({ orders, driverStocks }: Props) {
     return Object.entries(map).sort((a, b) => b[1].delivered - a[1].delivered)
   }, [periodOrders])
 
+  // Stats par zone
+  const zoneStats = useMemo(() => {
+    const zones: Record<string, {
+      nom: string; total: number; confirmed: number;
+      delivered: number; cancelled: number; pending: number;
+      ca: number; pending_amount: number;
+    }> = {}
+    periodOrders.forEach(o => {
+      const z = o.zone_nom || "Sans zone"
+      if (!zones[z]) zones[z] = { nom: z, total:0, confirmed:0, delivered:0, cancelled:0, pending:0, ca:0, pending_amount:0 }
+      zones[z].total++
+      const s = o.status ?? ""
+      if (["Confirmé","Assigné","En livraison","Livré"].includes(s)) zones[z].confirmed++
+      if (s === "Livré") {
+        zones[z].delivered++
+        if (o.cash_collected) zones[z].ca += Number(o.amount || 0)
+      }
+      if (s === "Annulé") zones[z].cancelled++
+      if (!["Livré","Annulé"].includes(s)) {
+        zones[z].pending++
+        if (!o.cash_collected) zones[z].pending_amount += Number(o.amount || 0)
+      }
+    })
+    return Object.values(zones).sort((a, b) => b.total - a.total)
+  }, [periodOrders])
+
   // Graphique 7 jours
   const chartData = useMemo(() => getLast7Days(orders), [orders])
   const chartMax = useMemo(() => {
@@ -354,22 +380,82 @@ export default function DashboardView({ orders, driverStocks }: Props) {
           </div>
         </>
       )}
-    </div>
-  )
-}
 
-// ---- Sous-composants ----
+      {/* ── STATS PAR ZONE ── */}
+      {zoneStats.length >= 2 && (
+        <div style={{ marginTop: 28 }}>
+          <p style={{ color: S.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+            🌍 PERFORMANCE PAR ZONE — {getPeriodLabel(period)}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {zoneStats.filter(z => z.nom !== "Sans zone").map(z => {
+              const confirmRate = z.total > 0 ? Math.round((z.confirmed / z.total) * 100) : 0
+              const deliveryRate = z.confirmed > 0 ? Math.round((z.delivered / z.confirmed) * 100) : 0
+              return (
+                <div key={z.nom} style={{ background: S.card, border: `1px solid ${S.border}`, borderRadius: 14, padding: 16 }}>
+                  {/* En-tête zone */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <p style={{ color: S.text, fontSize: 15, fontWeight: 800, margin: 0 }}>{z.nom}</p>
+                    <span style={{ color: S.gold, fontSize: 13, fontWeight: 700 }}>{z.total} commandes</span>
+                  </div>
+                  {/* KPIs */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>Reçues</p>
+                      <p style={{ color: S.blue, fontSize: 18, fontWeight: 800, margin: 0 }}>{z.total}</p>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>Livrées</p>
+                      <p style={{ color: S.green, fontSize: 18, fontWeight: 800, margin: 0 }}>{z.delivered}</p>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>Annulées</p>
+                      <p style={{ color: S.red, fontSize: 18, fontWeight: 800, margin: 0 }}>{z.cancelled}</p>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>En cours</p>
+                      <p style={{ color: S.orange, fontSize: 18, fontWeight: 800, margin: 0 }}>{z.pending}</p>
+                    </div>
+                  </div>
+                  {/* Taux + CA */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                    <div style={{ background: S.card2, borderRadius: 8, padding: "8px 12px" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>Taux confirmation</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <p style={{ color: S.blue, fontSize: 16, fontWeight: 800, margin: 0 }}>{confirmRate}%</p>
+                        <div style={{ flex: 1, background: S.border, borderRadius: 4, height: 6 }}>
+                          <div style={{ width: `${confirmRate}%`, background: S.blue, borderRadius: 4, height: "100%" }} />
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ background: S.card2, borderRadius: 8, padding: "8px 12px" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>Taux livraison</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <p style={{ color: S.green, fontSize: 16, fontWeight: 800, margin: 0 }}>{deliveryRate}%</p>
+                        <div style={{ flex: 1, background: S.border, borderRadius: 4, height: 6 }}>
+                          <div style={{ width: `${deliveryRate}%`, background: S.green, borderRadius: 4, height: "100%" }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* CA */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ background: "linear-gradient(135deg,#052E16,#065F46)", border: `1px solid ${S.greenBorder}`, borderRadius: 8, padding: "8px 12px" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>💵 CA encaissé</p>
+                      <p style={{ color: S.green, fontSize: 14, fontWeight: 800, margin: 0 }}>{fmt(z.ca)}</p>
+                    </div>
+                    <div style={{ background: "linear-gradient(135deg,#450A0A,#7F1D1D)", border: `1px solid ${S.redBorder}`, borderRadius: 8, padding: "8px 12px" }}>
+                      <p style={{ color: S.text2, fontSize: 10, margin: "0 0 4px" }}>⏳ En attente</p>
+                      <p style={{ color: S.red, fontSize: 14, fontWeight: 800, margin: 0 }}>{fmt(z.pending_amount)}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
-function SectionTitle({ title }: { title: string }) {
-  return <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10, marginTop: 4 }}>{title}</p>
-}
-
-function MiniStat({ label, value, sub, color = "white", small = false }: { label: string; value: string | number; sub: string; color?: string; small?: boolean }) {
-  return (
-    <div style={{ background: "#111118", border: "1px solid #1E1E2E", borderRadius: 12, padding: 12, textAlign: "center" }}>
-      <p style={{ fontSize: 11, color: "#9898B0", margin: "0 0 4px 0" }}>{label}</p>
-      <p style={{ fontSize: small ? 16 : 26, fontWeight: 800, color, margin: "0 0 2px 0" }}>{value}</p>
-      <p style={{ fontSize: 10, color: "#55556A", margin: 0 }}>{sub}</p>
     </div>
   )
 }
@@ -396,6 +482,22 @@ function RateCard({ label, rate, color }: { label: string; rate: number; color: 
           <div style={{ width: `${rate}%`, background: color, borderRadius: 4, height: "100%", transition: "width 0.5s" }} />
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---- Sous-composants ----
+
+function SectionTitle({ title }: { title: string }) {
+  return <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10, marginTop: 4 }}>{title}</p>
+}
+
+function MiniStat({ label, value, sub, color = "white", small = false }: { label: string; value: string | number; sub: string; color?: string; small?: boolean }) {
+  return (
+    <div style={{ background: "#111118", border: "1px solid #1E1E2E", borderRadius: 12, padding: 12, textAlign: "center" }}>
+      <p style={{ fontSize: 11, color: "#9898B0", margin: "0 0 4px 0" }}>{label}</p>
+      <p style={{ fontSize: small ? 16 : 26, fontWeight: 800, color, margin: "0 0 2px 0" }}>{value}</p>
+      <p style={{ fontSize: 10, color: "#55556A", margin: 0 }}>{sub}</p>
     </div>
   )
 }
