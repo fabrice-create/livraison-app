@@ -564,7 +564,7 @@ export function AdminView() {
         .eq("tenant_id", tid).eq("is_active", true).order("full_name")
         : Promise.resolve({ data: [] }),
       tid ? supabase.from("orders")
-        .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id, payment_status, zone_id, zone_nom")
+        .select("id, customer_name, phone, city, address, product, quantity, amount, status, logistic_status, driver_name, closer_name, closer_id, assigned_driver_id, cash_collected, source, created_at, confirmed_at, delivered_at, cancelled_at, driver_commission, closer_commission, note, tenant_id, payment_status")
         .eq("tenant_id", tid).order("id", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
       tid ? supabase.from("driver_stock")
