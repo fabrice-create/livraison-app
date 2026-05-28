@@ -280,6 +280,7 @@ export function ClosureuseView() {
       cash_collected: false, is_assigned: false,
       closer_id: profile?.id, closer_name: profile?.full_name,
       closer_commission: 0, driver_commission: 0, commission_calculated: false,
+      zone_id: profile?.zone_id || null, zone_nom: profile?.zone_nom || null,
     }]).select();
     if (error) { toast("Erreur : " + error.message, "error"); setCreateLoading(false); return; }
     // Ne PAS ajouter manuellement — le realtime gère l'INSERT automatiquement
