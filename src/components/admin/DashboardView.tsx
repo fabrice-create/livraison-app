@@ -382,13 +382,13 @@ export default function DashboardView({ orders, driverStocks }: Props) {
       )}
 
       {/* ── STATS PAR ZONE ── */}
-      {zoneStats.length >= 2 && (
+      {zoneStats.length >= 1 && (
         <div style={{ marginTop: 28 }}>
           <p style={{ color: S.text2, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
             🌍 PERFORMANCE PAR ZONE — {getPeriodLabel(period)}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {zoneStats.filter(z => z.nom !== "Sans zone").map(z => {
+            {zoneStats.map(z => {
               const confirmRate = z.total > 0 ? Math.round((z.confirmed / z.total) * 100) : 0
               const deliveryRate = z.confirmed > 0 ? Math.round((z.delivered / z.confirmed) * 100) : 0
               return (
