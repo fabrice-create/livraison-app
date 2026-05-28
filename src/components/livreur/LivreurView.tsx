@@ -140,7 +140,7 @@ export function LivreurView() {
       // Charger commandes et stock en parallèle
       const [ordersRes, stockRes] = await Promise.all([
         supabase.from("orders")
-          .select("id, customer_name, phone, city, address, product, quantity, amount, status, driver_name, assigned_driver_id, cash_collected, created_at, delivered_at, driver_commission, closer_id, closer_commission, note, tenant_id")
+          .select("id, customer_name, phone, city, address, product, quantity, amount, status, driver_name, assigned_driver_id, cash_collected, created_at, delivered_at, driver_commission, note, tenant_id")
           .eq("assigned_driver_id", user.id)
           .in("status", ["Confirmé", "Livré", "Annulé"])
           .order("id", { ascending: false })
