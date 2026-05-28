@@ -174,19 +174,23 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
   const [search, setSearch]       = useState("");
   const [driverFilter, setDriverFilter] = useState("Tous");
   const [produitFilter, setProduitFilter] = useState("tous");
+  const [zoneFilter, setZoneFilter] = useState("toutes");
 
   const now      = new Date();
   const todayStr = now.toDateString();
 
   // Produits uniques pour le filtre
   const produitsUniques = Array.from(new Set(orders.map(o => o.product || "").filter(Boolean))).sort();
+  // Zones uniques pour le filtre
+  const zonesUniques = Array.from(new Set(orders.map(o => o.zone_nom || "").filter(Boolean))).sort();
 
   const filterFn = (o: Order) => {
     const matchDriver  = driverFilter === "Tous" || o.driver_name === driverFilter;
     const matchProduit = produitFilter === "tous" || (o.product || "").toLowerCase().includes(produitFilter.toLowerCase());
     const q = search.toLowerCase();
     const matchSearch  = !q || [o.customer_name, o.phone, o.city, o.driver_name || "", o.product || ""].join(" ").toLowerCase().includes(q);
-    return matchDriver && matchProduit && matchSearch;
+    const matchZone = zoneFilter === "toutes" || (o.zone_nom || "") === zoneFilter;
+    return matchDriver && matchProduit && matchSearch && matchZone;
   };
 
   const enCours    = orders.filter(isEnCours);
@@ -229,6 +233,25 @@ function CommandesView({ orders, drivers, history, selectedDrivers, selectedActi
               <button key={p} onClick={() => setProduitFilter(p)}
                 style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${produitFilter===p?S.gold:"rgba(255,255,255,0.1)"}`, background:produitFilter===p?"rgba(245,158,11,0.12)":"transparent", color:produitFilter===p?S.gold:"#9898B0", fontSize:12, fontWeight:600, cursor:"pointer", maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>
                 {p} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Filtre par zone */}
+      {zonesUniques.length >= 2 && (
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" as const, marginBottom:14 }}>
+          <button onClick={() => setZoneFilter("toutes")}
+            style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${zoneFilter==="toutes"?"#F59E0B":"rgba(255,255,255,0.1)"}`, background:zoneFilter==="toutes"?"rgba(245,158,11,0.1)":"transparent", color:zoneFilter==="toutes"?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer", fontWeight:zoneFilter==="toutes"?700:400 }}>
+            🌍 Toutes zones ({orders.length})
+          </button>
+          {zonesUniques.map(z => {
+            const count = orders.filter(o => o.zone_nom === z).length;
+            return (
+              <button key={z} onClick={() => setZoneFilter(z)}
+                style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${zoneFilter===z?"#F59E0B":"rgba(255,255,255,0.1)"}`, background:zoneFilter===z?"rgba(245,158,11,0.1)":"transparent", color:zoneFilter===z?"#F59E0B":"#9898B0", fontSize:12, cursor:"pointer", fontWeight:zoneFilter===z?700:400 }}>
+                {z} ({count})
               </button>
             );
           })}
