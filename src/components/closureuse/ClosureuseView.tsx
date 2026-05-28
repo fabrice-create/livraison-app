@@ -156,8 +156,13 @@ export function ClosureuseView() {
 
       // Filtrer commandes par zone de la closeuse
       const allOrders = (ordersRes.data || []) as Order[]
+      const myProfileId = p?.id
       const filtered = myZoneId
-        ? allOrders.filter(o => o.zone_id === myZoneId || !o.zone_id)
+        ? allOrders.filter(o =>
+            o.zone_id === myZoneId ||
+            o.closer_id === myProfileId ||
+            (!o.zone_id && !o.closer_id)
+          )
         : allOrders
       setOrders(filtered);
       setDriverStocks((stockRes.data || []) as DriverStock[]);
