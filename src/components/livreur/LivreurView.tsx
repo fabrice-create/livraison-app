@@ -189,7 +189,7 @@ export function LivreurView() {
         const order = orders.find(o => o.id === id);
         if (!order) return;
         const now = new Date().toISOString();
-        const closerComm = order.closer_id ? 500 : 0;
+        const closerComm = order.closer_id ? commissionRules.closer : 0;
         const payload = {
           status: "Livré", logistic_status: "Livré", payment_status: "Payé",
           cash_collected: true, cash_collected_at: now,
@@ -231,7 +231,7 @@ export function LivreurView() {
       onConfirm: async () => {
         const order = orders.find(o => o.id === id);
         const now = new Date().toISOString();
-        const closerComm = order?.closer_id ? 500 : 0;
+        const closerComm = order?.closer_id ? commissionRules.closer : 0;
         const payload = {
           status: "Livré", logistic_status: "Envoyé à la gare", payment_status: "Payé",
           cash_collected: true, cash_collected_at: now,
