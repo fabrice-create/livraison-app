@@ -157,7 +157,7 @@ export function ClosureuseView() {
       // Filtrer commandes par zone de la closeuse
       const allOrders = (ordersRes.data || []) as Order[]
       const filtered = myZoneId
-        ? allOrders.filter(o => o.zone_id === myZoneId || !o.zone_id)
+        ? allOrders.filter(o => o.zone_id === myZoneId || o.closer_id === p?.id || (!o.zone_id && !o.closer_id))
         : allOrders
       setOrders(filtered);
       setDriverStocks((stockRes.data || []) as DriverStock[]);
@@ -180,7 +180,7 @@ export function ClosureuseView() {
     // Filtrage par zone appliqué après chargement du profil
     const myZoneIdReload = profile?.zone_id
     const filteredReload = myZoneIdReload
-      ? allOrders.filter((o: Order) => o.zone_id === myZoneIdReload || !o.zone_id)
+      ? allOrders.filter((o: Order) => o.zone_id === myZoneIdReload || o.closer_id === profile?.id || (!o.zone_id && !o.closer_id))
       : allOrders
     setOrders(filteredReload);
     const driverList = (profilesRes.data as Profile[]) || [];
