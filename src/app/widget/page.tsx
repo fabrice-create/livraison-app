@@ -59,11 +59,12 @@ function WidgetContent() {
     load()
   }, [slug, produitId])
 
-  // Parser les offres depuis l'URL
+  // Parser les offres depuis l'URL — gère simple et double encodage
   const offresData = (() => {
-    if (produitOffres) {
-      try { return JSON.parse(decodeURIComponent(produitOffres)) } catch {}
-    }
+    if (!produitOffres) return []
+    try { return JSON.parse(decodeURIComponent(produitOffres)) } catch {}
+    try { return JSON.parse(decodeURIComponent(decodeURIComponent(produitOffres))) } catch {}
+    try { return JSON.parse(produitOffres) } catch {}
     return []
   })()
   const offres: {quantite:number;label:string;prix:number;populaire:boolean;badge:string}[] = offresData
