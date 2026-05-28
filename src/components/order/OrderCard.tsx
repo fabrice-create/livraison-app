@@ -70,7 +70,14 @@ export default function OrderCard({
       {/* En-tête client */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
         <div>
-          <p style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{order.customer_name}</p>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:2 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, margin:0 }}>{order.customer_name}</p>
+            {order.zone_nom && (
+              <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20, background:"rgba(96,165,250,0.15)", color:"#60A5FA", border:"1px solid rgba(96,165,250,0.3)" }}>
+                {order.zone_nom}
+              </span>
+            )}
+          </div>
           <p style={{ fontSize: 13, color: "#9ca3af" }}>📍 {order.city} · {order.phone}</p>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
