@@ -401,7 +401,7 @@ function WidgetContent() {
           </div>
         )}
 
-        {(FORM_STYLE !== "stepper" || step === 2) && (
+        {(FORM_STYLE !== "stepper" || step === 2) && (<>
         <div>
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
             Prénom et nom <span style={{color:AC}}>*</span>
