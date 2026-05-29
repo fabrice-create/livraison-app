@@ -487,10 +487,29 @@ function WidgetContent() {
           </div>
         )}
 
+        {/* Bouton Suivant — étape 1 stepper */}
+        {FORM_STYLE === "stepper" && step === 1 && (
+          <button type="button" onClick={()=>setStep(2)}
+            style={{ width:"100%", background:AC, border:"none", borderRadius:12, padding:"15px", fontSize:15, fontWeight:800, cursor:"pointer", color:"#000" }}>
+            Suivant → Mes informations
+          </button>
+        )}
+
+        {/* Bouton Retour — étape 2 stepper */}
+        {FORM_STYLE === "stepper" && step === 2 && (
+          <button type="button" onClick={()=>setStep(1)}
+            style={{ width:"100%", background:"transparent", border:`1px solid ${BORDER}`, borderRadius:12, padding:"10px", fontSize:13, fontWeight:600, cursor:"pointer", color:TX2, marginBottom:8 }}>
+            ← Retour aux offres
+          </button>
+        )}
+
+        {/* Bouton Commander — toujours visible en mode normal, visible étape 2 en stepper */}
+        {(FORM_STYLE !== "stepper" || step === 2) && (
         <button onClick={handleSubmit} disabled={submitting}
           style={{ width:"100%", ...btnStyle, borderRadius:12, padding:"15px", fontSize:15, fontWeight:800, cursor:submitting?"not-allowed":"pointer", opacity:submitting?0.7:1, fontFamily:FONT, transition:"all 0.2s" }}>
           {submitting ? "Envoi en cours..." : `✅ ${BTN_TEXT} · ${prixFinal.toLocaleString("fr-FR")} ${boutique?.currency||"FCFA"}`}
         </button>
+        )}
 
         <p style={{ textAlign:"center", color:TX2, fontSize:11, margin:0 }}>
           🔒 Vos données sont sécurisées · Propulsé par{" "}
