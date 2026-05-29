@@ -77,6 +77,7 @@ function WidgetContent() {
 
   const [dialCode, setDialCode] = useState("+228")
   const [showPicker, setShowPicker] = useState(false)
+  const [step, setStep] = useState<1|2>(1)
   const [selectedOffre, setSelectedOffre] = useState<number>(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -84,7 +85,7 @@ function WidgetContent() {
     const load = async () => {
       if (!slug) return
       const { data: tenant } = await supabase.from("tenants")
-        .select("id,name,slug,phone,delivery_fee,currency,brand_color,widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre,widget_redirect_url,widget_merci_titre,widget_merci_message,widget_merci_bouton_texte,widget_merci_bouton_url")
+        .select("id,name,slug,phone,delivery_fee,currency,brand_color,widget_couleur,widget_fond,widget_police,widget_btn_text,widget_btn_style,widget_titre,widget_sous_titre,widget_redirect_url,widget_merci_titre,widget_merci_message,widget_merci_bouton_texte,widget_merci_bouton_url,widget_form_style")
         .eq("slug", slug).single()
       if (tenant) setBoutique(tenant)
       if (produitId) {
@@ -193,6 +194,7 @@ function WidgetContent() {
   const TX2 = isDark ? "#9898B0" : "#6B7280"
   const FONT = boutique?.widget_police || "Inter"
   const BTN_TEXT = boutique?.widget_btn_text || "Commander — Paiement à la livraison"
+  const FORM_STYLE = (boutique as any)?.widget_form_style || "normal"
   const BTN_STYLE = boutique?.widget_btn_style || "full"
   const TITRE = boutique?.widget_titre || "Commander maintenant"
   const SOUS_TITRE = boutique?.widget_sous_titre || "Paiement à la livraison · Livraison rapide"
@@ -371,6 +373,21 @@ function WidgetContent() {
         </div>
       )}
 
+      {/* Indicateur d'étapes si stepper */}
+      {FORM_STYLE === "stepper" && (
+        <div style={{ display:"flex", alignItems:"center", gap:0, marginBottom:16 }}>
+          <div style={{ flex:1, textAlign:"center" as const }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", background:step>=1?AC:"transparent", border:`2px solid ${step>=1?AC:BORDER}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 4px", fontSize:13, fontWeight:700, color:step>=1?"#000":TX2 }}>1</div>
+            <p style={{ color:step>=1?AC:TX2, fontSize:11, margin:0, fontWeight:step===1?700:400 }}>Offre</p>
+          </div>
+          <div style={{ flex:1, height:2, background:step>=2?AC:BORDER, margin:"0 4px", marginBottom:18 }} />
+          <div style={{ flex:1, textAlign:"center" as const }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", background:step>=2?AC:"transparent", border:`2px solid ${step>=2?AC:BORDER}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 4px", fontSize:13, fontWeight:700, color:step>=2?"#000":TX2 }}>2</div>
+            <p style={{ color:step>=2?AC:TX2, fontSize:11, margin:0, fontWeight:step===2?700:400 }}>Infos</p>
+          </div>
+        </div>
+      )}
+
       {/* Champs */}
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
 
@@ -384,6 +401,7 @@ function WidgetContent() {
           </div>
         )}
 
+        {(FORM_STYLE !== "stepper" || step === 2) && (
         <div>
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
             Prénom et nom <span style={{color:AC}}>*</span>
