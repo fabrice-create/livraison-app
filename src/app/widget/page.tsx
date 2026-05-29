@@ -136,11 +136,10 @@ function WidgetContent() {
     if (err) { setError(err.message); setSubmitting(false); return }
     window.parent.postMessage({ type:"shipivo-success", order:{ customer:form.customer_name, phone:fullPhone, product:productName } }, "*")
     setSuccess(true); setSubmitting(false)
-    // Rediriger vers WordPress si URL configurée
+    // Rediriger immédiatement si URL configurée — sans afficher page Shipivo
     if (boutique?.widget_redirect_url) {
-      setTimeout(() => {
-        window.parent.location.href = boutique.widget_redirect_url!
-      }, 2000)
+      window.parent.location.href = boutique.widget_redirect_url
+      return
     }
   }
 
