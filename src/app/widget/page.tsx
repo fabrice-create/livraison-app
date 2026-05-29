@@ -44,6 +44,37 @@ function WidgetContent() {
     {flag:"🇬🇭",code:"+233"},{flag:"🇨🇲",code:"+237"},{flag:"🇲🇦",code:"+212"},
     {flag:"🇫🇷",code:"+33"},{flag:"🇧🇪",code:"+32"},{flag:"🇬🇧",code:"+44"},{flag:"🇺🇸",code:"+1"},
   ]
+  // Règles de validation par pays
+  const PHONE_RULES: Record<string, {len: number; prefixes?: string[]; name: string}> = {
+    "+228": { len:8, prefixes:["70","71","72","79","90","91","92","93","96","97","98","99"], name:"Togo" },
+    "+221": { len:9, prefixes:["70","75","76","77","78"], name:"Sénégal" },
+    "+225": { len:10, name:"Côte d'Ivoire" },
+    "+229": { len:8, prefixes:["40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","90","91","92","93","94","95","96","97","98","99"], name:"Bénin" },
+    "+226": { len:8, prefixes:["5","6","7"], name:"Burkina Faso" },
+    "+223": { len:8, prefixes:["5","6","7","8","9"], name:"Mali" },
+    "+227": { len:8, name:"Niger" },
+    "+224": { len:9, prefixes:["6"], name:"Guinée" },
+    "+234": { len:10, prefixes:["7","8","9"], name:"Nigéria" },
+    "+233": { len:9, prefixes:["2","5"], name:"Ghana" },
+    "+237": { len:9, name:"Cameroun" },
+    "+212": { len:9, prefixes:["6","7"], name:"Maroc" },
+    "+33":  { len:9, prefixes:["6","7"], name:"France" },
+    "+32":  { len:9, name:"Belgique" },
+    "+44":  { len:10, name:"Royaume-Uni" },
+    "+1":   { len:10, name:"USA/Canada" },
+  }
+
+  const validatePhone = (phone: string, dial: string): string | null => {
+    const digits = phone.replace(/\D/g, "").replace(/^0/, "")
+    const rules = PHONE_RULES[dial]
+    if (!rules) return null
+    if (digits.length !== rules.len) return `Numéro invalide — ${rules.name}: ${rules.len} chiffres requis`
+    if (rules.prefixes && !rules.prefixes.some(p => digits.startsWith(p))) {
+      return `Numéro invalide pour ${rules.name}`
+    }
+    return null
+  }
+
   const [dialCode, setDialCode] = useState("+228")
   const [showPicker, setShowPicker] = useState(false)
   const [selectedOffre, setSelectedOffre] = useState<number>(0)
