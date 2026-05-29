@@ -34,6 +34,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
   const [merciBtnUrl, setMerciBtnUrl] = useState("")
   const [copied, setCopied] = useState(false)
   const [activeCode, setActiveCode] = useState<"produit"|"boutique">("produit")
+  const [formStyle, setFormStyle] = useState<"normal"|"stepper">("normal")
   const [products, setProducts] = useState<{id:string;nom:string;slug:string;prix:number;page_content:string}[]>([])
   const [selectedProduit, setSelectedProduit] = useState("")
 
@@ -53,6 +54,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
         if (data.widget_merci_message) setMerciMessage(data.widget_merci_message)
         if (data.widget_merci_bouton_texte) setMerciBtn(data.widget_merci_bouton_texte)
         if (data.widget_merci_bouton_url) setMerciBtnUrl(data.widget_merci_bouton_url)
+        if (data.widget_form_style) setFormStyle(data.widget_form_style as "normal"|"stepper")
       }
     }
     load()
@@ -70,6 +72,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
       widget_merci_message: merciMessage,
       widget_merci_bouton_texte: merciBtn,
       widget_merci_bouton_url: merciBtnUrl || null,
+      widget_form_style: formStyle,
     }).eq("id", tenantId)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
