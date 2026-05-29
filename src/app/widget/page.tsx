@@ -199,6 +199,27 @@ function WidgetContent() {
 
   const fmt = (n: number) => n.toLocaleString("fr-FR") + " " + (boutique?.currency || "FCFA")
 
+  // Placeholders dynamiques selon le pays
+  const COUNTRY_PLACEHOLDERS: Record<string, {phone: string; ville: string; adresse: string; nom: string}> = {
+    "+228": { phone:"90 00 00 00", ville:"Ex: Lomé, Kpalimé, Sokodé...", adresse:"Ex: Adidogomé, carrefour Shell", nom:"Ex: Kofi Mensah" },
+    "+221": { phone:"77 000 00 00", ville:"Ex: Dakar, Thiès, Ziguinchor...", adresse:"Ex: Almadies, Plateau", nom:"Ex: Moussa Diallo" },
+    "+225": { phone:"07 00 00 00 00", ville:"Ex: Abidjan, Bouaké, Yamoussoukro...", adresse:"Ex: Cocody, Plateau", nom:"Ex: Kouamé Konan" },
+    "+229": { phone:"90 00 00 00", ville:"Ex: Cotonou, Porto-Novo, Parakou...", adresse:"Ex: Fidjrossè, Akpakpa", nom:"Ex: Bossou Tchabi" },
+    "+226": { phone:"70 00 00 00", ville:"Ex: Ouagadougou, Bobo-Dioulasso...", adresse:"Ex: Pissy, Gounghin", nom:"Ex: Boureima Ouédraogo" },
+    "+223": { phone:"70 00 00 00", ville:"Ex: Bamako, Sikasso, Ségou...", adresse:"Ex: Badalabougou, ACI", nom:"Ex: Moussa Coulibaly" },
+    "+227": { phone:"90 00 00 00", ville:"Ex: Niamey, Zinder, Maradi...", adresse:"Ex: Plateau, Kouara Kano", nom:"Ex: Moussa Mahamane" },
+    "+224": { phone:"62 00 00 00", ville:"Ex: Conakry, Kankan, Labé...", adresse:"Ex: Kaloum, Matam", nom:"Ex: Mamadou Diallo" },
+    "+234": { phone:"80 000 00000", ville:"Ex: Lagos, Abuja, Kano...", adresse:"Ex: Victoria Island, Lekki", nom:"Ex: Chidi Okafor" },
+    "+233": { phone:"54 000 0000", ville:"Ex: Accra, Kumasi, Tamale...", adresse:"Ex: East Legon, Osu", nom:"Ex: Kwame Asante" },
+    "+237": { phone:"65 00 00 00", ville:"Ex: Douala, Yaoundé, Bafoussam...", adresse:"Ex: Akwa, Bonanjo", nom:"Ex: Jean-Pierre Nkomo" },
+    "+212": { phone:"06 00 00 00 00", ville:"Ex: Casablanca, Rabat, Marrakech...", adresse:"Ex: Maarif, Agdal", nom:"Ex: Mohammed Alami" },
+    "+33":  { phone:"06 00 00 00 00", ville:"Ex: Paris, Lyon, Marseille...", adresse:"Ex: 10 rue de la Paix", nom:"Ex: Jean Dupont" },
+    "+32":  { phone:"04 70 00 00 00", ville:"Ex: Bruxelles, Liège, Gand...", adresse:"Ex: Ixelles, Schaerbeek", nom:"Ex: Pierre Martin" },
+    "+44":  { phone:"07700 000000", ville:"Ex: London, Manchester, Birmingham...", adresse:"Ex: 10 Baker Street", nom:"Ex: John Smith" },
+    "+1":   { phone:"(555) 000-0000", ville:"Ex: New York, Los Angeles...", adresse:"Ex: 123 Main Street", nom:"Ex: John Doe" },
+  }
+  const ph = COUNTRY_PLACEHOLDERS[dialCode] || { phone:"00 00 00 00", ville:"Votre ville", adresse:"Votre adresse", nom:"Prénom et nom" }
+
   const inp: React.CSSProperties = {
     width:"100%", background:CARD, border:`1.5px solid ${BORDER}`,
     borderRadius:10, padding:"10px 12px", color:TX, fontSize:14,
@@ -368,7 +389,7 @@ function WidgetContent() {
             Prénom et nom <span style={{color:AC}}>*</span>
           </label>
           <input className="sw-inp" value={form.customer_name} onChange={e=>setForm(p=>({...p,customer_name:e.target.value}))}
-            placeholder="Ex: Kofi Mensah" style={inp} />
+            placeholder={ph.nom} style={inp} />
         </div>
 
         <div>
@@ -393,7 +414,7 @@ function WidgetContent() {
             )}
             <input className="sw-inp" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
               onFocus={e=>{setShowPicker(false);setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),300)}}
-              placeholder="90 00 00 00" type="tel" inputMode="numeric" pattern="[0-9]*"
+              placeholder={ph.phone} type="tel" inputMode="numeric" pattern="[0-9]*"
               style={{...inp,flex:1}} />
           </div>
 
@@ -403,13 +424,13 @@ function WidgetContent() {
             Ville <span style={{color:AC}}>*</span>
           </label>
           <input className="sw-inp" value={form.city} onChange={e=>setForm(p=>({...p,city:e.target.value}))}
-            placeholder="Ex: Lomé, Abidjan, Lagos..." style={inp} />
+            placeholder={ph.ville} style={inp} />
         </div>
 
         <div>
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>Adresse / Quartier</label>
           <input className="sw-inp" value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))}
-            placeholder="Ex: Adidogomé, carrefour Shell" style={inp} />
+            placeholder={ph.adresse} style={inp} />
         </div>
 
         <div>
