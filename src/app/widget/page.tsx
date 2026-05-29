@@ -357,6 +357,7 @@ function WidgetContent() {
               style={{...inp,flex:1}} />
           </div>
 
+        </div>
         <div>
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
             Ville <span style={{color:AC}}>*</span>
