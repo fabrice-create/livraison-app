@@ -227,7 +227,7 @@ export default function LoginPage() {
                   style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:S.text2, fontSize:16, padding:0 }}>
                   {showPassword ? "🙈" : "👁️"}
                 </button>
-              </div>rRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
+              </div>
             </div>
             {/* Mot de passe oublié */}
             <div style={{ textAlign:"right", marginTop:-12, marginBottom:16 }}>
