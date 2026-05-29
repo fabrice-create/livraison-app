@@ -335,17 +335,27 @@ function WidgetContent() {
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
             Téléphone WhatsApp <span style={{color:AC}}>*</span>
           </label>
-          <div style={{ display:"flex", gap:8 }}>
-            <select value={dialCode} onChange={e=>setDialCode(e.target.value)}
-              style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:10, padding:"12px 10px", color:TX, fontSize:13, outline:"none", flexShrink:0, fontFamily:FONT }}>
-              {["+228","+221","+225","+229","+234","+233","+237","+212","+33","+32","+44","+1"].map(d=>(
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+          <div style={{ display:"flex", gap:8, position:"relative" }}>
+            <button type="button" onClick={()=>setShowPicker(p=>!p)}
+              style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:10, padding:"10px", color:TX, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+              {DIAL_CODES.find(d=>d.code===dialCode)?.flag||"🌍"} {dialCode} ▾
+            </button>
+            {showPicker && (
+              <div style={{ position:"absolute", top:52, left:0, background:CARD, border:`1px solid ${BORDER}`, borderRadius:12, zIndex:100, maxHeight:180, overflowY:"auto", minWidth:150, boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
+                {DIAL_CODES.map(dc=>(
+                  <div key={dc.code} onClick={()=>{setDialCode(dc.code);setShowPicker(false)}}
+                    style={{ padding:"9px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:10, borderBottom:`1px solid ${BORDER}`, background:dialCode===dc.code?"rgba(245,158,11,0.1)":"transparent" }}>
+                    <span style={{fontSize:18}}>{dc.flag}</span>
+                    <span style={{color:TX,fontSize:13}}>{dc.code}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <input className="sw-inp" value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))}
-              placeholder="90 00 00 00" type="tel" style={{...inp,flex:1}} />
+              onFocus={e=>{setShowPicker(false);setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),300)}}
+              placeholder="90 00 00 00" type="tel" inputMode="numeric" pattern="[0-9]*"
+              style={{...inp,flex:1}} />
           </div>
-        </div>
 
         <div>
           <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
