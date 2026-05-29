@@ -303,10 +303,10 @@ export default function LoginPage() {
         {mode === "register" && (
           <form onSubmit={handleRegister}>
             {[
-              { label: "NOM COMPLET", value: regName, set: setRegName, placeholder: "Kofi Mensah", type: "text" },
+              { label: "NOM COMPLET", value: regName, set: setRegName, placeholder: ph.nom, type: "text" },
               { label: "NOM DE LA BOUTIQUE", value: regBusiness, set: setRegBusiness, placeholder: "THERAWOLF Shop", type: "text" },
               { label: "EMAIL", value: regEmail, set: setRegEmail, placeholder: "ton@email.com", type: "email" },
-              { label: "TÉLÉPHONE", value: regPhone, set: setRegPhone, placeholder: "+228 90 00 00 00", type: "tel" },
+              { label: "TÉLÉPHONE", value: regPhone, set: setRegPhone, placeholder: ph.phone, type: "tel" },
             ].map(({ label, value, set, placeholder, type }) => (
               <div key={label} style={{ marginBottom: 12 }}>
                 <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>{label}</label>
