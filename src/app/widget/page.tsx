@@ -37,7 +37,15 @@ function WidgetContent() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState({ customer_name:"", phone:"", city:"", address:"", note:"" })
+  const DIAL_CODES = [
+    {flag:"🇹🇬",code:"+228"},{flag:"🇸🇳",code:"+221"},{flag:"🇨🇮",code:"+225"},
+    {flag:"🇧🇯",code:"+229"},{flag:"🇧🇫",code:"+226"},{flag:"🇲🇱",code:"+223"},
+    {flag:"🇳🇪",code:"+227"},{flag:"🇬🇳",code:"+224"},{flag:"🇳🇬",code:"+234"},
+    {flag:"🇬🇭",code:"+233"},{flag:"🇨🇲",code:"+237"},{flag:"🇲🇦",code:"+212"},
+    {flag:"🇫🇷",code:"+33"},{flag:"🇧🇪",code:"+32"},{flag:"🇬🇧",code:"+44"},{flag:"🇺🇸",code:"+1"},
+  ]
   const [dialCode, setDialCode] = useState("+228")
+  const [showPicker, setShowPicker] = useState(false)
   const [selectedOffre, setSelectedOffre] = useState<number>(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
