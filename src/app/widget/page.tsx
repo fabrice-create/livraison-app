@@ -458,6 +458,7 @@ function WidgetContent() {
             style={{...inp, resize:"none"}} />
         </div>
 
+        </>)}
         {/* Récap commande */}
         <div style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:12, padding:"10px 12px" }}>
           {offreActive ? (
