@@ -150,6 +150,8 @@ function WidgetContent() {
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) { setError("Nom requis"); return }
     if (!form.phone.trim()) { setError("Numéro requis"); return }
+    const phoneError = validatePhone(form.phone.trim(), dialCode)
+    if (phoneError) { setError(phoneError); return }
     if (!form.city.trim()) { setError("Ville requise"); return }
     if (!boutique) return
     setSubmitting(true); setError("")
