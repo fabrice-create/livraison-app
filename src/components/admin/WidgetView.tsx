@@ -34,6 +34,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
   const [merciBtnUrl, setMerciBtnUrl] = useState("")
   const [copied, setCopied] = useState(false)
   const [activeCode, setActiveCode] = useState<"produit"|"boutique">("produit")
+  const [formStyle, setFormStyle] = useState<"normal"|"stepper">("normal")
   const [products, setProducts] = useState<{id:string;nom:string;slug:string;prix:number;page_content:string}[]>([])
   const [selectedProduit, setSelectedProduit] = useState("")
 
@@ -53,6 +54,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
         if (data.widget_merci_message) setMerciMessage(data.widget_merci_message)
         if (data.widget_merci_bouton_texte) setMerciBtn(data.widget_merci_bouton_texte)
         if (data.widget_merci_bouton_url) setMerciBtnUrl(data.widget_merci_bouton_url)
+        if ((data as any).widget_form_style) setFormStyle((data as any).widget_form_style as "normal"|"stepper")
       }
     }
     load()
@@ -70,6 +72,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
       widget_merci_message: merciMessage,
       widget_merci_bouton_texte: merciBtn,
       widget_merci_bouton_url: merciBtnUrl || null,
+      widget_form_style: formStyle,
     }).eq("id", tenantId)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -201,6 +204,24 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
                 <label style={{ display:"block", color:S.muted2, fontSize:12, marginBottom:4 }}>Texte du bouton</label>
                 <input value={btnText} onChange={e=>setBtnText(e.target.value)} style={inp} placeholder="Commander — Paiement à la livraison" />
               </div>
+            </div>
+          </div>
+
+          {/* Style formulaire */}
+          <div style={{ background:S.card, borderRadius:12, padding:"14px 16px", border:`1px solid ${S.border}`, marginBottom:12 }}>
+            <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>STYLE DU FORMULAIRE</p>
+            <div style={{ display:"flex", gap:10 }}>
+              {(["normal","stepper"] as const).map(val=>(
+                <div key={val} onClick={()=>setFormStyle(val)}
+                  style={{ flex:1, padding:"12px", borderRadius:10, border:`2px solid ${formStyle===val?S.gold:S.border}`, background:formStyle===val?"rgba(245,158,11,0.08)":"transparent", cursor:"pointer", textAlign:"center" as const }}>
+                  <p style={{ color:formStyle===val?S.gold:S.white, fontSize:13, fontWeight:700, margin:"0 0 4px" }}>
+                    {val==="normal" ? "📋 Formulaire complet" : "🪜 Formulaire en étapes"}
+                  </p>
+                  <p style={{ color:S.muted, fontSize:11, margin:0 }}>
+                    {val==="normal" ? "Tous les champs sur une page" : "Étape 1: offres · Étape 2: infos"}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 
