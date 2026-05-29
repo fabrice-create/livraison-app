@@ -78,13 +78,11 @@ export default function LoginPage() {
 
       if (!profileData) {
         setErrorLogin("Compte non configuré. Contacte le support.")
-        await supabase.auth.signOut()
         setLoadingLogin(false)
         return
       }
       if (!profileData.is_active) {
         setErrorLogin("Ton compte est désactivé.")
-        await supabase.auth.signOut()
         setLoadingLogin(false)
         return
       }
