@@ -32,6 +32,7 @@ export default function LoginPage() {
   // Register state
   const [regEmail, setRegEmail] = useState("")
   const [regPassword, setRegPassword] = useState("")
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState("")
   const [regName, setRegName] = useState("")
   const [regBusiness, setRegBusiness] = useState("")
   const [regPhone, setRegPhone] = useState("")
