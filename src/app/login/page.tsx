@@ -32,6 +32,7 @@ export default function LoginPage() {
   // Register state
   const [regEmail, setRegEmail] = useState("")
   const [regPassword, setRegPassword] = useState("")
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState("")
   const [regName, setRegName] = useState("")
   const [regBusiness, setRegBusiness] = useState("")
   const [regPhone, setRegPhone] = useState("")
@@ -298,6 +299,18 @@ export default function LoginPage() {
                 {errorReg}
               </div>
             )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.08em" }}>CONFIRMER LE MOT DE PASSE *</label>
+              <div style={{ position:"relative" }}>
+                <input type={showRegPassword ? "text" : "password"} value={regPasswordConfirm} onChange={e => setRegPasswordConfirm(e.target.value)}
+                  placeholder="Répéter le mot de passe" required
+                  style={{ width: "100%", padding: "11px 44px 11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
+                <button type="button" onClick={()=>setShowRegPassword(p=>!p)}
+                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:S.text2, fontSize:12, padding:0, fontWeight:500 }}>
+                  {showRegPassword ? "Masquer" : "Afficher"}
+                </button>
+              </div>
+            </div>
             {successReg && (
               <div style={{ background: S.greenBg, border: `1px solid ${S.green}30`, borderRadius: 8, padding: "10px 14px", color: S.green, fontSize: 13, marginBottom: 12 }}>
                 {successReg}
