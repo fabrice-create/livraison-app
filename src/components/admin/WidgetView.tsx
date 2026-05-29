@@ -207,6 +207,24 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
             </div>
           </div>
 
+          {/* Style formulaire */}
+          <div style={{ background:S.card, borderRadius:12, padding:"14px 16px", border:`1px solid ${S.border}`, marginBottom:12 }}>
+            <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>STYLE DU FORMULAIRE</p>
+            <div style={{ display:"flex", gap:10 }}>
+              {(["normal","stepper"] as const).map(val=>(
+                <div key={val} onClick={()=>setFormStyle(val)}
+                  style={{ flex:1, padding:"12px", borderRadius:10, border:`2px solid ${formStyle===val?S.gold:S.border}`, background:formStyle===val?"rgba(245,158,11,0.08)":"transparent", cursor:"pointer", textAlign:"center" as const }}>
+                  <p style={{ color:formStyle===val?S.gold:S.white, fontSize:13, fontWeight:700, margin:"0 0 4px" }}>
+                    {val==="normal" ? "📋 Formulaire complet" : "🪜 Formulaire en étapes"}
+                  </p>
+                  <p style={{ color:S.muted, fontSize:11, margin:0 }}>
+                    {val==="normal" ? "Tous les champs sur une page" : "Étape 1: offres · Étape 2: infos"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Style bouton */}
           <div style={{ background:S.card, borderRadius:12, padding:"14px 16px", border:`1px solid ${S.border}` }}>
             <p style={{ color:S.muted2, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 12px" }}>🔘 Style du bouton</p>
