@@ -215,7 +215,7 @@ export default function LoginPage() {
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>EMAIL</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="ton@email.com" required
-                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
@@ -227,7 +227,7 @@ export default function LoginPage() {
                   style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:S.text2, fontSize:16, padding:0 }}>
                   {showPassword ? "🙈" : "👁️"}
                 </button>
-              </div>rRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              </div>rRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
             </div>
             {/* Mot de passe oublié */}
             <div style={{ textAlign:"right", marginTop:-12, marginBottom:16 }}>
@@ -277,7 +277,7 @@ export default function LoginPage() {
                 <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>{label}</label>
                 <input type={type} value={value} onChange={e => set(e.target.value)}
                   placeholder={placeholder} required
-                  style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                  style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
               </div>
             ))}
             <div style={{ marginBottom: 12 }}>
@@ -291,7 +291,7 @@ export default function LoginPage() {
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
               <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)}
                 placeholder="Min. 8 caractères" required minLength={8}
-                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
             </div>
             {errorReg && (
               <div style={{ background: S.redBg, border: `1px solid ${S.red}30`, borderRadius: 8, padding: "10px 14px", color: S.red, fontSize: 13, marginBottom: 12 }}>
