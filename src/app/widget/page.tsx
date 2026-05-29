@@ -60,7 +60,15 @@ function WidgetContent() {
         const { data: prod } = await supabase.from("products").select("id,name,price,description,image_url").eq("id", produitId).single()
         if (prod) setProduct(prod)
       } else if (produitNom) {
-        setProduct({ id:"external", name:produitNom, price:Number(produitPrix)||0, image_url:produitImage||undefined })
+        // Chercher l'image du produit par nom si pas d'image directe
+        let imgUrl = produitImage || undefined
+        if (!imgUrl && produitNom && slug) {
+          const { data: pp } = await supabase.from("products")
+            .select("image_principale").eq("tenant_id", tenant?.id || "")
+            .ilike("nom", produitNom.trim()).single()
+          if (pp?.image_principale) imgUrl = pp.image_principale
+        }
+        setProduct({ id:"external", name:produitNom, price:Number(produitPrix)||0, image_url:imgUrl })
       }
       setLoading(false)
     }
@@ -161,7 +169,7 @@ function WidgetContent() {
 
   const inp: React.CSSProperties = {
     width:"100%", background:CARD, border:`1.5px solid ${BORDER}`,
-    borderRadius:10, padding:"12px 14px", color:TX, fontSize:14,
+    borderRadius:10, padding:"10px 12px", color:TX, fontSize:14,
     outline:"none", boxSizing:"border-box", fontFamily:FONT,
     transition:"border-color 0.2s, box-shadow 0.2s"
   }
@@ -193,7 +201,7 @@ function WidgetContent() {
       </p>
 
       {/* Numéro boutique */}
-      <div style={{ background:`${AC}15`, border:`1px solid ${AC}30`, borderRadius:12, padding:"12px 16px", display:"inline-block", marginBottom:20 }}>
+      <div style={{ background:`${AC}15`, border:`1px solid ${AC}30`, borderRadius:12, padding:"10px 14px", display:"inline-block", marginBottom:20 }}>
         <p style={{ color:TX2, fontSize:11, textTransform:"uppercase", letterSpacing:1, margin:"0 0 4px" }}>Boutique</p>
         <p style={{ color:AC, fontSize:16, fontWeight:800, margin:0 }}>{boutique?.name}</p>
       </div>
@@ -263,7 +271,7 @@ function WidgetContent() {
         <div style={{ display:"flex", gap:14, marginBottom:20, padding:14, background:CARD, borderRadius:14, border:`1.5px solid ${BORDER}` }}>
           {product.image_url && (
             <img src={product.image_url} alt={product.name}
-              style={{ width:80, height:80, borderRadius:10, objectFit:"cover", flexShrink:0 }} />
+              style={{ width:64, height:64, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
           )}
           <div style={{ flex:1 }}>
             <p style={{ color:TX, fontWeight:700, fontSize:15, margin:"0 0 4px" }}>{product.name}</p>
@@ -311,11 +319,11 @@ function WidgetContent() {
       )}
 
       {/* Champs */}
-      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
 
         {!product && (
           <div>
-            <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
+            <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
               Produit souhaité <span style={{color:AC}}>*</span>
             </label>
             <input className="sw-inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))}
@@ -324,7 +332,7 @@ function WidgetContent() {
         )}
 
         <div>
-          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
+          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
             Prénom et nom <span style={{color:AC}}>*</span>
           </label>
           <input className="sw-inp" value={form.customer_name} onChange={e=>setForm(p=>({...p,customer_name:e.target.value}))}
@@ -332,7 +340,7 @@ function WidgetContent() {
         </div>
 
         <div>
-          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
+          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
             Téléphone WhatsApp <span style={{color:AC}}>*</span>
           </label>
           <div style={{ display:"flex", gap:8, position:"relative" }}>
@@ -359,7 +367,7 @@ function WidgetContent() {
 
         </div>
         <div>
-          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>
+          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>
             Ville <span style={{color:AC}}>*</span>
           </label>
           <input className="sw-inp" value={form.city} onChange={e=>setForm(p=>({...p,city:e.target.value}))}
@@ -367,20 +375,20 @@ function WidgetContent() {
         </div>
 
         <div>
-          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>Adresse / Quartier</label>
+          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>Adresse / Quartier</label>
           <input className="sw-inp" value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))}
             placeholder="Ex: Adidogomé, carrefour Shell" style={inp} />
         </div>
 
         <div>
-          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:6 }}>Note (optionnel)</label>
+          <label style={{ display:"block", color:TX2, fontSize:12, fontWeight:600, marginBottom:4 }}>Note (optionnel)</label>
           <textarea className="sw-inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))}
-            placeholder="Instructions spéciales..." rows={2}
+            placeholder="Instructions spéciales..." rows={1}
             style={{...inp, resize:"none"}} />
         </div>
 
         {/* Récap commande */}
-        <div style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:12, padding:"12px 14px" }}>
+        <div style={{ background:CARD, border:`1.5px solid ${BORDER}`, borderRadius:12, padding:"10px 12px" }}>
           {offreActive ? (
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6, alignItems:"center" }}>
               <div>
@@ -390,7 +398,7 @@ function WidgetContent() {
               <span style={{ color:TX, fontSize:13, fontWeight:700 }}>{prixFinal.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}</span>
             </div>
           ) : product ? (
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
               <span style={{ color:TX2, fontSize:13 }}>{product.name}</span>
               <span style={{ color:TX, fontSize:13, fontWeight:700 }}>{prixFinal.toLocaleString("fr-FR")} {boutique?.currency||"FCFA"}</span>
             </div>
