@@ -26,6 +26,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [loadingLogin, setLoadingLogin] = useState(false)
   const [errorLogin, setErrorLogin] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showRegPassword, setShowRegPassword] = useState(false)
 
   // Register state
   const [regEmail, setRegEmail] = useState("")
@@ -37,13 +39,16 @@ export default function LoginPage() {
   const [loadingReg, setLoadingReg] = useState(false)
   const [errorReg, setErrorReg] = useState("")
   const [successReg, setSuccessReg] = useState("")
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotMsg, setForgotMsg] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorLogin("")
     setLoadingLogin(true)
     try {
-      await supabase.auth.signOut()
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password
@@ -73,13 +78,11 @@ export default function LoginPage() {
 
       if (!profileData) {
         setErrorLogin("Compte non configuré. Contacte le support.")
-        await supabase.auth.signOut()
         setLoadingLogin(false)
         return
       }
       if (!profileData.is_active) {
         setErrorLogin("Ton compte est désactivé.")
-        await supabase.auth.signOut()
         setLoadingLogin(false)
         return
       }
@@ -93,6 +96,18 @@ export default function LoginPage() {
       setErrorLogin("Une erreur est survenue. Réessayez.")
       setLoadingLogin(false)
     }
+  }
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotMsg("")
+    setForgotLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/login`
+    })
+    setForgotLoading(false)
+    if (error) setForgotMsg("Erreur : " + error.message)
+    else setForgotMsg("✅ Email envoyé ! Vérifie ta boîte mail.")
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -200,14 +215,43 @@ export default function LoginPage() {
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>EMAIL</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="ton@email.com" required
-                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" required
-                style={{ width: "100%", padding: "12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              <div style={{ position:"relative" }}>
+                <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" required
+                  style={{ width: "100%", padding: "12px 44px 12px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
+                <button type="button" onClick={()=>setShowPassword(p=>!p)}
+                  style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:S.text2, fontSize:16, padding:0 }}>
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
+            {/* Mot de passe oublié */}
+            <div style={{ textAlign:"right", marginTop:-12, marginBottom:16 }}>
+              <button type="button" onClick={()=>setShowForgot(p=>!p)}
+                style={{ background:"none", border:"none", color:S.gold, fontSize:12, cursor:"pointer", textDecoration:"underline" }}>
+                Mot de passe oublié ?
+              </button>
+            </div>
+
+            {/* Formulaire reset */}
+            {showForgot && (
+              <form onSubmit={handleForgot} style={{ background:S.card, border:`1px solid ${S.border}`, borderRadius:10, padding:"14px", marginBottom:16 }}>
+                <p style={{ color:S.text2, fontSize:12, margin:"0 0 10px" }}>Entre ton email pour recevoir un lien de réinitialisation :</p>
+                <input type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)}
+                  placeholder="ton@email.com" required
+                  style={{ width:"100%", padding:"10px 12px", background:S.bg, border:`1px solid ${S.border}`, borderRadius:8, color:S.text, fontSize:13, outline:"none", boxSizing:"border-box" as const, marginBottom:10 }} />
+                {forgotMsg && <p style={{ color:forgotMsg.startsWith("✅")?S.green:S.red, fontSize:12, margin:"0 0 10px" }}>{forgotMsg}</p>}
+                <button type="submit" disabled={forgotLoading}
+                  style={{ width:"100%", padding:"10px", background:S.gold, border:"none", borderRadius:8, color:"#000", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                  {forgotLoading ? "Envoi..." : "Envoyer le lien"}
+                </button>
+              </form>
+            )}
+
             {errorLogin && (
               <div style={{ background: S.redBg, border: `1px solid ${S.red}30`, borderRadius: 8, padding: "10px 14px", color: S.red, fontSize: 13, marginBottom: 14 }}>
                 {errorLogin}
@@ -233,7 +277,7 @@ export default function LoginPage() {
                 <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>{label}</label>
                 <input type={type} value={value} onChange={e => set(e.target.value)}
                   placeholder={placeholder} required
-                  style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                  style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
               </div>
             ))}
             <div style={{ marginBottom: 12 }}>
@@ -247,7 +291,7 @@ export default function LoginPage() {
               <label style={{ color: S.text2, fontSize: 11, fontWeight: 600, display: "block", marginBottom: 5, letterSpacing: "0.05em" }}>MOT DE PASSE</label>
               <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)}
                 placeholder="Min. 8 caractères" required minLength={8}
-                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                style={{ width: "100%", padding: "11px 14px", background: S.card, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
             </div>
             {errorReg && (
               <div style={{ background: S.redBg, border: `1px solid ${S.red}30`, borderRadius: 8, padding: "10px 14px", color: S.red, fontSize: 13, marginBottom: 12 }}>
