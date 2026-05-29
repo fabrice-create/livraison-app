@@ -54,7 +54,7 @@ export default function WidgetView({ tenantId, tenantSlug }: Props) {
         if (data.widget_merci_message) setMerciMessage(data.widget_merci_message)
         if (data.widget_merci_bouton_texte) setMerciBtn(data.widget_merci_bouton_texte)
         if (data.widget_merci_bouton_url) setMerciBtnUrl(data.widget_merci_bouton_url)
-        if (data.widget_form_style) setFormStyle(data.widget_form_style as "normal"|"stepper")
+        if ((data as any).widget_form_style) setFormStyle((data as any).widget_form_style as "normal"|"stepper")
       }
     }
     load()
