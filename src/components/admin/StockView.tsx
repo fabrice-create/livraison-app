@@ -104,12 +104,16 @@ export default function StockView({
   const [tLoading,   setTLoading]   = useState(false)
 
   // ── Chargement ──
-  // Charger warehouse_stock directement depuis Supabase
+  // Charger warehouse_stock au montage
   useEffect(() => {
-    if (!tenantId) return
-    supabase.from("warehouse_stock")
-      .select("*").eq("tenant_id", tenantId).order("product_name")
-      .then(({ data }) => { if (data) setLocalWH(data as WarehouseStock[]) })
+    const load = async () => {
+      if (!tenantId) return
+      const { data, error } = await supabase.from("warehouse_stock")
+        .select("*").eq("tenant_id", tenantId).order("product_name")
+      console.log("warehouse_stock loaded:", data, "error:", error, "tenantId:", tenantId)
+      if (data) setLocalWH(data as WarehouseStock[])
+    }
+    load()
   }, [tenantId])
 
   const loadDemandes = async () => {
