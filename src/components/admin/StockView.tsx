@@ -104,8 +104,8 @@ export default function StockView({
   const [tLoading,   setTLoading]   = useState(false)
 
   // ── Chargement ──
-  // Sync local warehouse state
-  useState(() => { setLocalWH(warehouseStocks) })
+  // Sync local warehouse state quand prop change
+  useEffect(() => { setLocalWH(warehouseStocks) }, [warehouseStocks])
 
   const loadDemandes = async () => {
     if (!tenantId) return
