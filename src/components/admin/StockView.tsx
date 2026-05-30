@@ -104,8 +104,13 @@ export default function StockView({
   const [tLoading,   setTLoading]   = useState(false)
 
   // ── Chargement ──
-  // Sync local warehouse state quand prop change
-  useEffect(() => { setLocalWH(warehouseStocks) }, [warehouseStocks])
+  // Charger warehouse_stock directement depuis Supabase
+  useEffect(() => {
+    if (!tenantId) return
+    supabase.from("warehouse_stock")
+      .select("*").eq("tenant_id", tenantId).order("product_name")
+      .then(({ data }) => { if (data) setLocalWH(data as WarehouseStock[]) })
+  }, [tenantId])
 
   const loadDemandes = async () => {
     if (!tenantId) return
