@@ -1,4 +1,5 @@
 "use client"
+import OnboardingChecklist from "./OnboardingChecklist"
 
 // ============================================================
 // SHIPIVO — Admin : DashboardView — Phase 10 Analytics Pro — v1779641651
@@ -62,7 +63,7 @@ function getLast7Days(orders: Order[]) {
   return days
 }
 
-export default function DashboardView({ orders, driverStocks }: Props) {
+export default function DashboardView({ orders, driverStocks, tenantId }: Props & { tenantId?: string }) {
   const [period, setPeriod] = useState<Period>("7d")
   const [chartMetric, setChartMetric] = useState<"total" | "livrees" | "ca">("total")
 
@@ -183,6 +184,9 @@ export default function DashboardView({ orders, driverStocks }: Props) {
 
   return (
     <div style={{ fontFamily: "Inter, sans-serif", color: S.text }}>
+
+      {/* Onboarding checklist */}
+      {tenantId && <OnboardingChecklist tenantId={tenantId} />}
 
       {/* Sélecteur période */}
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
