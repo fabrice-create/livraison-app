@@ -110,7 +110,6 @@ export default function StockView({
       if (!tenantId) return
       const { data, error } = await supabase.from("warehouse_stock")
         .select("*").eq("tenant_id", tenantId).order("product_name")
-      console.log("warehouse_stock loaded:", data, "error:", error, "tenantId:", tenantId)
       if (data) setLocalWH(data as WarehouseStock[])
     }
     load()
