@@ -795,7 +795,7 @@ export function AdminView() {
 
       {/* Contenu */}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "16px 14px 80px" }}>
-        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} />}
+        {activeView === "dashboard"   && <DashboardView orders={orders} driverStocks={driverStocks} tenantId={tenantId || ""} />}
         {activeView === "commandes"   && <CommandesView orders={orders} drivers={drivers} history={history} selectedDrivers={selectedDrivers} selectedActions={selectedActions} onDriverChange={(id, v) => setSelectedDrivers(p => ({ ...p, [id]: v }))} onActionChange={(id, v) => setSelectedActions(p => ({ ...p, [id]: v }))} onActionSubmit={handleActionSubmit} onEditClick={o => { setEditingOrder(o); setEditForm({ customer_name: o.customer_name, phone: o.phone, city: o.city, address: o.address, product: o.product, quantity: String(o.quantity || 1), amount: String(o.amount || ""), delivery_type: o.delivery_type }); }} />}
         {activeView === "creer"       && <CreerView form={form} loading={loading} onChange={e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))} onSubmit={handleSubmit} />}
         {activeView === "stock"       && <StockView drivers={drivers} driverStocks={driverStocks} warehouseStocks={warehouseStocks} stockForm={stockForm} stockLoading={stockLoading} tenantId={tenantId} onStockChange={handleStockChange} onStockSubmit={handleAddStock} onRefresh={() => { void supabase.from("driver_stock").select("*").eq("tenant_id", tenantId).then(({data}) => { if(data) setDriverStocks(data as DriverStock[]) }); void supabase.from("warehouse_stock").select("*").eq("tenant_id", tenantId).then(({data}) => { if(data) setWarehouseStocks(data as WarehouseStock[]) }) }} />}
